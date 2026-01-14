@@ -101,25 +101,46 @@ jobs:
           name: app-windows
           path: dist/windows
 
-      - name: Prepare release folder
+      - name: List downloaded files (debug)
+        run: |
+          echo "Linux artifacts:"
+          ls -la dist/linux/
+          echo ""
+          echo "Windows artifacts:"
+          ls -la dist/windows/
+
+      - name: Prepare release files
         run: |
           mkdir -p release
           
-          # Copy and rename Linux binary
-          cp dist/linux/app-linux release/HyLauncher-linux-x64
+          # === LINUX ===
+          # ZIP for manual download (includes update-helper)
+          cd dist/linux
+          zip ../../release/HyLauncher-v${{ inputs.version }}-linux-x64.zip HyLauncher update-helper
+          cd ../..
+          
+          # Standalone file for auto-update
+          cp dist/linux/HyLauncher release/HyLauncher-linux-x64
           chmod +x release/HyLauncher-linux-x64
           
-          # Copy and rename Windows binary
-          cp dist/windows/app-windows.exe release/HyLauncher-windows-x64.exe
+          # === WINDOWS ===
+          # ZIP for manual download (includes update-helper)
+          cd dist/windows
+          zip ../../release/HyLauncher-v${{ inputs.version }}-windows-x64.zip HyLauncher.exe update-helper.exe
+          cd ../..
           
-          # Copy update helpers
-          cp dist/linux/update-helper release/update-helper-linux
-          chmod +x release/update-helper-linux
-          cp dist/windows/update-helper.exe release/update-helper-windows.exe
+          # Standalone file for auto-update
+          cp dist/windows/HyLauncher.exe release/HyLauncher-windows-x64.exe
+          
+          # Show what we have
+          echo "=== Release files ==="
+          ls -lh release/
 
       - name: Generate version.json
         run: |
           VERSION="${{ inputs.version }}"
+          
+          # Calculate SHA256 for standalone binaries (used by auto-updater)
           LINUX_SHA=$(sha256sum release/HyLauncher-linux-x64 | cut -d ' ' -f1)
           WINDOWS_SHA=$(sha256sum release/HyLauncher-windows-x64.exe | cut -d ' ' -f1)
 
@@ -140,23 +161,36 @@ jobs:
             }
           }
           EOF
+          
+          echo "=== version.json ==="
+          cat release/version.json
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.version }}
           name: v${{ inputs.version }}
-          body: ${{ inputs.notes }}
+          body: |
+            ${{ inputs.notes }}
+            
+            ## Downloads
+            
+            ### For New Users (Manual Installation)
+            - **Windows**: Download `HyLauncher-windows-x64.zip` (includes launcher + updater)
+            - **Linux**: Download `HyLauncher-linux-x64.zip` (includes launcher + updater)
+            
+            ### For Auto-Update (Existing Users)
+            The standalone binaries below are used automatically by the built-in updater.
           files: |
+            release/HyLauncher-v${{ inputs.version }}-linux-x64.zip
+            release/HyLauncher-v${{ inputs.version }}-windows-x64.zip
             release/HyLauncher-linux-x64
             release/HyLauncher-windows-x64.exe
-            release/update-helper-linux
-            release/update-helper-windows.exe
             release/version.json
 
   cleanup:
     name: Cleanup old artifacts
-    needs: build
+    needs: release
     if: success()
     runs-on: ubuntu-latest
 
