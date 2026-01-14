@@ -17,6 +17,7 @@ on:
       - 'LICENSE'
       - '.gitignore'
       - 'docs/**'
+  workflow_dispatch:
 
 jobs:
   build:
