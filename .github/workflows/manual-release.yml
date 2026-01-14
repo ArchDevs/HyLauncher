@@ -149,3 +149,32 @@ jobs:
             release/update-helper-linux
             release/update-helper-windows.exe
             release/version.json
+
+  cleanup:
+    name: Cleanup old artifacts
+    needs: build
+    if: success()
+    runs-on: ubuntu-latest
+
+    permissions:
+      actions: write
+
+    steps:
+      - name: Delete artifacts from previous runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Fetching artifacts…"
+
+          ARTIFACTS=$(gh api repos/${{ github.repository }}/actions/artifacts \
+            --jq '.artifacts[] | select(.workflow_run.id != '${{ github.run_id }}') | .id')
+
+          if [ -z "$ARTIFACTS" ]; then
+            echo "No old artifacts found."
+            exit 0
+          fi
+
+          for id in $ARTIFACTS; do
+            echo "Deleting artifact ID: $id"
+            gh api -X DELETE repos/${{ github.repository }}/actions/artifacts/$id
+          done
