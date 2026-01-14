@@ -14,50 +14,77 @@ jobs:
   release:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+      actions: read
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download latest Linux artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: app-linux
-          path: dist/linux
+      - name: Install gh
+        uses: cli/cli@v2
 
-      - name: Download latest Windows artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: app-windows
-          path: dist/windows
+      - name: Find last successful build run
+        id: run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID=$(gh api repos/${{ github.repository }}/actions/workflows/build.yml/runs \
+            --jq '.workflow_runs[] | select(.conclusion=="success") | .id' | head -n 1)
+
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+
+      - name: Download app-linux artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/runs/${{ steps.run.outputs.run_id }}/artifacts \
+            --jq '.artifacts[] | select(.name=="app-linux") | .archive_download_url' \
+            | xargs -n1 gh api > app-linux.zip
+
+          unzip app-linux.zip -d dist/linux
+
+      - name: Download app-windows artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/runs/${{ steps.run.outputs.run_id }}/artifacts \
+            --jq '.artifacts[] | select(.name=="app-windows") | .archive_download_url' \
+            | xargs -n1 gh api > app-windows.zip
+
+          unzip app-windows.zip -d dist/windows
 
       - name: Prepare release folder
         run: |
           mkdir release
-          # Linux
           cp dist/linux/* release/
-          chmod +x release/app-linux
-          chmod +x release/update-helper
-          # Windows
           cp dist/windows/* release/
+
+          chmod +x release/app-linux || true
+          chmod +x release/update-helper || true
+
+          mv release/app-linux release/HyLauncher-linux-x64
+          mv release/app-windows.exe release/HyLauncher-windows-x64.exe
 
       - name: Generate version.json
         run: |
           VERSION="${{ inputs.version }}"
-          LINUX_SHA=$(sha256sum release/app-linux | cut -d ' ' -f1)
-          WINDOWS_SHA=$(sha256sum release/app-windows.exe | cut -d ' ' -f1)
+          LINUX_SHA=$(sha256sum release/HyLauncher-linux-x64 | cut -d ' ' -f1)
+          WINDOWS_SHA=$(sha256sum release/HyLauncher-windows-x64.exe | cut -d ' ' -f1)
 
           cat <<EOF > release/version.json
           {
             "version": "$VERSION",
             "linux": {
               "amd64": {
-                "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/app-linux",
+                "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-linux-x64",
                 "sha256": "$LINUX_SHA"
               }
             },
             "windows": {
               "amd64": {
-                "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/app-windows.exe",
+                "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-windows-x64.exe",
                 "sha256": "$WINDOWS_SHA"
               }
             }
@@ -73,5 +100,5 @@ jobs:
           files: |
             release/HyLauncher-linux-x64
             release/HyLauncher-windows-x64.exe
-            release/update-helper
+            release/update-helper*
             release/version.json
