@@ -6,7 +6,7 @@ pkgdesc="HyLauncher - unofficial Hytale Launcher for free to play gamers"
 arch=('x86_64')
 url="https://github.com/ArchDevs/HyLauncher"
 license=('custom')
-depends=('webkit2gtk')
+depends=('webkit2gtk' 'gtk3')
 source=(https://github.com/ArchDevs/$pkgname/releases/download/$_pkgver/HyLauncher_v0_1_1 'HyLauncher.desktop' 'HyLauncher.png')
 sha256sums=(
 'dc43d8146ad7786c18d421bfb6a9bdd13d16c778ec1350da5507b3466f15d387' 
