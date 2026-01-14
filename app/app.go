@@ -1,10 +1,12 @@
-package main
+package app
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
+	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/game"
 	"HyLauncher/internal/pwr"
@@ -15,6 +17,7 @@ import (
 
 type App struct {
 	ctx context.Context
+	cfg *config.Config
 }
 
 type ProgressUpdate struct {
@@ -28,10 +31,11 @@ type ProgressUpdate struct {
 }
 
 func NewApp() *App {
-	return &App{}
+	cfg, _ := config.Load()
+	return &App{cfg: cfg}
 }
 
-func (a *App) startup(ctx context.Context) {
+func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	env.CreateFolders()
 
@@ -64,7 +68,7 @@ func (a *App) GetVersions() (currentVersion string, latestVersion string) {
 	current := pwr.GetLocalVersion()
 	latest := pwr.FindLatestVersion("release")
 
-	return current, fmt.Sprintf("%d", latest)
+	return current, strconv.Itoa(latest)
 }
 
 func (a *App) DownloadAndLaunch(playerName string) error {

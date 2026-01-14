@@ -1,6 +1,7 @@
 package main
 
 import (
+	"HyLauncher/app"
 	"embed"
 
 	"github.com/wailsapp/wails/v2"
@@ -14,7 +15,7 @@ var assets embed.FS
 
 func main() {
 	// Create an instance of the app structure
-	app := NewApp()
+	application := app.NewApp()
 
 	err := wails.Run(&options.App{
 		Title:         "HyLauncher",
@@ -26,10 +27,10 @@ func main() {
 			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: 0, G: 0, B: 0, A: 255},
-		OnStartup:        app.startup,
+		OnStartup:        application.Startup,
 		CSSDragProperty:  "--wails-draggable",
 		Bind: []interface{}{
-			app,
+			application,
 		},
 		Windows: &windows.Options{
 			IsZoomControlEnabled: false,

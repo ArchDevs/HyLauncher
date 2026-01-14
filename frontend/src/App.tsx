@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, FolderOpen, RefreshCw, Gamepad2, ChevronDown, Edit3 } from 'lucide-react';
+import { Settings, FolderOpen, RefreshCw, Gamepad2, ChevronDown, Edit3, Trash } from 'lucide-react';
 import { motion } from 'framer-motion';
 import BackgroundImage from './components/BackgroundImage';
 import Titlebar from './components/Titlebar';
-import { DownloadAndLaunch } from '../wailsjs/go/main/App';
+import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
+
+import {
+  DownloadAndLaunch,
+  OpenFolder,
+  GetVersions,
+  GetNick,
+  SetNick,
+  DeleteGame,
+} from '../wailsjs/go/app/App';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 
 interface ProgressUpdate {
@@ -17,8 +26,10 @@ interface ProgressUpdate {
 }
 
 const App: React.FC = () => {
-  // Global username state
   const [username, setUsername] = useState("HyLauncher");
+  const [isLoadingNick, setIsLoadingNick] = useState(true);
+  const [current, setCurrent] = useState("");
+  const [latest, setLatest] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState("");
@@ -27,9 +38,41 @@ const App: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [statusMessage, setStatusMessage] = useState("Ready to play");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  // Загрузка ника при старте
   useEffect(() => {
-    // Listen for progress updates from backend
+    const loadNickname = async () => {
+      try {
+        const nick = await GetNick();
+        if (nick && nick.trim()) {
+          setUsername(nick.trim());
+        }
+      } catch (err) {
+        console.error("Failed to load nickname:", err);
+      } finally {
+        setIsLoadingNick(false);
+      }
+    };
+    loadNickname();
+  }, []);
+
+  // Получение версий игры
+  useEffect(() => {
+    const fetchVersions = async () => {
+      try {
+        const [currentVersion, latestVersion] = await GetVersions();
+        setCurrent(currentVersion);
+        setLatest(latestVersion);
+      } catch (err) {
+        console.error("Failed to get versions:", err);
+      }
+    };
+    fetchVersions();
+  }, []);
+
+  // Слушатель прогресса скачивания/установки
+  useEffect(() => {
     EventsOn('progress-update', (data: ProgressUpdate) => {
       setDownloadProgress(data.progress);
       setStatusMessage(data.message);
@@ -38,7 +81,6 @@ const App: React.FC = () => {
       setDownloaded(data.downloaded);
       setTotal(data.total);
 
-      // Reset downloading state when complete
       if (data.progress >= 100 && data.stage === 'launch') {
         setTimeout(() => {
           setIsDownloading(false);
@@ -49,27 +91,50 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const handlePlay = async () => {
-    if (!username || !username.trim()) {
-      return;
-    }
+  const saveNickname = async (newNick: string) => {
+    const trimmed = newNick.trim();
+    if (!trimmed || trimmed.length > 16) return;
 
-    if (username.length > 16) {
-      return;
+    try {
+      await SetNick(trimmed);
+      setUsername(trimmed);
+    } catch (err) {
+      console.error("Failed to save nickname:", err);
     }
+  };
+
+  const handlePlay = async () => {
+    const trimmed = username.trim();
+    if (!trimmed || trimmed.length > 16) return;
 
     setIsDownloading(true);
     setDownloadProgress(0);
     setStatusMessage("Starting...");
-
     try {
-      await DownloadAndLaunch(username.trim());
-      console.log("Download started and game launched for:", username);
+      await DownloadAndLaunch(trimmed);
     } catch (err) {
       console.error(err);
-      setStatusMessage("Error: " + err);
+      setStatusMessage("Error: " + (err as Error).message);
       setIsDownloading(false);
     }
+  };
+
+  const handleDeleteGame = async () => {
+    setShowDeleteModal(false);
+    setStatusMessage("Удаление игры...");
+
+    try {
+      await DeleteGame();
+      setStatusMessage("Игра успешно удалена");
+      setTimeout(() => setStatusMessage("Ready to play"), 3000);
+    } catch (err) {
+      console.error("Ошибка удаления игры:", err);
+      setStatusMessage("Ошибка удаления: " + (err as Error).message);
+    }
+  };
+
+  const openGameFolder = async () => {
+    await OpenFolder();
   };
 
   const formatBytes = (bytes: number) => {
@@ -86,11 +151,10 @@ const App: React.FC = () => {
       <Titlebar />
 
       <main className="relative z-10 h-full p-10 flex flex-col justify-between pt-[60px]">
-        
-        {/* Top Section */}
+        {/* Верхняя часть */}
         <div className="flex justify-between items-start">
           <div className="flex flex-col gap-4">
-            {/* Profile Block */}
+            {/* Блок профиля */}
             <div className="w-[294px] h-[100px] bg-[#090909]/[0.55] backdrop-blur-xl rounded-[14px] border border-[#FFA845]/[0.10] p-4 flex flex-col justify-center gap-2">
               <div className="flex items-center justify-between">
                 {isEditing ? (
@@ -98,14 +162,25 @@ const App: React.FC = () => {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    onBlur={() => setIsEditing(false)}
-                    onKeyDown={(e) => e.key === 'Enter' && setIsEditing(false)}
+                    onBlur={() => {
+                      setIsEditing(false);
+                      saveNickname(username);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setIsEditing(false);
+                        saveNickname(username);
+                      }
+                    }}
                     className="w-full bg-[#090909]/[0.55] border border-[#FFA845]/[0.10] rounded px-2 py-1 text-sm text-gray-200 focus:outline-none"
                     autoFocus
+                    maxLength={16}
                   />
                 ) : (
                   <>
-                    <span className="text-sm font-medium text-gray-200">{username}</span>
+                    <span className="text-sm font-medium text-gray-200">
+                      {isLoadingNick ? "Loading..." : username}
+                    </span>
                     <Edit3
                       size={14}
                       className="text-gray-400 cursor-pointer hover:text-white transition-colors"
@@ -116,13 +191,13 @@ const App: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between bg-[#090909]/[0.55] backdrop-blur-md rounded-lg px-3 py-2 border border-white/5 cursor-pointer hover:bg-white/5 transition-colors">
-                <span className="text-xs text-gray-300">Latest Version 1.0</span>
+                <span className="text-xs text-gray-300">{current}</span>
                 <ChevronDown size={14} className="text-gray-400" />
               </div>
             </div>
           </div>
 
-          {/* News Feed */}
+          {/* Блок новостей */}
           <div className="flex flex-col gap-4">
             {[1, 2, 3].map((i) => (
               <motion.div
@@ -136,38 +211,46 @@ const App: React.FC = () => {
                   </h3>
                 </div>
                 <div className="w-[160px] h-full bg-[#090909]/[0.55] backdrop-blur-md rounded-lg border border-[#FFA845]/[0.10] flex items-center justify-center overflow-hidden">
-                  <div className="text-[10px] text-[#FFA845]/[0.30] font-black uppercase tracking-widest">Hytale</div>
+                  <div className="text-[10px] text-[#FFA845]/[0.30] font-black uppercase tracking-widest">
+                    Hytale
+                  </div>
                 </div>
               </motion.div>
             ))}
           </div>
         </div>
 
-        {/* Bottom Section */}
+        {/* Нижняя часть */}
         <div className="w-full">
           <div className="flex items-end gap-8">
-            
-            {/* Left Column */}
+            {/* Левая колонка - кнопки + PLAY */}
             <div className="w-[294px] flex flex-col gap-3">
               <div className="flex gap-[10px]">
-                <NavButton icon={<Gamepad2 size={20}/>} />
-                <NavButton icon={<FolderOpen size={20}/>} />
-                <NavButton icon={<RefreshCw size={20}/>} />
-                <NavButton icon={<Settings size={20}/>} />
+                <NavButton onClick={openGameFolder} icon={<FolderOpen size={20} />} />
+                <NavButton icon={<RefreshCw size={20} />} />
+                <NavButton icon={<Settings size={20} />} />
+                <NavButton
+                  onClick={() => setShowDeleteModal(true)}
+                  icon={<Trash size={20} />}
+                />
               </div>
 
               <motion.button
-                whileHover={{ scale: 1.01, backgroundColor: 'rgba(9, 9, 9, 0.7)', borderColor: 'rgba(255, 168, 69, 0.4)' }}
+                whileHover={{
+                  scale: 1.01,
+                  backgroundColor: 'rgba(9, 9, 9, 0.7)',
+                  borderColor: 'rgba(255, 168, 69, 0.4)',
+                }}
                 whileTap={{ scale: 0.99 }}
                 className="w-[294px] h-[94px] bg-[#090909]/[0.55] backdrop-blur-xl text-white font-black text-4xl tracking-tighter rounded-[14px] border border-[#FFA845]/[0.10] shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handlePlay}
-                disabled={isDownloading}
+                disabled={isDownloading || isLoadingNick}
               >
                 {isDownloading ? 'DOWNLOADING...' : 'PLAY'}
               </motion.button>
             </div>
 
-            {/* Right Column */}
+            {/* Правая колонка - прогресс */}
             <div className="flex-1 flex flex-col gap-4 pb-1">
               <div className="flex justify-between items-end">
                 <div className="flex items-baseline gap-4">
@@ -178,14 +261,14 @@ const App: React.FC = () => {
                     {statusMessage}
                   </span>
                 </div>
+
                 <div className="text-[11px] text-gray-400 font-mono">
-                  {downloadSpeed && total > 0 ? (
-                    `${downloadSpeed} • ${formatBytes(downloaded)} / ${formatBytes(total)}`
-                  ) : (
-                    currentFile || 'Ready'
-                  )}
+                  {downloadSpeed && total > 0
+                    ? `${downloadSpeed} • ${formatBytes(downloaded)} / ${formatBytes(total)}`
+                    : currentFile || 'Ready'}
                 </div>
               </div>
+
               <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
                 <motion.div
                   animate={{ width: `${downloadProgress}%` }}
@@ -194,16 +277,31 @@ const App: React.FC = () => {
                 />
               </div>
             </div>
-
           </div>
         </div>
       </main>
+
+      {/* Модальное окно подтверждения удаления */}
+      {showDeleteModal && (
+        <DeleteConfirmationModal
+          onConfirm={handleDeleteGame}
+          onCancel={() => setShowDeleteModal(false)}
+        />
+      )}
     </div>
   );
 };
 
-const NavButton = ({ icon }: { icon: React.ReactNode }) => (
-  <button className="w-[66px] h-[42px] flex items-center justify-center bg-[#090909]/[0.55] backdrop-blur-xl border border-[#FFA845]/[0.10] rounded-[14px] hover:bg-[#FFA845]/[0.05] hover:border-[#FFA845]/[0.30] transition-all cursor-pointer text-gray-400 hover:text-white">
+interface NavButtonProps {
+  icon: React.ReactNode;
+  onClick?: () => void;
+}
+
+const NavButton: React.FC<NavButtonProps> = ({ icon, onClick }) => (
+  <button
+    onClick={onClick}
+    className="w-[66px] h-[42px] flex items-center justify-center bg-[#090909]/[0.55] backdrop-blur-xl border border-[#FFA845]/[0.10] rounded-[14px] hover:bg-[#FFA845]/[0.05] hover:border-[#FFA845]/[0.30] transition-all cursor-pointer text-gray-400 hover:text-white"
+  >
     {icon}
   </button>
 );

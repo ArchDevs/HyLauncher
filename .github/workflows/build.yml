@@ -71,13 +71,15 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Build update-helper
+        shell: pwsh
         run: |
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            go build -o build/bin/update-helper.exe ./cmd/update-helper
-          else
-            go build -o build/bin/update-helper ./cmd/update-helper
-            chmod +x build/bin/update-helper
-          fi
+          if ("${{ matrix.os }}" -eq "windows-latest") {
+              go build -o build/bin/update-helper.exe ./cmd/update-helper
+          } else {
+              go build -o build/bin/update-helper ./cmd/update-helper
+              chmod +x build/bin/update-helper
+          }
+
 
       - name: Build Wails app
         run: wails build -platform ${{ matrix.platform }}
