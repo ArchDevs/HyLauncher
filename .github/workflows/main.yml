@@ -9,7 +9,7 @@ on:
       - '.gitignore'
       - '.github/**'
       - 'docs/**'
-  
+
   pull_request:
     branches: [ main ]
     paths-ignore:
@@ -17,11 +17,13 @@ on:
       - 'LICENSE'
       - '.gitignore'
       - 'docs/**'
+
   workflow_dispatch:
 
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-22.04
@@ -34,80 +36,93 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-          cache: true # Shrinks usage by caching modules
+          cache: true
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install Linux Dependencies
-        if: matrix.os == 'ubuntu-latest'
+      - name: Install Linux dependencies
+        if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.0-dev
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.0-dev
+
+      - name: Verify GTK & WebKit
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          pkg-config --modversion gtk+-3.0
+          pkg-config --modversion webkit2gtk-4.0
 
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Build Wails App
+      - name: Build Wails app
         run: wails build -platform ${{ matrix.platform }}
 
-      # Linux-specific: Convert binary to AppImage
-      - name: Package AppImage (Linux Only)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Build AppImage
+        if: startsWith(matrix.os, 'ubuntu')
         run: |
-          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           chmod +x linuxdeploy-x86_64.AppImage
-          
+
           ./linuxdeploy-x86_64.AppImage --appimage-extract-and-run \
             --executable build/bin/* \
             --icon build/appicon.png \
             --create-desktop-file \
             --appdir AppDir \
             --output appimage
-          
-          # Ensure it's in the bin folder for upload
+
           mv *.AppImage build/bin/
 
-      - name: Upload Artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: |
             build/bin/*.exe
             build/bin/*.AppImage
-          retention-days: 1 # Minimizes storage costs automatically
 
   cleanup:
+    name: Cleanup old artifacts
     needs: build
-    runs-on: ubuntu-latest
     if: success()
+    runs-on: ubuntu-latest
+
     permissions:
       actions: write
+
     steps:
-      - name: Delete Artifacts of Previous Builds
-        run: |
-          # Fetch IDs of all artifacts except those created in this current run
-          OLD_ARTIFACTS=$(gh api repos/${{ github.repository }}/actions/artifacts \
-            --jq ".artifacts[] | select(.workflow_run.id != ${{ github.run_id }}) | .id")
-          
-          if [ -z "$OLD_ARTIFACTS" ]; then
-            echo "No previous artifacts to delete."
-          else
-            for id in $OLD_ARTIFACTS; do
-              echo "Deleting artifact ID: $id"
-              gh api -X DELETE /repos/${{ github.repository }}/actions/artifacts/$id
-            done
-          fi
+      - name: Delete artifacts from previous runs
         env:
           GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Fetching artifacts…"
+
+          ARTIFACTS=$(gh api repos/${{ github.repository }}/actions/artifacts \
+            --jq '.artifacts[] | select(.workflow_run.id != '${{ github.run_id }}') | .id')
+
+          if [ -z "$ARTIFACTS" ]; then
+            echo "No old artifacts found."
+            exit 0
+          fi
+
+          for id in $ARTIFACTS; do
+            echo "Deleting artifact ID: $id"
+            gh api -X DELETE repos/${{ github.repository }}/actions/artifacts/$id
+          done
