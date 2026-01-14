@@ -18,7 +18,7 @@ interface ProgressUpdate {
 
 const App: React.FC = () => {
   // Global username state
-  const [username, setUsername] = useState("HyLauncher-Player001");
+  const [username, setUsername] = useState("Player01");
   const [isEditing, setIsEditing] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState("");
@@ -93,11 +93,13 @@ const App: React.FC = () => {
                   <input
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => setUsername(e.target.value.slice(0, 16))}
                     onBlur={() => setIsEditing(false)}
                     onKeyDown={(e) => e.key === 'Enter' && setIsEditing(false)}
+                    maxLength={16}
                     className="w-full bg-[#090909]/[0.55] border border-[#FFA845]/[0.10] rounded px-2 py-1 text-sm text-gray-200 focus:outline-none"
                     autoFocus
+                    placeholder="Enter username (MAX: 16 symbols)"
                   />
                 ) : (
                   <>
