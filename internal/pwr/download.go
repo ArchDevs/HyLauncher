@@ -1,6 +1,7 @@
 package pwr
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,7 +13,9 @@ import (
 	"HyLauncher/internal/env"
 )
 
-func DownloadPWR(version, fileName string) (string, error) {
+type ProgressCallback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64)
+
+func DownloadPWR(ctx context.Context, version, fileName string, progressCallback ProgressCallback) (string, error) {
 	cacheDir := filepath.Join(env.GetDefaultAppDir(), "cache")
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
 		return "", err
@@ -29,11 +32,14 @@ func DownloadPWR(version, fileName string) (string, error) {
 	// Skip if already downloaded
 	if _, err := os.Stat(dest); err == nil {
 		fmt.Println("PWR file already exists:", dest)
+		if progressCallback != nil {
+			progressCallback("game", 40, "PWR file cached", fileName, "", 0, 0)
+		}
 		return dest, nil
 	}
 
 	fmt.Println("Downloading PWR file:", url)
-	if err := downloadFile(dest, url); err != nil {
+	if err := downloadFile(dest, url, progressCallback); err != nil {
 		return "", err
 	}
 
@@ -41,8 +47,8 @@ func DownloadPWR(version, fileName string) (string, error) {
 	return dest, nil
 }
 
-// downloadFile with simple progress
-func downloadFile(dest, url string) error {
+// downloadFile with progress reporting
+func downloadFile(dest, url string, progressCallback ProgressCallback) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
@@ -59,6 +65,7 @@ func downloadFile(dest, url string) error {
 	var downloaded int64
 	buf := make([]byte, 32*1024)
 	start := time.Now()
+	lastUpdate := time.Now()
 
 	for {
 		n, err := resp.Body.Read(buf)
@@ -67,9 +74,27 @@ func downloadFile(dest, url string) error {
 				return wErr
 			}
 			downloaded += int64(n)
-			if total > 0 {
-				percent := float64(downloaded) / float64(total) * 100
-				fmt.Printf("\r%.1f%% downloaded (%.2f MB/s)", percent, float64(downloaded)/1024/1024/time.Since(start).Seconds())
+
+			// Update progress every 200ms
+			if time.Since(lastUpdate) > 200*time.Millisecond {
+				if total > 0 {
+					percent := float64(downloaded) / float64(total) * 100
+					elapsed := time.Since(start).Seconds()
+					speed := ""
+					if elapsed > 0 {
+						mbps := float64(downloaded) / 1024 / 1024 / elapsed
+						speed = fmt.Sprintf("%.2f MB/s", mbps)
+					}
+
+					if progressCallback != nil {
+						// Map 0-100% download to 0-40% overall game progress
+						overallProgress := percent * 0.4
+						progressCallback("game", overallProgress, "Downloading game files...", filepath.Base(dest), speed, downloaded, total)
+					}
+
+					fmt.Printf("\r%.1f%% downloaded (%.2f MB/s)", percent, float64(downloaded)/1024/1024/elapsed)
+				}
+				lastUpdate = time.Now()
 			}
 		}
 		if err != nil {

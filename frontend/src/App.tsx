@@ -1,23 +1,79 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, FolderOpen, RefreshCw, Gamepad2, ChevronDown, Edit3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import BackgroundImage from './components/BackgroundImage';
 import Titlebar from './components/Titlebar';
 import { DownloadAndLaunch } from '../wailsjs/go/main/App';
+import { EventsOn } from '../wailsjs/runtime/runtime';
+
+interface ProgressUpdate {
+  stage: string;
+  progress: number;
+  message: string;
+  currentFile: string;
+  speed: string;
+  downloaded: number;
+  total: number;
+}
 
 const App: React.FC = () => {
   // Global username state
   const [username, setUsername] = useState("HyLauncher-Player001");
   const [isEditing, setIsEditing] = useState(false);
-  const [downloadProgress] = useState(42);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [currentFile, setCurrentFile] = useState("");
+  const [downloadSpeed, setDownloadSpeed] = useState("");
+  const [downloaded, setDownloaded] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [statusMessage, setStatusMessage] = useState("Ready to play");
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  useEffect(() => {
+    // Listen for progress updates from backend
+    EventsOn('progress-update', (data: ProgressUpdate) => {
+      setDownloadProgress(data.progress);
+      setStatusMessage(data.message);
+      setCurrentFile(data.currentFile);
+      setDownloadSpeed(data.speed);
+      setDownloaded(data.downloaded);
+      setTotal(data.total);
+
+      // Reset downloading state when complete
+      if (data.progress >= 100 && data.stage === 'launch') {
+        setTimeout(() => {
+          setIsDownloading(false);
+          setDownloadProgress(0);
+          setStatusMessage("Ready to play");
+        }, 2000);
+      }
+    });
+  }, []);
 
   const handlePlay = async () => {
+    if (!username || !username.trim()) {
+      return;
+    }
+
+    setIsDownloading(true);
+    setDownloadProgress(0);
+    setStatusMessage("Starting...");
+
     try {
-      await DownloadAndLaunch(username); // Pass current username to Go backend
+      await DownloadAndLaunch(username.trim());
       console.log("Download started and game launched for:", username);
     } catch (err) {
       console.error(err);
+      setStatusMessage("Error: " + err);
+      setIsDownloading(false);
     }
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
@@ -99,10 +155,11 @@ const App: React.FC = () => {
               <motion.button
                 whileHover={{ scale: 1.01, backgroundColor: 'rgba(9, 9, 9, 0.7)', borderColor: 'rgba(255, 168, 69, 0.4)' }}
                 whileTap={{ scale: 0.99 }}
-                className="w-[294px] h-[94px] bg-[#090909]/[0.55] backdrop-blur-xl text-white font-black text-4xl tracking-tighter rounded-[14px] border border-[#FFA845]/[0.10] shadow-lg transition-all cursor-pointer"
+                className="w-[294px] h-[94px] bg-[#090909]/[0.55] backdrop-blur-xl text-white font-black text-4xl tracking-tighter rounded-[14px] border border-[#FFA845]/[0.10] shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handlePlay}
+                disabled={isDownloading}
               >
-                PLAY
+                {isDownloading ? 'DOWNLOADING...' : 'PLAY'}
               </motion.button>
             </div>
 
@@ -110,19 +167,25 @@ const App: React.FC = () => {
             <div className="flex-1 flex flex-col gap-4 pb-1">
               <div className="flex justify-between items-end">
                 <div className="flex items-baseline gap-4">
-                  <span className="text-5xl font-bold italic tracking-tighter">{downloadProgress}%</span>
+                  <span className="text-5xl font-bold italic tracking-tighter">
+                    {Math.round(downloadProgress)}%
+                  </span>
                   <span className="text-[11px] text-gray-400 uppercase font-bold tracking-widest opacity-70">
-                    Downloading: lwgl-opengl-natives.jar
+                    {statusMessage}
                   </span>
                 </div>
                 <div className="text-[11px] text-gray-400 font-mono">
-                  42.5 MB/s • 6742.52 MB / 10024.5 MB
+                  {downloadSpeed && total > 0 ? (
+                    `${downloadSpeed} • ${formatBytes(downloaded)} / ${formatBytes(total)}`
+                  ) : (
+                    currentFile || 'Ready'
+                  )}
                 </div>
               </div>
               <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
                 <motion.div
-                  initial={{ width: 0 }}
                   animate={{ width: `${downloadProgress}%` }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
                   className="h-full bg-white progress-glow"
                 />
               </div>
