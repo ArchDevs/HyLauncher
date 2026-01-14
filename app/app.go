@@ -62,7 +62,7 @@ func (a *App) progressCallback(stage string, progress float64, message string, c
 	})
 }
 
-const AppVersion string = "v0.3.1"
+const AppVersion string = "0.3.2"
 
 func (a *App) GetVersions() (currentVersion string, latestVersion string) {
 	current := pwr.GetLocalVersion()
