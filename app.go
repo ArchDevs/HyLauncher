@@ -48,7 +48,6 @@ func (a *App) emitProgress(update ProgressUpdate) {
 	runtime.EventsEmit(a.ctx, "progress-update", update)
 }
 
-// progressCallback is a wrapper that converts the callback signature to ProgressUpdate
 func (a *App) progressCallback(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64) {
 	a.emitProgress(ProgressUpdate{
 		Stage:       stage,

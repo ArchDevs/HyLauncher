@@ -65,7 +65,6 @@ func ApplyPWR(ctx context.Context, pwrFile string, progressCallback func(stage s
 		gameLatest,
 	)
 
-	// Hide console window on Windows - handled in platform-specific file
 	hideConsoleWindow(cmd)
 
 	cmd.Stdout = os.Stdout
