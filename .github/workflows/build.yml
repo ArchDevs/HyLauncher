@@ -1,22 +1,14 @@
-name: Wails Build Windows & Linux
+name: Manual Release
 
 on:
-  push:
-    branches: [ main ]
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - '.gitignore'
-      - '.github/**'
-      - 'docs/**'
-  pull_request:
-    branches: [ main ]
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - '.gitignore'
-      - 'docs/**'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.2.0)'
+        required: true
+      notes:
+        description: 'Release notes'
+        required: false
 
 jobs:
   build:
@@ -80,7 +72,6 @@ jobs:
               chmod +x build/bin/update-helper
           }
 
-
       - name: Build Wails app
         run: wails build -platform ${{ matrix.platform }}
 
@@ -90,6 +81,78 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: build/bin/*
 
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: app-linux
+          path: dist/linux
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: app-windows
+          path: dist/windows
+
+      - name: Prepare release folder
+        run: |
+          mkdir -p release
+          
+          # Copy and rename Linux binary
+          cp dist/linux/app-linux release/HyLauncher-linux-x64
+          chmod +x release/HyLauncher-linux-x64
+          
+          # Copy and rename Windows binary
+          cp dist/windows/app-windows.exe release/HyLauncher-windows-x64.exe
+          
+          # Copy update helpers
+          cp dist/linux/update-helper release/update-helper-linux
+          chmod +x release/update-helper-linux
+          cp dist/windows/update-helper.exe release/update-helper-windows.exe
+
+      - name: Generate version.json
+        run: |
+          VERSION="${{ inputs.version }}"
+          LINUX_SHA=$(sha256sum release/HyLauncher-linux-x64 | cut -d ' ' -f1)
+          WINDOWS_SHA=$(sha256sum release/HyLauncher-windows-x64.exe | cut -d ' ' -f1)
+
+          cat <<EOF > release/version.json
+          {
+            "version": "$VERSION",
+            "linux": {
+              "amd64": {
+                "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-linux-x64",
+                "sha256": "$LINUX_SHA"
+              }
+            },
+            "windows": {
+              "amd64": {
+                "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-windows-x64.exe",
+                "sha256": "$WINDOWS_SHA"
+              }
+            }
+          }
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: v${{ inputs.version }}
+          body: ${{ inputs.notes }}
+          files: |
+            release/HyLauncher-linux-x64
+            release/HyLauncher-windows-x64.exe
+            release/update-helper-linux
+            release/update-helper-windows.exe
+            release/version.json
 
   cleanup:
     name: Cleanup old artifacts
