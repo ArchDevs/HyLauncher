@@ -1,6 +1,7 @@
 package java
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -30,21 +31,35 @@ type progressReader struct {
 	total     int64
 	read      int64
 	lastPrint time.Time
+	callback  func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64)
+	fileName  string
+	startTime time.Time
 }
 
 func (p *progressReader) Read(b []byte) (int, error) {
 	n, err := p.reader.Read(b)
 	p.read += int64(n)
 
-	if time.Since(p.lastPrint) > time.Second {
+	if time.Since(p.lastPrint) > 200*time.Millisecond {
 		percent := float64(p.read) / float64(p.total) * 100
+		elapsed := time.Since(p.startTime).Seconds()
+		speed := ""
+		if elapsed > 0 {
+			mbps := float64(p.read) / 1024 / 1024 / elapsed
+			speed = fmt.Sprintf("%.2f MB/s", mbps)
+		}
+
+		if p.callback != nil {
+			p.callback("jre", percent, "Downloading JRE...", p.fileName, speed, p.read, p.total)
+		}
+
 		fmt.Printf("\rDownloading... %.1f%%", percent)
 		p.lastPrint = time.Now()
 	}
 	return n, err
 }
 
-func DownloadJRE() error {
+func DownloadJRE(ctx context.Context, progressCallback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64)) error {
 	osName := env.GetOS()
 	arch := env.GetArch()
 
@@ -55,6 +70,9 @@ func DownloadJRE() error {
 
 	if isJREInstalled(jreLatest) {
 		fmt.Println("JRE already installed, skipping")
+		if progressCallback != nil {
+			progressCallback("jre", 100, "JRE already installed", "", "", 0, 0)
+		}
 		return nil
 	}
 
@@ -84,6 +102,9 @@ func DownloadJRE() error {
 
 	if _, err := os.Stat(cacheFile); os.IsNotExist(err) {
 		fmt.Println("Downloading JRE...")
+		if progressCallback != nil {
+			progressCallback("jre", 0, "Downloading JRE...", fileName, "", 0, 0)
+		}
 
 		resp2, err := http.Get(platform.URL)
 		if err != nil {
@@ -98,8 +119,11 @@ func DownloadJRE() error {
 		defer out.Close()
 
 		pr := &progressReader{
-			reader: resp2.Body,
-			total:  resp2.ContentLength,
+			reader:    resp2.Body,
+			total:     resp2.ContentLength,
+			callback:  progressCallback,
+			fileName:  fileName,
+			startTime: time.Now(),
 		}
 
 		if _, err := io.Copy(out, pr); err != nil {
@@ -110,12 +134,20 @@ func DownloadJRE() error {
 	}
 
 	fmt.Println("Verifying JRE...")
+	if progressCallback != nil {
+		progressCallback("jre", 90, "Verifying JRE...", fileName, "", 0, 0)
+	}
+
 	if err := verifySHA256(cacheFile, platform.SHA256); err != nil {
 		_ = os.Remove(cacheFile)
 		return err
 	}
 
 	fmt.Println("Extracting JRE...")
+	if progressCallback != nil {
+		progressCallback("jre", 95, "Extracting JRE...", fileName, "", 0, 0)
+	}
+
 	if err := extractJRE(cacheFile, jreLatest); err != nil {
 		return err
 	}
@@ -132,6 +164,10 @@ func DownloadJRE() error {
 	}
 
 	fmt.Println("JRE installed successfully")
+	if progressCallback != nil {
+		progressCallback("jre", 100, "JRE installed", "", "", 0, 0)
+	}
+
 	return nil
 }
 
