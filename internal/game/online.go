@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	onlineFixURL      = "https://uploads.online-fix.me:2053/uploads/Hytale/Fix%20Repair/Hytale_Fix_Repair_V3.rar"
+	onlineFixURL      = "https://pixeldrain.com/api/file/Vk3dDKxk?download"
 	onlineFixPassword = "online-fix.me"
 )
 
