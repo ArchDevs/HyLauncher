@@ -69,7 +69,7 @@ func (a *App) emitError(err error) {
 	}
 }
 
-const AppVersion string = "0.4"
+const AppVersion string = "0.5"
 
 func (a *App) GetVersions() (currentVersion string, latestVersion string) {
 	current := pwr.GetLocalVersion()
