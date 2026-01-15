@@ -98,6 +98,14 @@ jobs:
         with:
           path: artifacts
 
+      - name: Ensure zip is installed
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            choco install zip -y
+          else
+            sudo apt update && sudo apt install -y zip
+          fi
+
       - name: Prepare release directory
         run: |
           mkdir release
@@ -143,6 +151,14 @@ jobs:
             }
           }
           EOF
+
+      - name: Package online-fix.zip
+        run: |
+          echo "Packaging online-fix.zip..."
+          cd assets
+          zip -r ../release/online-fix.zip Client Server
+          cd ..
+          ls -lh release/online-fix.zip
 
       - uses: softprops/action-gh-release@v2
         with:
