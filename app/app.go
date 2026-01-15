@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -11,7 +10,6 @@ import (
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/game"
 	"HyLauncher/internal/pwr"
-	"HyLauncher/updater"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -44,16 +42,10 @@ func (a *App) Startup(ctx context.Context) {
 		return
 	}
 
-	fmt.Println("Cleaning up temporary files...")
-	if err := env.CleanupIncompleteDownloads(); err != nil {
-		// Non-critical, just log
-		fmt.Println("Warning: cleanup failed:", err)
-	}
+	_ = env.CleanupIncompleteDownloads()
 
-	if err := a.Update(); err != nil {
-		// Non-critical, just log
-		fmt.Println("Warning: launcher update check failed:", err)
-	}
+	// 🔹 Silent update check
+	go a.checkUpdateSilently()
 }
 
 func (a *App) progressCallback(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64) {
@@ -113,34 +105,6 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 		wrappedErr := GameError("Failed to launch game", err)
 		a.emitError(wrappedErr)
 		return wrappedErr
-	}
-
-	return nil
-}
-
-func (a *App) Update() error {
-	asset, _, err := updater.CheckUpdate(AppVersion)
-	if err != nil {
-		return WrapError(ErrorTypeNetwork, "Failed to check for updates", err)
-	}
-
-	if asset == nil {
-		return nil // No update available
-	}
-
-	tmp, err := updater.Download(asset.URL, func(d, t int64) {
-		runtime.EventsEmit(a.ctx, "update:progress", d, t)
-	})
-	if err != nil {
-		return NetworkError("downloading launcher update", err)
-	}
-
-	if err := updater.Verify(tmp, asset.Sha256); err != nil {
-		return WrapError(ErrorTypeValidation, "Update file verification failed", err)
-	}
-
-	if err := updater.Apply(tmp); err != nil {
-		return FileSystemError("applying launcher update", err)
 	}
 
 	return nil

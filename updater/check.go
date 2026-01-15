@@ -44,3 +44,4 @@ func CheckUpdate(current string) (*Asset, string, error) {
 	}
 	return &info.Linux.Amd64, info.Version, nil
 }
+

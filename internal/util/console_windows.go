@@ -1,13 +1,13 @@
 //go:build windows
 
-package pwr
+package util
 
 import (
 	"os/exec"
 	"syscall"
 )
 
-func hideConsoleWindow(cmd *exec.Cmd) {
+func HideConsoleWindow(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		HideWindow:    true,
 		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
