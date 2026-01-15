@@ -4,192 +4,153 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. 1.2.0)'
+        description: "Release version (e.g. 1.2.0)"
         required: true
       notes:
-        description: 'Release notes'
+        description: "Release notes"
         required: false
 
 jobs:
   build:
+    name: Build binaries
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-22.04
-            platform: linux/amd64
-            artifact_name: app-linux
+            goos: linux
+            ext: ""
           - os: windows-latest
-            platform: windows/amd64
-            artifact_name: app-windows
+            goos: windows
+            ext: ".exe"
 
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
-          cache: true
+          go-version: "1.23"
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install Linux dependencies
-        if: startsWith(matrix.os, 'ubuntu')
+      - name: Linux deps
+        if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            pkg-config \
-            libglib2.0-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.0-dev
+          sudo apt update
+          sudo apt install -y \
+            build-essential pkg-config \
+            libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.0-dev
 
-      - name: Verify GTK & WebKit
-        if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          pkg-config --modversion gtk+-3.0
-          pkg-config --modversion webkit2gtk-4.0
-
-      - name: Install Wails CLI
+      - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Build update-helper
-        shell: pwsh
+        shell: bash
         run: |
-          if ("${{ matrix.os }}" -eq "windows-latest") {
-              go build -o build/bin/update-helper.exe ./cmd/update-helper
-          } else {
-              go build -o build/bin/update-helper ./cmd/update-helper
-              chmod +x build/bin/update-helper
-          }
+          mkdir -p build/release
 
-      - name: Build Wails app
-        run: wails build -platform ${{ matrix.platform }}
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            GOOS=windows GOARCH=amd64 \
+              go build -o build/release/update-helper${{ matrix.ext }} ./cmd/update-helper
+          else
+            GOOS=linux GOARCH=amd64 \
+              go build \
+              -o build/release/update-helper ./cmd/update-helper
+            chmod +x build/release/update-helper
+          fi
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - name: Build HyLauncher
+        run: |
+          wails build -platform ${{ matrix.goos }}/amd64
+
+      - name: Collect binaries
+        shell: bash
+        run: |
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            cp build/bin/HyLauncher.exe build/release/HyLauncher-windows-x64.exe
+          else
+            cp build/bin/HyLauncher build/release/HyLauncher-linux-x64
+            chmod +x build/release/HyLauncher-linux-x64
+          fi
+
+      - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: build/bin/*
+          name: release-${{ matrix.goos }}
+          path: build/release/*
 
   release:
+    name: Create GitHub release
     needs: build
     runs-on: ubuntu-latest
-    
     permissions:
       contents: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Download Linux artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: app-linux
-          path: dist/linux
+          path: artifacts
 
-      - name: Download Windows artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: app-windows
-          path: dist/windows
-
-      - name: List downloaded files (debug)
+      - name: Prepare release directory
         run: |
-          echo "Linux artifacts:"
-          ls -la dist/linux/
-          echo ""
-          echo "Windows artifacts:"
-          ls -la dist/windows/
-
-      - name: Prepare release files
-        run: |
-          mkdir -p release
-          
-          # === LINUX ===
-          # ZIP for manual download (includes update-helper)
-          cd dist/linux
-          zip ../../release/HyLauncher-v${{ inputs.version }}-linux-x64.zip HyLauncher update-helper
-          cd ../..
-          
-          # Standalone file for auto-update
-          cp dist/linux/HyLauncher release/HyLauncher-linux-x64
-          chmod +x release/HyLauncher-linux-x64
-          
-          # === WINDOWS ===
-          # ZIP for manual download (includes update-helper)
-          cd dist/windows
-          zip ../../release/HyLauncher-v${{ inputs.version }}-windows-x64.zip HyLauncher.exe update-helper.exe
-          cd ../..
-          
-          # Standalone file for auto-update
-          cp dist/windows/HyLauncher.exe release/HyLauncher-windows-x64.exe
-          
-          # Show what we have
-          echo "=== Release files ==="
+          mkdir release
+          cp artifacts/**/** release/
           ls -lh release/
 
       - name: Generate version.json
         run: |
           VERSION="${{ inputs.version }}"
-          
-          # Calculate SHA256 for standalone binaries (used by auto-updater)
-          LINUX_SHA=$(sha256sum release/HyLauncher-linux-x64 | cut -d ' ' -f1)
-          WINDOWS_SHA=$(sha256sum release/HyLauncher-windows-x64.exe | cut -d ' ' -f1)
+
+          LINUX_LAUNCHER_SHA=$(sha256sum release/HyLauncher-linux-x64 | cut -d' ' -f1)
+          LINUX_HELPER_SHA=$(sha256sum release/update-helper-linux | cut -d' ' -f1)
+
+          WINDOWS_LAUNCHER_SHA=$(sha256sum release/HyLauncher-windows-x64.exe | cut -d' ' -f1)
+          WINDOWS_HELPER_SHA=$(sha256sum release/update-helper-windows.exe | cut -d' ' -f1)
 
           cat <<EOF > release/version.json
           {
             "version": "$VERSION",
             "linux": {
               "amd64": {
-                "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-linux-x64",
-                "sha256": "$LINUX_SHA"
+                "launcher": {
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-linux-x64",
+                  "sha256": "$LINUX_LAUNCHER_SHA"
+                },
+                "helper": {
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-linux",
+                  "sha256": "$LINUX_HELPER_SHA"
+                }
               }
             },
             "windows": {
               "amd64": {
-                "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-windows-x64.exe",
-                "sha256": "$WINDOWS_SHA"
+                "launcher": {
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-windows-x64.exe",
+                  "sha256": "$WINDOWS_LAUNCHER_SHA"
+                },
+                "helper": {
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-windows.exe",
+                  "sha256": "$WINDOWS_HELPER_SHA"
+                }
               }
             }
           }
           EOF
-          
-          echo "=== version.json ==="
-          cat release/version.json
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.version }}
           name: v${{ inputs.version }}
-          body: |
-            ${{ inputs.notes }}
-            
-            ## Downloads
-            
-            ### For New Users (Manual Installation)
-            - **Windows**: Download `HyLauncher-windows-x64.zip` (includes launcher + updater)
-            - **Linux**: Download `HyLauncher-linux-x64.zip` (includes launcher + updater)
-            
-            ### For Auto-Update (Existing Users)
-            The standalone binaries below are used automatically by the built-in updater.
+          body: ${{ inputs.notes }}
           files: |
-            release/HyLauncher-v${{ inputs.version }}-linux-x64.zip
-            release/HyLauncher-v${{ inputs.version }}-windows-x64.zip
-            release/HyLauncher-linux-x64
-            release/HyLauncher-windows-x64.exe
-            release/version.json
+            release/*
 
   cleanup:
     name: Cleanup old artifacts

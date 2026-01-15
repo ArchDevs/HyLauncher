@@ -1,9 +1,9 @@
 //go:build !windows
 
-package pwr
+package util
 
 import "os/exec"
 
-func hideConsoleWindow(cmd *exec.Cmd) {
+func HideConsoleWindow(cmd *exec.Cmd) {
 	// No-op on Unix-like systems
 }

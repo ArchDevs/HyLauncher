@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/util"
@@ -29,16 +30,17 @@ func DownloadJRE(ctx context.Context, progressCallback func(stage string, progre
 	basePath := env.GetDefaultAppDir()
 
 	cacheDir := filepath.Join(basePath, "cache")
-	jreLatest := filepath.Join(basePath, "release", "package", "jre", "latest")
+	jreDir := filepath.Join(basePath, "release", "package", "jre")
+	latestDir := filepath.Join(jreDir, "latest")
 
-	if isJREInstalled(jreLatest) {
+	if isJREInstalled(latestDir) {
 		if progressCallback != nil {
 			progressCallback("jre", 100, "JRE already installed", "", "", 0, 0)
 		}
 		return nil
 	}
 
-	// Fetch JRE's
+	// Fetch JRE JSON
 	resp, err := http.Get("https://launcher.hytale.com/version/release/jre.json")
 	if err != nil {
 		return err
@@ -64,24 +66,24 @@ func DownloadJRE(ctx context.Context, progressCallback func(stage string, progre
 	cacheFile := filepath.Join(cacheDir, fileName)
 	tempCacheFile := cacheFile + ".tmp"
 
-	// Download JRE
-	if _, err := os.Stat(cacheFile); os.IsNotExist(err) {
-		_ = os.Remove(tempCacheFile) // Clean up old temp files
+	_ = os.MkdirAll(cacheDir, 0755)
+	_ = os.MkdirAll(jreDir, 0755)
 
-		err := util.DownloadWithProgress(tempCacheFile, platform.URL, "jre", 0.9, progressCallback)
-		if err != nil {
+	// Download JRE archive if not cached
+	if _, err := os.Stat(cacheFile); os.IsNotExist(err) {
+		_ = os.Remove(tempCacheFile)
+		if err := util.DownloadWithProgress(tempCacheFile, platform.URL, "jre", 0.9, progressCallback); err != nil {
 			_ = os.Remove(tempCacheFile)
 			return err
 		}
 
-		// Move temp file to final destination
 		if err := os.Rename(tempCacheFile, cacheFile); err != nil {
 			_ = os.Remove(tempCacheFile)
 			return err
 		}
 	}
 
-	// Verification
+	// Verify SHA256
 	if progressCallback != nil {
 		progressCallback("jre", 92, "Verifying JRE integrity...", fileName, "", 0, 0)
 	}
@@ -90,28 +92,66 @@ func DownloadJRE(ctx context.Context, progressCallback func(stage string, progre
 		return err
 	}
 
-	// Extraction
+	// Extract into temporary folder
+	tempDir := filepath.Join(jreDir, "tmp-"+jreData.Version)
+	_ = os.RemoveAll(tempDir)
+
 	if progressCallback != nil {
 		progressCallback("jre", 95, "Extracting JRE...", fileName, "", 0, 0)
 	}
-	if err := extractJRE(cacheFile, jreLatest); err != nil {
+	if err := extractJRE(cacheFile, tempDir); err != nil {
 		return err
 	}
 
-	// Cleanup
+	// Flatten directory if needed
+	if err := flattenJREDir(tempDir); err != nil {
+		return err
+	}
+
+	// Atomic rename: tmp -> latest
+	if progressCallback != nil {
+		progressCallback("jre", 98, "Finalizing JRE installation...", fileName, "", 0, 0)
+	}
+
+	// Remove old latest safely
+	_ = os.RemoveAll(latestDir)
+
+	// On Windows, retry a few times because antivirus may lock files
+	for i := 0; i < 5; i++ {
+		err = os.Rename(tempDir, latestDir)
+		if err == nil {
+			break
+		}
+		time.Sleep(2 * time.Second)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to finalize JRE installation: %w", err)
+	}
+
+	// Ensure java binary is executable (Linux/macOS)
 	if runtime.GOOS != "windows" {
-		javaExec := filepath.Join(jreLatest, "bin", "java")
+		javaExec := filepath.Join(latestDir, "bin", "java")
 		_ = os.Chmod(javaExec, 0755)
 	}
 
-	flattenJREDir(jreLatest)
+	// Cleanup cache
 	_ = os.Remove(cacheFile)
 
 	if progressCallback != nil {
-		progressCallback("jre", 100, "JRE installed successfully", "", "", 0, 0)
+		progressCallback("jre", 100, "JRE installed successfully", fileName, "", 0, 0)
 	}
 
 	return nil
+}
+
+// Checks if JRE is installed
+func isJREInstalled(jreDir string) bool {
+	javaBin := filepath.Join(jreDir, "bin", "java")
+	if runtime.GOOS == "windows" {
+		javaBin += ".exe"
+	}
+	_, err := os.Stat(javaBin)
+	return err == nil
 }
 
 func GetJavaExec() string {
@@ -128,13 +168,4 @@ func GetJavaExec() string {
 	}
 
 	return javaBin
-}
-
-func isJREInstalled(jreDir string) bool {
-	java := filepath.Join(jreDir, "bin", "java")
-	if runtime.GOOS == "windows" {
-		java += ".exe"
-	}
-	_, err := os.Stat(java)
-	return err == nil
 }
