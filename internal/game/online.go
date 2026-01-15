@@ -1,6 +1,7 @@
 package game
 
 import (
+	"HyLauncher/internal/env"
 	"HyLauncher/internal/util"
 	"context"
 	"fmt"
@@ -132,6 +133,32 @@ func ApplyOnlineFixWindows(ctx context.Context, gameDir string, progressCallback
 	// Очистка
 	_ = os.RemoveAll(tempDir)
 	_ = os.Remove(rarPath)
+
+	return nil
+}
+
+func EnsureServerAndClientFix(ctx context.Context, progressCallback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64)) error {
+	if runtime.GOOS != "windows" {
+		return nil // Онлайн-фикс нужен только для Windows
+	}
+
+	baseDir := env.GetDefaultAppDir()
+	gameLatestDir := filepath.Join(baseDir, "release", "package", "game", "latest")
+
+	serverBat := filepath.Join(gameLatestDir, "Server", "start-server.bat")
+	if _, err := os.Stat(serverBat); os.IsNotExist(err) {
+		if progressCallback != nil {
+			progressCallback("online-fix", 0, "Server missing, downloading online fix...", "", "", 0, 0)
+		}
+
+		if err := ApplyOnlineFixWindows(ctx, gameLatestDir, progressCallback); err != nil {
+			return fmt.Errorf("failed to apply online fix: %w", err)
+		}
+
+		if progressCallback != nil {
+			progressCallback("online-fix", 100, "Online fix applied", "", "", 0, 0)
+		}
+	}
 
 	return nil
 }
