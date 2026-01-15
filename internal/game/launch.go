@@ -11,28 +11,10 @@ import (
 	"HyLauncher/internal/java"
 )
 
-const playerUUID string = "1da855d2-6219-4d02-ad93-c4b160b073c3"
-
-func isWayland() bool {
-	waylandDisplay := os.Getenv("WAYLAND_DISPLAY")
-	sessionType := os.Getenv("XDG_SESSION_TYPE")
-	
-	return waylandDisplay != "" || sessionType == "wayland"
-}
-
-func setSDLVideoDriver(cmd *exec.Cmd) {
-	if runtime.GOOS == "linux" && isWayland() {
-		env := os.Environ()
-		env = append(env, "SDL_VIDEODRIVER=wayland")
-		cmd.Env = env
-	}
-}
-
 func Launch(playerName string, version string) error {
 	baseDir := env.GetDefaultAppDir()
 
 	gameDir := filepath.Join(baseDir, "release", "package", "game", version)
-
 	userDataDir := filepath.Join(baseDir, "UserData")
 
 	gameClient := "HytaleClient"
@@ -44,6 +26,8 @@ func Launch(playerName string, version string) error {
 	javaBin := java.GetJavaExec()
 
 	_ = os.MkdirAll(userDataDir, 0755)
+
+	playerUUID := OfflineUUID(playerName).String()
 
 	cmd := exec.Command(clientPath,
 		"--app-dir", gameDir,
@@ -59,15 +43,12 @@ func Launch(playerName string, version string) error {
 
 	setSDLVideoDriver(cmd)
 
-	fmt.Printf("Launching %s from %s with UserData at %s...\n", playerName, version, userDataDir)
-	
-	if runtime.GOOS == "linux" {
-		if isWayland() {
-			fmt.Println("Detected Wayland environment. Setting SDL_VIDEODRIVER=wayland")
-		} else {
-			fmt.Println("Using non-Wayland environment on Linux")
-		}
-	}
-	
+	fmt.Printf(
+		"Launching %s (%s) with UUID %s\n",
+		playerName,
+		version,
+		playerUUID,
+	)
+
 	return cmd.Start()
 }
