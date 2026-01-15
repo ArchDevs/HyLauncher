@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"sync"
 
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/java"
@@ -14,14 +15,38 @@ import (
 	"HyLauncher/internal/pwr/butler"
 )
 
+var (
+	installMutex sync.Mutex
+	isInstalling bool
+)
+
 func EnsureInstalled(ctx context.Context, progress func(stage string, progress float64, msg string, file string, speed string, down, total int64)) error {
+	// Prevent multiple simultaneous installations
+	installMutex.Lock()
+	if isInstalling {
+		installMutex.Unlock()
+		return fmt.Errorf("installation already in progress")
+	}
+	isInstalling = true
+	installMutex.Unlock()
+
+	defer func() {
+		installMutex.Lock()
+		isInstalling = false
+		installMutex.Unlock()
+	}()
+
 	// Test server connection first
 	if progress != nil {
-		progress("connection", 5, "Testing server connection...", "", "", 0, 0)
+		progress("connection", 0, "Testing server connection...", "", "", 0, 0)
 	}
 
 	if err := pwr.TestConnection(); err != nil {
 		return fmt.Errorf("cannot connect to game server: %w\n\nPlease check:\n• Your internet connection\n• Firewall/antivirus settings\n• VPN if using one", err)
+	}
+
+	if progress != nil {
+		progress("connection", 100, "Server connection OK", "", "", 0, 0)
 	}
 
 	// Download JRE
@@ -36,13 +61,13 @@ func EnsureInstalled(ctx context.Context, progress func(stage string, progress f
 
 	// Find latest version with details
 	if progress != nil {
-		progress("version", 10, "Checking for game updates...", "", "", 0, 0)
+		progress("version", 0, "Checking for game updates...", "", "", 0, 0)
 	}
 
+	// Run version check (will use cache if available)
 	result := pwr.FindLatestVersionWithDetails("release")
 
 	if result.Error != nil {
-		// Provide detailed error with platform info
 		return fmt.Errorf(
 			"cannot find game versions on server\n\n"+
 				"Platform: %s %s\n"+
@@ -77,6 +102,10 @@ func EnsureInstalled(ctx context.Context, progress func(stage string, progress f
 		)
 	}
 
+	if progress != nil {
+		progress("version", 100, fmt.Sprintf("Found version %d", result.LatestVersion), "", "", 0, 0)
+	}
+
 	fmt.Printf("Found latest version: %d\n", result.LatestVersion)
 	fmt.Printf("Success URL: %s\n", result.SuccessURL)
 
@@ -100,7 +129,7 @@ func InstallGame(ctx context.Context, versionType string, remoteVer int, progres
 	// If we have the right version and the client exists, we're good
 	if local == remoteVer && clientErr == nil {
 		if progressCallback != nil {
-			progressCallback("game", 100, "Game is up to date", "", "", 0, 0)
+			progressCallback("complete", 100, "Game is up to date", "", "", 0, 0)
 		}
 		return nil
 	}
@@ -111,11 +140,11 @@ func InstallGame(ctx context.Context, versionType string, remoteVer int, progres
 		// Client doesn't exist, do full install
 		prevVer = 0
 		if progressCallback != nil {
-			progressCallback("game", 15, fmt.Sprintf("Installing game version %d...", remoteVer), "", "", 0, 0)
+			progressCallback("download", 0, fmt.Sprintf("Installing game version %d...", remoteVer), "", "", 0, 0)
 		}
 	} else {
 		if progressCallback != nil {
-			progressCallback("game", 15, fmt.Sprintf("Updating from version %d to %d...", local, remoteVer), "", "", 0, 0)
+			progressCallback("download", 0, fmt.Sprintf("Updating from version %d to %d...", local, remoteVer), "", "", 0, 0)
 		}
 	}
 
@@ -133,6 +162,10 @@ func InstallGame(ctx context.Context, versionType string, remoteVer int, progres
 	fmt.Printf("Patch file size: %d bytes\n", info.Size())
 
 	// Apply the patch
+	if progressCallback != nil {
+		progressCallback("install", 0, "Applying game patch...", "", "", 0, 0)
+	}
+
 	if err := pwr.ApplyPWR(ctx, pwrPath, progressCallback); err != nil {
 		return fmt.Errorf("failed to apply game patch: %w", err)
 	}
@@ -148,7 +181,7 @@ func InstallGame(ctx context.Context, versionType string, remoteVer int, progres
 	}
 
 	if progressCallback != nil {
-		progressCallback("game", 100, "Game installed successfully", "", "", 0, 0)
+		progressCallback("complete", 100, "Game installed successfully", "", "", 0, 0)
 	}
 
 	return nil

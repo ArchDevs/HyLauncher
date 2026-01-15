@@ -35,13 +35,15 @@ func DownloadPWR(ctx context.Context, version string, prevVer int, targetVer int
 	if _, err := os.Stat(dest); err == nil {
 		fmt.Println("PWR file already exists:", dest)
 		if progressCallback != nil {
-			progressCallback("game", 40, "PWR file cached", fileName, "", 0, 0)
+			progressCallback("download", 100, "PWR file cached", fileName, "", 0, 0)
 		}
 		return dest, nil
 	}
 
 	fmt.Println("Downloading PWR file:", url)
-	if err := util.DownloadWithProgress(tempDest, url, "game", 0.4, progressCallback); err != nil {
+
+	// DownloadWithProgress will handle progress from 0-100
+	if err := util.DownloadWithProgress(tempDest, url, "download", 1.0, progressCallback); err != nil {
 		_ = os.Remove(tempDest)
 		return "", err
 	}
