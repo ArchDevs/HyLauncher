@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, FolderOpen, RefreshCw, Gamepad2, ChevronDown, Edit3, Trash } from 'lucide-react';
+import { Settings, FolderOpen, RefreshCw, Activity, ChevronDown, Edit3, Trash } from 'lucide-react';
 import { motion } from 'framer-motion';
 import BackgroundImage from './components/BackgroundImage';
 import Titlebar from './components/Titlebar';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
+import { ErrorModal } from './components/ErrorModal';
+import { DiagnosticsModal } from './components/DiagnosticsModal';
 
 import {
   DownloadAndLaunch,
@@ -12,6 +14,8 @@ import {
   GetNick,
   SetNick,
   DeleteGame,
+  RunDiagnostics,
+  SaveDiagnosticReport,
 } from '../wailsjs/go/app/App';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 
@@ -23,6 +27,14 @@ interface ProgressUpdate {
   speed: string;
   downloaded: number;
   total: number;
+}
+
+interface AppError {
+  type: string;
+  message: string;
+  technical: string;
+  timestamp: string;
+  stack?: string;
 }
 
 const App: React.FC = () => {
@@ -39,8 +51,10 @@ const App: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState("Ready to play");
   const [isDownloading, setIsDownloading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [currentError, setCurrentError] = useState<AppError | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
-  // Загрузка ника при старте
+  // Load nickname on startup
   useEffect(() => {
     const loadNickname = async () => {
       try {
@@ -50,6 +64,7 @@ const App: React.FC = () => {
         }
       } catch (err) {
         console.error("Failed to load nickname:", err);
+        setStatusMessage("Warning: Could not load saved nickname");
       } finally {
         setIsLoadingNick(false);
       }
@@ -57,7 +72,7 @@ const App: React.FC = () => {
     loadNickname();
   }, []);
 
-  // Получение версий игры
+  // Get game versions
   useEffect(() => {
     const fetchVersions = async () => {
       try {
@@ -66,12 +81,13 @@ const App: React.FC = () => {
         setLatest(latestVersion);
       } catch (err) {
         console.error("Failed to get versions:", err);
+        setStatusMessage("Warning: Could not check game version");
       }
     };
     fetchVersions();
   }, []);
 
-  // Слушатель прогресса скачивания/установки
+  // Listen for progress updates
   useEffect(() => {
     EventsOn('progress-update', (data: ProgressUpdate) => {
       setDownloadProgress(data.progress);
@@ -89,52 +105,94 @@ const App: React.FC = () => {
         }, 2000);
       }
     });
+
+    // Listen for errors from backend
+    EventsOn('error', (error: AppError) => {
+      console.error('Backend error:', error);
+      setCurrentError(error);
+      setIsDownloading(false);
+      setStatusMessage("Error occurred");
+    });
   }, []);
 
   const saveNickname = async (newNick: string) => {
     const trimmed = newNick.trim();
-    if (!trimmed || trimmed.length > 16) return;
+    if (!trimmed || trimmed.length > 16) {
+      setStatusMessage("Invalid nickname");
+      return;
+    }
 
     try {
       await SetNick(trimmed);
       setUsername(trimmed);
+      setStatusMessage("Nickname saved");
+      setTimeout(() => setStatusMessage("Ready to play"), 2000);
     } catch (err) {
       console.error("Failed to save nickname:", err);
+      setStatusMessage("Failed to save nickname");
+      setTimeout(() => setStatusMessage("Ready to play"), 3000);
     }
   };
 
   const handlePlay = async () => {
     const trimmed = username.trim();
-    if (!trimmed || trimmed.length > 16) return;
+    if (!trimmed) {
+      setCurrentError({
+        type: 'VALIDATION',
+        message: 'Please enter a nickname before playing',
+        technical: 'Empty nickname',
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    if (trimmed.length > 16) {
+      setCurrentError({
+        type: 'VALIDATION',
+        message: 'Nickname is too long (maximum 16 characters)',
+        technical: `Nickname length: ${trimmed.length}`,
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
 
     setIsDownloading(true);
     setDownloadProgress(0);
     setStatusMessage("Starting...");
+    
     try {
       await DownloadAndLaunch(trimmed);
     } catch (err) {
-      console.error(err);
-      setStatusMessage("Error: " + (err as Error).message);
+      console.error('Play error:', err);
+      // Error will be emitted via 'error' event from backend
       setIsDownloading(false);
     }
   };
 
   const handleDeleteGame = async () => {
     setShowDeleteModal(false);
-    setStatusMessage("Удаление игры...");
+    setStatusMessage("Deleting game...");
 
     try {
       await DeleteGame();
-      setStatusMessage("Игра успешно удалена");
+      setStatusMessage("Game deleted successfully");
+      setCurrent("");
       setTimeout(() => setStatusMessage("Ready to play"), 3000);
     } catch (err) {
-      console.error("Ошибка удаления игры:", err);
-      setStatusMessage("Ошибка удаления: " + (err as Error).message);
+      console.error("Delete error:", err);
+      setStatusMessage("Failed to delete game");
+      setTimeout(() => setStatusMessage("Ready to play"), 3000);
     }
   };
 
   const openGameFolder = async () => {
-    await OpenFolder();
+    try {
+      await OpenFolder();
+    } catch (err) {
+      console.error('Open folder error:', err);
+      setStatusMessage("Failed to open folder");
+      setTimeout(() => setStatusMessage("Ready to play"), 3000);
+    }
   };
 
   const formatBytes = (bytes: number) => {
@@ -151,10 +209,10 @@ const App: React.FC = () => {
       <Titlebar />
 
       <main className="relative z-10 h-full p-10 flex flex-col justify-between pt-[60px]">
-        {/* Верхняя часть */}
+        {/* Top section */}
         <div className="flex justify-between items-start">
           <div className="flex flex-col gap-4">
-            {/* Блок профиля */}
+            {/* Profile block */}
             <div className="w-[294px] h-[100px] bg-[#090909]/[0.55] backdrop-blur-xl rounded-[14px] border border-[#FFA845]/[0.10] p-4 flex flex-col justify-center gap-2">
               <div className="flex items-center justify-between">
                 {isEditing ? (
@@ -191,13 +249,13 @@ const App: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between bg-[#090909]/[0.55] backdrop-blur-md rounded-lg px-3 py-2 border border-white/5 cursor-pointer hover:bg-white/5 transition-colors">
-                <span className="text-xs text-gray-300">{current}</span>
+                <span className="text-xs text-gray-300">{current || "Not installed"}</span>
                 <ChevronDown size={14} className="text-gray-400" />
               </div>
             </div>
           </div>
 
-          {/* Блок новостей */}
+          {/* News section */}
           <div className="flex flex-col gap-4">
             {[1, 2, 3].map((i) => (
               <motion.div
@@ -220,14 +278,17 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Нижняя часть */}
+        {/* Bottom section */}
         <div className="w-full">
           <div className="flex items-end gap-8">
-            {/* Левая колонка - кнопки + PLAY */}
+            {/* Left column - buttons + PLAY */}
             <div className="w-[294px] flex flex-col gap-3">
               <div className="flex gap-[10px]">
                 <NavButton onClick={openGameFolder} icon={<FolderOpen size={20} />} />
-                <NavButton icon={<RefreshCw size={20} />} />
+                <NavButton 
+                  onClick={() => setShowDiagnostics(true)} 
+                  icon={<Activity size={20} />} 
+                />
                 <NavButton icon={<Settings size={20} />} />
                 <NavButton
                   onClick={() => setShowDeleteModal(true)}
@@ -250,7 +311,7 @@ const App: React.FC = () => {
               </motion.button>
             </div>
 
-            {/* Правая колонка - прогресс */}
+            {/* Right column - progress */}
             <div className="flex-1 flex flex-col gap-4 pb-1">
               <div className="flex justify-between items-end">
                 <div className="flex items-baseline gap-4">
@@ -281,11 +342,28 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Модальное окно подтверждения удаления */}
+      {/* Delete confirmation modal */}
       {showDeleteModal && (
         <DeleteConfirmationModal
           onConfirm={handleDeleteGame}
           onCancel={() => setShowDeleteModal(false)}
+        />
+      )}
+
+      {/* Error modal */}
+      {currentError && (
+        <ErrorModal
+          error={currentError}
+          onClose={() => setCurrentError(null)}
+        />
+      )}
+
+      {/* Diagnostics modal */}
+      {showDiagnostics && (
+        <DiagnosticsModal
+          onClose={() => setShowDiagnostics(false)}
+          onRunDiagnostics={RunDiagnostics}
+          onSaveDiagnostics={SaveDiagnosticReport}
         />
       )}
     </div>
