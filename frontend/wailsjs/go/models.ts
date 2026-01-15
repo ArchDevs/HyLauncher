@@ -240,3 +240,22 @@ export namespace app {
 
 }
 
+export namespace updater {
+	
+	export class Asset {
+	    url: string;
+	    sha256: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Asset(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.url = source["url"];
+	        this.sha256 = source["sha256"];
+	    }
+	}
+
+}
+
