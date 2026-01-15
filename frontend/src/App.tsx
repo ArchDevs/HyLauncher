@@ -19,7 +19,6 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<string>("Ready to play");
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   
-  // Новые стейты для деталей загрузки
   const [currentFile, setCurrentFile] = useState<string>("");
   const [downloadSpeed, setDownloadSpeed] = useState<string>("");
   const [downloaded, setDownloaded] = useState<number>(0);
@@ -41,16 +40,21 @@ const App: React.FC = () => {
         else setCurrent(v);
     });
 
-    EventsOn('update:available', (asset: any) => setUpdateAsset(asset));
+    EventsOn('update:available', (asset: any) => {
+      console.log('Update available event received:', asset);
+      setUpdateAsset(asset);
+    });
+    
     EventsOn('update:progress', (d: number, t: number) => {
-        setProgress((d/t)*100);
+        console.log(`Update progress: ${d}/${t} bytes`);
+        const percentage = t > 0 ? (d/t)*100 : 0;
+        setProgress(percentage);
         setUpdateStats({ d, t });
     });
 
     EventsOn('progress-update', (data: any) => {
       setProgress(data.progress);
       setStatus(data.message);
-      // Обновляем детальную инфу
       setCurrentFile(data.currentFile || "");
       setDownloadSpeed(data.speed || "");
       setDownloaded(data.downloaded || 0);
@@ -66,6 +70,27 @@ const App: React.FC = () => {
       }
     });
   }, []);
+
+  const handleUpdate = async () => {
+    console.log('Update button clicked, starting update...');
+    setIsUpdatingLauncher(true);
+    setProgress(0);
+    setUpdateStats({ d: 0, t: 0 });
+    
+    try {
+      await Update();
+      console.log('Update call completed');
+    } catch (err) {
+      console.error('Update failed:', err);
+      setError({
+        type: 'UPDATE_ERROR',
+        message: 'Failed to update launcher',
+        technical: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString()
+      });
+      setIsUpdatingLauncher(false);
+    }
+  };
 
   return (
     <div className="relative w-screen h-screen max-w-[1280px] max-h-[720px] bg-[#090909] text-white overflow-hidden font-sans select-none rounded-[14px] border border-white/5 mx-auto">
@@ -83,7 +108,7 @@ const App: React.FC = () => {
             onEditToggle={(val: boolean) => setIsEditing(val)}
             onUserChange={(val: string) => { SetNick(val); setUsername(val); }}
             updateAvailable={!!updateAsset}
-            onUpdate={() => { setIsUpdatingLauncher(true); Update(); }}
+            onUpdate={handleUpdate}
           />
 
           <div className="w-[532px] h-[120px] bg-[#090909]/[0.55] backdrop-blur-xl rounded-[14px] border border-[#FFA845]/[0.10] p-4">
@@ -96,7 +121,6 @@ const App: React.FC = () => {
           isDownloading={isDownloading}
           progress={progress}
           status={status}
-          // Передаем новые пропсы
           speed={downloadSpeed}
           downloaded={downloaded}
           total={total}

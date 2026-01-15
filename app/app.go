@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -37,15 +38,14 @@ func NewApp() *App {
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 
-	if err := env.CreateFolders(); err != nil {
-		a.emitError(FileSystemError("creating folders", err))
-		return
-	}
+	fmt.Println("Application starting up...")
+	fmt.Printf("Current launcher version: %s\n", AppVersion)
 
-	_ = env.CleanupIncompleteDownloads()
-
-	// 🔹 Silent update check
-	go a.checkUpdateSilently()
+	// Check for launcher updates in background
+	go func() {
+		fmt.Println("Starting background update check...")
+		a.checkUpdateSilently()
+	}()
 }
 
 func (a *App) progressCallback(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64) {
