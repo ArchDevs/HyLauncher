@@ -132,7 +132,7 @@ jobs:
                   "sha256": "$LINUX_LAUNCHER_SHA"
                 },
                 "helper": {
-                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper",
+                  "url": "https://github.com/ArchDevs/HyLauncher/releases/latest/download/update-helper",
                   "sha256": "$LINUX_HELPER_SHA"
                 }
               }
@@ -144,7 +144,7 @@ jobs:
                   "sha256": "$WINDOWS_LAUNCHER_SHA"
                 },
                 "helper": {
-                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper.exe",
+                  "url": "https://github.com/ArchDevs/HyLauncher/releases/latest/download/update-helper.exe",
                   "sha256": "$WINDOWS_HELPER_SHA"
                 }
               }
