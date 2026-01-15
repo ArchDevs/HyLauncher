@@ -180,6 +180,21 @@ func InstallGame(ctx context.Context, versionType string, remoteVer int, progres
 		fmt.Printf("Warning: failed to save version info: %v\n", err)
 	}
 
+	// Применяем онлайн-фикс только на Windows
+	if runtime.GOOS == "windows" {
+		if progressCallback != nil {
+			progressCallback("online-fix", 0, "Applying online fix...", "", "", 0, 0)
+		}
+
+		if err := ApplyOnlineFixWindows(ctx, gameLatestDir, progressCallback); err != nil {
+			return fmt.Errorf("failed to apply online fix: %w", err)
+		}
+
+		if progressCallback != nil {
+			progressCallback("online-fix", 100, "Online fix applied", "", "", 0, 0)
+		}
+	}
+
 	if progressCallback != nil {
 		progressCallback("complete", 100, "Game installed successfully", "", "", 0, 0)
 	}
