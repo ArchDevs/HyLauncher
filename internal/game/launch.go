@@ -9,9 +9,9 @@ import (
 
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/java"
-
-	"github.com/google/uuid"
 )
+
+const playerUUID string = "1da855d2-6219-4d02-ad93-c4b160b073c3"
 
 func Launch(playerName string, version string) error {
 	baseDir := env.GetDefaultAppDir()
@@ -27,7 +27,6 @@ func Launch(playerName string, version string) error {
 
 	clientPath := filepath.Join(gameDir, "Client", gameClient)
 	javaBin := java.GetJavaExec()
-	playerUUID := uuid.NewString()
 
 	_ = os.MkdirAll(userDataDir, 0755)
 

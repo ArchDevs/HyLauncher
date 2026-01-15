@@ -1,19 +1,23 @@
-package main
+package app
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
+	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/game"
 	"HyLauncher/internal/pwr"
+	"HyLauncher/updater"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type App struct {
 	ctx context.Context
+	cfg *config.Config
 }
 
 type ProgressUpdate struct {
@@ -27,10 +31,11 @@ type ProgressUpdate struct {
 }
 
 func NewApp() *App {
-	return &App{}
+	cfg, _ := config.Load()
+	return &App{cfg: cfg}
 }
 
-func (a *App) startup(ctx context.Context) {
+func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	env.CreateFolders()
 
@@ -38,9 +43,13 @@ func (a *App) startup(ctx context.Context) {
 	if err := env.CleanupIncompleteDownloads(); err != nil {
 		fmt.Println("Warning: cleanup failed:", err)
 	}
+
+	err := a.Update()
+	if err != nil {
+		fmt.Println("Warning: can not update launcher:", err)
+	}
 }
 
-// progressCallback is passed to internal packages to report back to the UI
 func (a *App) progressCallback(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64) {
 	runtime.EventsEmit(a.ctx, "progress-update", ProgressUpdate{
 		Stage:       stage,
@@ -53,12 +62,13 @@ func (a *App) progressCallback(stage string, progress float64, message string, c
 	})
 }
 
-// GetVersions returns current local version and latest remote version for the UI
+const AppVersion string = "0.3.2"
+
 func (a *App) GetVersions() (currentVersion string, latestVersion string) {
 	current := pwr.GetLocalVersion()
 	latest := pwr.FindLatestVersion("release")
 
-	return current, fmt.Sprintf("%d", latest)
+	return current, strconv.Itoa(latest)
 }
 
 func (a *App) DownloadAndLaunch(playerName string) error {
@@ -77,4 +87,24 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 	}
 
 	return nil
+}
+
+func (a *App) Update() error {
+	asset, _, err := updater.CheckUpdate(AppVersion)
+	if err != nil || asset == nil {
+		return err
+	}
+
+	tmp, err := updater.Download(asset.URL, func(d, t int64) {
+		runtime.EventsEmit(a.ctx, "update:progress", d, t)
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := updater.Verify(tmp, asset.Sha256); err != nil {
+		return err
+	}
+
+	return updater.Apply(tmp)
 }
