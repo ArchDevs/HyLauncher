@@ -16,6 +16,10 @@ func InstallButler(ctx context.Context, progressCallback func(stage string, prog
 	zipPath := filepath.Join(toolsDir, "butler.zip")
 	tempZipPath := zipPath + ".tmp"
 
+	if _, err := os.Stat(toolsDir); os.IsNotExist(err) {
+		os.MkdirAll(toolsDir, 0755)
+	}
+
 	var butlerPath string
 	if runtime.GOOS == "windows" {
 		butlerPath = filepath.Join(toolsDir, "butler.exe")
