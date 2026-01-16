@@ -36,19 +36,6 @@ func EnsureInstalled(ctx context.Context, progress func(stage string, progress f
 		installMutex.Unlock()
 	}()
 
-	// Test server connection first
-	if progress != nil {
-		progress("connection", 0, "Testing server connection...", "", "", 0, 0)
-	}
-
-	if err := pwr.TestConnection(); err != nil {
-		return fmt.Errorf("cannot connect to game server: %w\n\nPlease check:\n• Your internet connection\n• Firewall/antivirus settings\n• VPN if using one", err)
-	}
-
-	if progress != nil {
-		progress("connection", 100, "Server connection OK", "", "", 0, 0)
-	}
-
 	// Download JRE
 	if err := java.DownloadJRE(ctx, progress); err != nil {
 		return fmt.Errorf("failed to download Java Runtime: %w", err)
@@ -118,7 +105,6 @@ func InstallGame(ctx context.Context, versionType string, remoteVer int, progres
 
 	gameLatestDir := filepath.Join(env.GetDefaultAppDir(), "release", "package", "game", "latest")
 
-	// Determine game client executable name
 	gameClient := "HytaleClient"
 	if runtime.GOOS == "windows" {
 		gameClient += ".exe"
@@ -126,7 +112,6 @@ func InstallGame(ctx context.Context, versionType string, remoteVer int, progres
 	clientPath := filepath.Join(gameLatestDir, "Client", gameClient)
 	_, clientErr := os.Stat(clientPath)
 
-	// If we have the right version and the client exists, we're good
 	if local == remoteVer && clientErr == nil {
 		if progressCallback != nil {
 			progressCallback("complete", 100, "Game is up to date", "", "", 0, 0)
@@ -134,10 +119,8 @@ func InstallGame(ctx context.Context, versionType string, remoteVer int, progres
 		return nil
 	}
 
-	// Determine if this is a fresh install or update
 	prevVer := local
 	if clientErr != nil {
-		// Client doesn't exist, do full install
 		prevVer = 0
 		if progressCallback != nil {
 			progressCallback("download", 0, fmt.Sprintf("Installing game version %d...", remoteVer), "", "", 0, 0)
@@ -180,7 +163,7 @@ func InstallGame(ctx context.Context, versionType string, remoteVer int, progres
 		fmt.Printf("Warning: failed to save version info: %v\n", err)
 	}
 
-	// Применяем онлайн-фикс только на Windows
+	// Apply online fix only on windows
 	if runtime.GOOS == "windows" {
 		if progressCallback != nil {
 			progressCallback("online-fix", 0, "Applying online fix...", "", "", 0, 0)

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"HyLauncher/internal/util"
 	"HyLauncher/updater"
 	"fmt"
 	"os"
@@ -11,10 +12,9 @@ import (
 func (a *App) CheckUpdate() (*updater.Asset, error) {
 	fmt.Println("Checking for launcher updates...")
 
-	asset, newVersion, err := updater.CheckUpdate(AppVersion)
+	asset, newVersion, err := updater.CheckUpdate(a.ctx, AppVersion)
 	if err != nil {
 		fmt.Printf("Update check failed: %v\n", err)
-		// Don't treat network errors as fatal - user might be offline
 		return nil, nil
 	}
 
@@ -30,7 +30,7 @@ func (a *App) CheckUpdate() (*updater.Asset, error) {
 func (a *App) Update() error {
 	fmt.Println("Starting launcher update process...")
 
-	asset, newVersion, err := updater.CheckUpdate(AppVersion)
+	asset, newVersion, err := updater.CheckUpdate(a.ctx, AppVersion)
 	if err != nil {
 		fmt.Printf("Update check failed: %v\n", err)
 		return WrapError(ErrorTypeNetwork, "Failed to check for updates", err)
@@ -43,11 +43,11 @@ func (a *App) Update() error {
 
 	fmt.Printf("Downloading update from: %s\n", asset.URL)
 
-	tmp, err := updater.Download(asset.URL, func(d, t int64) {
-		progress := float64(d) / float64(t) * 100
-		fmt.Printf("Download progress: %.1f%% (%d/%d bytes)\n", progress, d, t)
-		runtime.EventsEmit(a.ctx, "update:progress", d, t)
+	tmp, err := updater.DownloadUpdate(a.ctx, asset.URL, func(stage string, progress float64, message string, currentFile string, speed string, downloaded int64, total int64) {
+		fmt.Printf("[%s] %s: %.1f%% (%d/%d bytes) at %s\n", stage, message, progress, downloaded, total, speed)
+		runtime.EventsEmit(a.ctx, "update:progress", stage, progress, message, currentFile, speed, downloaded, total)
 	})
+
 	if err != nil {
 		fmt.Printf("Download failed: %v\n", err)
 		return NetworkError("downloading launcher update", err)
@@ -58,7 +58,7 @@ func (a *App) Update() error {
 	// Verify checksum if provided
 	if asset.Sha256 != "" {
 		fmt.Println("Verifying download checksum...")
-		if err := updater.Verify(tmp, asset.Sha256); err != nil {
+		if err := util.VerifySHA256(tmp, asset.Sha256); err != nil {
 			fmt.Printf("Verification failed: %v\n", err)
 			os.Remove(tmp)
 			return WrapError(ErrorTypeValidation, "Update file verification failed", err)
@@ -69,16 +69,14 @@ func (a *App) Update() error {
 	}
 
 	fmt.Println("Preparing update helper...")
-	helperPath, err := updater.EnsureUpdateHelper(func(url string) (string, error) {
-		return updater.Download(url, nil)
-	})
+	helperPath, err := updater.EnsureUpdateHelper(a.ctx)
 	if err != nil {
 		fmt.Printf("Failed to prepare update helper: %v\n", err)
 		return FileSystemError("preparing updater", err)
 	}
 
 	fmt.Printf("Running update helper: %s\n", helperPath)
-	if err := updater.RunUpdateHelper(helperPath, tmp); err != nil {
+	if err := updater.Apply(tmp); err != nil {
 		fmt.Printf("Failed to start update helper: %v\n", err)
 		return FileSystemError("starting updater", err)
 	}
@@ -91,7 +89,7 @@ func (a *App) Update() error {
 func (a *App) checkUpdateSilently() {
 	fmt.Println("Running silent update check...")
 
-	asset, newVersion, err := updater.CheckUpdate(AppVersion)
+	asset, newVersion, err := updater.CheckUpdate(a.ctx, AppVersion)
 	if err != nil {
 		fmt.Printf("Silent update check failed (this is normal if offline): %v\n", err)
 		return
@@ -103,6 +101,5 @@ func (a *App) checkUpdateSilently() {
 	}
 
 	fmt.Printf("Update available: %s (notifying frontend)\n", newVersion)
-	// Notify frontend
 	runtime.EventsEmit(a.ctx, "update:available", asset)
 }

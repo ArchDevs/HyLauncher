@@ -24,7 +24,6 @@ type VersionCheckResult struct {
 	SuccessURL    string
 }
 
-// Cache for version check results to avoid repeated calls
 var (
 	versionCache      = make(map[string]*VersionCheckResult)
 	versionCacheMutex sync.RWMutex
@@ -54,7 +53,6 @@ func SaveLocalVersion(v int) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-// FindLatestVersion discovers the newest version using sequential HEAD requests
 func FindLatestVersion(versionType string) int {
 	result := FindLatestVersionWithDetails(versionType)
 
@@ -70,8 +68,6 @@ func FindLatestVersion(versionType string) int {
 	return result.LatestVersion
 }
 
-// FindLatestVersionWithDetails returns detailed information about the version check
-// Results are cached for 5 minutes to prevent repeated network calls
 func FindLatestVersionWithDetails(versionType string) VersionCheckResult {
 	cacheKey := fmt.Sprintf("%s-%s-%s", runtime.GOOS, runtime.GOARCH, versionType)
 
@@ -86,7 +82,6 @@ func FindLatestVersionWithDetails(versionType string) VersionCheckResult {
 	}
 	versionCacheMutex.RUnlock()
 
-	// Not in cache or expired, do actual check
 	fmt.Println("Performing version check...")
 	result := performVersionCheck(versionType)
 
@@ -99,8 +94,6 @@ func FindLatestVersionWithDetails(versionType string) VersionCheckResult {
 	return result
 }
 
-// ClearVersionCache clears the cached version information
-// Call this if you want to force a fresh check
 func ClearVersionCache() {
 	versionCacheMutex.Lock()
 	versionCache = make(map[string]*VersionCheckResult)
@@ -118,7 +111,6 @@ func performVersionCheck(versionType string) VersionCheckResult {
 		CheckedURLs:   make([]string, 0),
 	}
 
-	// Create HTTP client with timeout
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -179,7 +171,6 @@ func performVersionCheck(versionType string) VersionCheckResult {
 				result.SuccessURL = url
 				fmt.Printf("Found version %d\n", v)
 			} else {
-				// First miss, we found the latest
 				break
 			}
 		}
@@ -251,7 +242,6 @@ func performVersionCheck(versionType string) VersionCheckResult {
 	return result
 }
 
-// VerifyVersionExists checks if a specific version exists on the server
 func VerifyVersionExists(versionType string, version int) error {
 	osName := runtime.GOOS
 	arch := runtime.GOARCH
@@ -278,7 +268,6 @@ func VerifyVersionExists(versionType string, version int) error {
 	return nil
 }
 
-// TestConnection tests if we can reach the game server at all
 func TestConnection() error {
 	testURL := "https://game-patches.hytale.com/"
 

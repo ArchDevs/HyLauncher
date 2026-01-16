@@ -3,6 +3,7 @@ package butler
 import (
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/util"
+	"HyLauncher/internal/util/download"
 	"context"
 	"fmt"
 	"os"
@@ -51,7 +52,7 @@ func InstallButler(ctx context.Context, progressCallback func(stage string, prog
 		progressCallback("butler", 0, "Downloading Butler...", "butler.zip", "", 0, 0)
 	}
 
-	if err := util.DownloadWithProgress(tempZipPath, url, "butler", 0.7, progressCallback); err != nil {
+	if err := download.DownloadWithProgress(tempZipPath, url, "butler", 0.7, progressCallback); err != nil {
 		_ = os.Remove(tempZipPath)
 		return "", err
 	}
@@ -67,7 +68,7 @@ func InstallButler(ctx context.Context, progressCallback func(stage string, prog
 		progressCallback("butler", 80, "Extracting Butler...", "butler.zip", "", 0, 0)
 	}
 
-	if err := unzip(zipPath, toolsDir); err != nil {
+	if err := util.ExtractZip(zipPath, toolsDir); err != nil {
 		return "", err
 	}
 

@@ -1,13 +1,16 @@
 package updater
 
 import (
+	"HyLauncher/internal/util/download"
+	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"os"
 	"runtime"
 	"strings"
-	"time"
 )
+
+const versionJSONAsset = "version.json"
 
 type UpdateInfo struct {
 	Version string `json:"version"`
@@ -30,41 +33,22 @@ type Asset struct {
 	Sha256 string `json:"sha256"`
 }
 
-func CheckUpdate(current string) (*Asset, string, error) {
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	resp, err := client.Get(
-		"https://github.com/ArchDevs/HyLauncher/releases/latest/download/version.json",
-	)
+func CheckUpdate(ctx context.Context, current string) (*Asset, string, error) {
+	info, err := fetchUpdateInfo(ctx)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to check for updates: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("update check failed with status: %d", resp.StatusCode)
+		return nil, "", err
 	}
 
-	var info UpdateInfo
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-		return nil, "", fmt.Errorf("failed to parse update info: %w", err)
-	}
-
-	fmt.Printf("Current version: %s, Latest version: %s\n", current, info.Version)
-
-	// Clean version strings (remove 'v' prefix if present)
 	currentClean := strings.TrimPrefix(strings.TrimSpace(current), "v")
 	latestClean := strings.TrimPrefix(strings.TrimSpace(info.Version), "v")
 
-	// If versions match, no update needed
+	fmt.Printf("Current version: %s, Latest version: %s\n", current, info.Version)
+
 	if currentClean == latestClean {
 		fmt.Println("Already on latest version")
 		return nil, "", nil
 	}
 
-	// Get the appropriate asset for the platform
 	var asset *Asset
 	if runtime.GOOS == "windows" {
 		asset = &info.Windows.Amd64.Launcher
@@ -74,10 +58,54 @@ func CheckUpdate(current string) (*Asset, string, error) {
 		fmt.Printf("Update available for Linux: %s -> %s\n", current, info.Version)
 	}
 
-	// Validate asset has URL
 	if asset.URL == "" {
 		return nil, "", fmt.Errorf("no download URL found for %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
 	return asset, info.Version, nil
+}
+
+func GetHelperAsset(ctx context.Context) (*Asset, error) {
+	info, err := fetchUpdateInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var asset *Asset
+	if runtime.GOOS == "windows" {
+		asset = &info.Windows.Amd64.Helper
+	} else {
+		asset = &info.Linux.Amd64.Helper
+	}
+
+	if asset.URL == "" {
+		return nil, fmt.Errorf("no helper URL found for %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+
+	return asset, nil
+}
+
+func fetchUpdateInfo(ctx context.Context) (*UpdateInfo, error) {
+	tempFile, err := download.CreateTempFile("version-*.json")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(tempFile)
+
+	if err := download.DownloadLatestReleaseAsset(ctx, versionJSONAsset, tempFile, nil); err != nil {
+		return nil, fmt.Errorf("failed to download version info: %w", err)
+	}
+
+	f, err := os.Open(tempFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open version file: %w", err)
+	}
+	defer f.Close()
+
+	var info UpdateInfo
+	if err := json.NewDecoder(f).Decode(&info); err != nil {
+		return nil, fmt.Errorf("failed to parse version info: %w", err)
+	}
+
+	return &info, nil
 }

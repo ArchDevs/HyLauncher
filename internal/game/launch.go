@@ -17,7 +17,6 @@ func Launch(playerName string, version string) error {
 	gameDir := filepath.Join(baseDir, "release", "package", "game", version)
 	userDataDir := filepath.Join(baseDir, "UserData")
 
-	// Проверка и применение онлайн-фикса при необходимости
 	if err := EnsureServerAndClientFix(context.Background(), nil); err != nil {
 		return err
 	}
@@ -28,7 +27,11 @@ func Launch(playerName string, version string) error {
 	}
 
 	clientPath := filepath.Join(gameDir, "Client", gameClient)
-	javaBin := java.GetJavaExec()
+	javaBin, err := java.GetJavaExec()
+	if err != nil {
+		return err
+	}
+
 	_ = os.MkdirAll(userDataDir, 0755)
 
 	playerUUID := OfflineUUID(playerName).String()

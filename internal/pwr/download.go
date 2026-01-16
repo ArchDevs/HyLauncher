@@ -8,7 +8,7 @@ import (
 	"runtime"
 
 	"HyLauncher/internal/env"
-	"HyLauncher/internal/util"
+	"HyLauncher/internal/util/download"
 )
 
 func DownloadPWR(ctx context.Context, versionType string, prevVer int, targetVer int,
@@ -36,7 +36,7 @@ func DownloadPWR(ctx context.Context, versionType string, prevVer int, targetVer
 	url := fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/%d/%s",
 		osName, arch, versionType, prevVer, fileName)
 
-	if err := util.DownloadWithProgress(tempDest, url, "game", 0.4, progressCallback); err != nil {
+	if err := download.DownloadWithProgress(tempDest, url, "game", 0.4, progressCallback); err != nil {
 		_ = os.Remove(tempDest)
 		return "", err
 	}

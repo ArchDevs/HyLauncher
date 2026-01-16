@@ -69,7 +69,7 @@ func (a *App) emitError(err error) {
 	}
 }
 
-const AppVersion string = "0.6.3"
+var AppVersion string = config.Default().Version
 
 func (a *App) GetVersions() (currentVersion string, latestVersion string) {
 	current := pwr.GetLocalVersion()
@@ -110,7 +110,6 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 	return nil
 }
 
-// GetLogs returns recent error logs for debugging
 func (a *App) GetLogs() (string, error) {
 	logFile := filepath.Join(env.GetDefaultAppDir(), "logs", "errors.log")
 	data, err := os.ReadFile(logFile)
