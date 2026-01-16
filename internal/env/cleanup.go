@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 )
 
-// CleanupIncompleteDownloads removes partial downloads and corrupted files
 func CleanupIncompleteDownloads() error {
 	appDir := GetDefaultAppDir()
 
@@ -28,7 +27,6 @@ func CleanupIncompleteDownloads() error {
 	return nil
 }
 
-// cleanDirectory removes files with specific extensions
 func cleanDirectory(dir string, extensions []string) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return nil

@@ -1,4 +1,4 @@
-package java
+package util
 
 import (
 	"crypto/sha256"
@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-func verifySHA256(filePath, expected string) error {
+func VerifySHA256(filePath, expected string) error {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return err
