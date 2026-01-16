@@ -1,34 +1,70 @@
-# HyLauncher by nullxweb & ronitmb
+# HyLauncher - Free Hytale Launcher
 
-Неофициальный Hytale лаунчер для бесплатной игры. Доступен на всех операционных системах Windows/MacOS/Linux.
+<p align="center">
+  <img src="build/appicon.png" alt="HyLauncher" width="128"/>
+</p>
 
-> ⚠️ На ранней стадии разработки
+<p align="center">
+  <b>Unofficial Hytale Launcher</b><br>
+  <i>Неофициальный Hytale лаунчер</i>
+</p>
+<p align="center">
+  <a href="https://github.com/ArchDevs/HyLauncher/releases"><img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/ArchDevs/HyLauncher/total"></a>
+  <img src="https://img.shields.io/badge/License-GPL_3.0-yellow?style=flat-square"/>
+  <a href="https://dsc.gg/hylauncher"><img alt="Static Badge" src="https://img.shields.io/badge/Discord-Link-blue?style=flat-square&logo=discord"></a>
+</p>
 
-Как работает ланучер?
-Скачиваются официальные ассеты/файлы игры с официального сайта, разархивировываюстя и запускаются.
+---
 
-# Билд
-Для билда нужно:
+## Фичи
 
+- Онлайн режим
+- Скачивание игры
+- Скачивание всех зависимостей
+- Униклальные идентификаторы ников (каждый ник уникальный)
+- Поддержка всех платформ Windows/Linux/MacOS
+
+---
+
+## Установка
+
+Переходим в раздел [releases](https://github.com/ArchDevs/HyLauncher/releases). <br>
+Скачиваем самую [последнюю версию](https://github.com/ArchDevs/HyLauncher/releases/latest) лаунчера. <br>
+Не нужно скачивать `update-helper(.exe)`
+
+---
+
+## Билд
+
+Зависимости
 - Golang 1.23+
-- NodeJS 24+
+- NodeJS 22+
 
-Так же [Wails CLI](https://wails.io/docs/gettingstarted/installation#platform-specific-dependencies)
-
-Чтобы забилдить пишем:
+### Linux make
+Билд и установка через `make`
 ```bash
+git clone https://github.com/ArchDevs/HyLauncher.git
+cd HyLauncher
+makepkg -sric
+```
+### Linux / MacOS / Windows
+```
+git clone https://github.com/ArchDevs/HyLauncher.git
+cd HyLauncher
+go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
 wails build
 ```
-Ждем..
-Получаем бинарник в:
-```
-build/bin/
-```
+Билд появится в папка `build/bin`
 
-# Связь
-[Discord](https://dsc.gg/hylauncher)
-[Telegram](https://t.me/hylauncher)
+---
 
-# Авторы
-[ArchDev aka nullxweb](https://github.com/ArchDevs)
-[ronitmb](https://github.com/ronitmb)
+## License
+
+У нас используется лицензия [GPL 3.0](https://choosealicense.com/licenses/gpl-3.0/).<br>
+`Permissions of this strong copyleft license are conditioned on making available complete source code of licensed works and modifications, which include larger works using a licensed work, under the same license. Copyright and license notices must be preserved. Contributors provide an express grant of patent rights.` via [choosealicense.com](https://choosealicense.com/licenses)
+
+---
+
+## Authors
+
+- [@ArchDevs](https://www.github.com/ArchDevs)
