@@ -1,45 +1,53 @@
 package config
 
 import (
-	"HyLauncher/internal/env"
-	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"HyLauncher/internal/env"
+
+	"github.com/pelletier/go-toml/v2"
 )
 
-type Config struct {
-	Nick string `json:"nick"`
-}
-
-func getConfigPath() string {
-	dir := env.GetDefaultAppDir()
-	return filepath.Join(dir, "config.json")
+func configPath() string {
+	return filepath.Join(env.GetDefaultAppDir(), "config.toml")
 }
 
 func Save(cfg *Config) error {
-	path := getConfigPath()
-	os.MkdirAll(filepath.Dir(path), 0755)
-	f, err := os.Create(path)
+	path := configPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+
+	data, err := toml.Marshal(cfg)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	return json.NewEncoder(f).Encode(cfg)
+	return os.WriteFile(path, data, 0644)
 }
 
 func Load() (*Config, error) {
-	path := getConfigPath()
-	f, err := os.Open(path)
+	path := configPath()
+
+	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &Config{}, nil
+			cfg := Default()
+			_ = Save(&cfg)
+			return &cfg, nil
 		}
 		return nil, err
 	}
-	defer f.Close()
 
-	cfg := &Config{}
-	err = json.NewDecoder(f).Decode(cfg)
-	return cfg, err
+	cfg := Default()
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		_ = os.Rename(path, path+".broken")
+
+		cfg = Default()
+		_ = Save(&cfg)
+		return &cfg, nil
+	}
+
+	return &cfg, nil
 }

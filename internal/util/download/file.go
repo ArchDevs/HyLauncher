@@ -1,0 +1,285 @@
+package download
+
+import (
+	"context"
+	"crypto/tls"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
+	"time"
+)
+
+const (
+	maxRetries      = 3
+	retryDelay      = 2 * time.Second
+	downloadTimeout = 30 * time.Minute
+)
+
+func DownloadWithProgress(
+	dest string,
+	url string,
+	stage string,
+	progressWeight float64,
+	callback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64),
+) error {
+	var lastErr error
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		if attempt > 1 {
+			if callback != nil {
+				callback(stage, 0, fmt.Sprintf("Retrying download (attempt %d/%d)...", attempt, maxRetries), "", "", 0, 0)
+			}
+			// Exponential backoff with jitter
+			backoff := retryDelay * time.Duration(1<<uint(attempt-2))
+			if backoff > 30*time.Second {
+				backoff = 30 * time.Second
+			}
+			time.Sleep(backoff)
+		}
+
+		err := attemptDownload(dest, url, stage, progressWeight, callback)
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+		fmt.Printf("Download attempt %d failed: %v\n", attempt, err)
+
+		// On Windows, if file is locked or we have permission issues, try to clean up
+		if runtime.GOOS == "windows" && attempt < maxRetries {
+			time.Sleep(time.Second) // Give Windows time to release handles
+		}
+	}
+
+	return fmt.Errorf("download failed after %d attempts: %w", maxRetries, lastErr)
+}
+
+func attemptDownload(
+	dest string,
+	url string,
+	stage string,
+	progressWeight float64,
+	callback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64),
+) error {
+	client := createOptimizedClient()
+
+	tempDest := dest + ".tmp"
+
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// Check if partial file exists
+	var resumeFrom int64 = 0
+	if stat, err := os.Stat(tempDest); err == nil {
+		resumeFrom = stat.Size()
+	}
+
+	// Create request with context for timeout control
+	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Accept-Encoding", "identity")
+	req.Header.Set("Connection", "keep-alive")
+
+	if resumeFrom > 0 {
+		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", resumeFrom))
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Handle response status
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+		// If Range request is not supported, start from beginning
+		if resp.StatusCode == http.StatusRequestedRangeNotSatisfiable ||
+			(resumeFrom > 0 && resp.StatusCode != http.StatusPartialContent) {
+			resumeFrom = 0
+			// Retry without Range header
+			req.Header.Del("Range")
+			resp.Body.Close()
+			resp, err = client.Do(req)
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				return fmt.Errorf("bad status: %s", resp.Status)
+			}
+		} else {
+			return fmt.Errorf("bad status: %s", resp.Status)
+		}
+	}
+
+	totalSize := resp.ContentLength
+	if resumeFrom > 0 && resp.StatusCode == http.StatusPartialContent {
+		totalSize += resumeFrom
+	}
+
+	if totalSize <= 0 {
+		totalSize = -1
+	}
+
+	flag := os.O_CREATE | os.O_WRONLY
+	if resumeFrom > 0 && resp.StatusCode == http.StatusPartialContent {
+		flag |= os.O_APPEND
+	} else {
+		flag |= os.O_TRUNC
+		resumeFrom = 0
+	}
+
+	out, err := os.OpenFile(tempDest, flag, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer out.Close()
+
+	buffer := make([]byte, 64*1024) // Larger buffer for better performance
+	downloaded := resumeFrom
+	startTime := time.Now()
+	lastUpdate := startTime
+	var lastDownloaded int64 = resumeFrom
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		n, err := resp.Body.Read(buffer)
+		if n > 0 {
+			written, writeErr := out.Write(buffer[:n])
+			if writeErr != nil {
+				return fmt.Errorf("write error: %w", writeErr)
+			}
+			if written != n {
+				return fmt.Errorf("short write: wrote %d bytes, expected %d", written, n)
+			}
+
+			downloaded += int64(n)
+			now := time.Now()
+
+			if callback != nil && now.Sub(lastUpdate) >= 200*time.Millisecond {
+				elapsed := now.Sub(lastUpdate).Seconds()
+				speed := ""
+				if elapsed > 0 {
+					recentBytes := float64(downloaded - lastDownloaded)
+					speed = formatSpeed(recentBytes / elapsed)
+				}
+
+				var progress float64
+				if totalSize > 0 {
+					progress = float64(downloaded) / float64(totalSize) * 100 * progressWeight
+				} else {
+					progress = 0
+				}
+
+				callback(stage, progress, "Downloading...", "", speed, downloaded, totalSize)
+				lastUpdate = now
+				lastDownloaded = downloaded
+			}
+		}
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return fmt.Errorf("read error: %w", err)
+		}
+	}
+
+	if err := out.Sync(); err != nil {
+		return fmt.Errorf("sync error: %w", err)
+	}
+
+	// Close file before rename
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("close error: %w", err)
+	}
+
+	// Atomic rename
+	if runtime.GOOS == "windows" {
+		os.Remove(dest)
+	}
+
+	if err := os.Rename(tempDest, dest); err != nil {
+		return fmt.Errorf("rename error: %w", err)
+	}
+
+	if callback != nil {
+		callback(stage, progressWeight*100, "Download complete", "", "", downloaded, totalSize)
+	}
+
+	return nil
+}
+
+func createOptimizedClient() *http.Client {
+	// Custom dialer for optimized connections
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
+	transport := &http.Transport{
+		DialContext:           dialer.DialContext,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   10,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		ForceAttemptHTTP2:     true,
+		TLSClientConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		},
+	}
+
+	return &http.Client{
+		Timeout:   downloadTimeout,
+		Transport: transport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("too many redirects")
+			}
+			return nil
+		},
+	}
+}
+
+func formatSpeed(bytesPerSec float64) string {
+	const unit = 1024
+	if bytesPerSec < unit {
+		return fmt.Sprintf("%.0f B/s", bytesPerSec)
+	}
+
+	div, exp := float64(unit), 0
+	for n := bytesPerSec / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+
+	return fmt.Sprintf("%.1f %cB/s", bytesPerSec/div, "KMGTPE"[exp])
+}
+
+func CreateTempFile(pattern string) (string, error) {
+	f, err := os.CreateTemp("", pattern)
+	if err != nil {
+		return "", err
+	}
+	path := f.Name()
+	f.Close()
+	return path, nil
+}

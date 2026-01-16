@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"HyLauncher/internal/env"
+	"HyLauncher/internal/models/hyerrors"
 	"HyLauncher/internal/util"
+	"HyLauncher/internal/util/download"
 )
 
 type JREPlatform struct {
@@ -40,7 +42,6 @@ func DownloadJRE(ctx context.Context, progressCallback func(stage string, progre
 		return nil
 	}
 
-	// Fetch JRE JSON
 	resp, err := http.Get("https://launcher.hytale.com/version/release/jre.json")
 	if err != nil {
 		return err
@@ -72,7 +73,7 @@ func DownloadJRE(ctx context.Context, progressCallback func(stage string, progre
 	// Download JRE archive if not cached
 	if _, err := os.Stat(cacheFile); os.IsNotExist(err) {
 		_ = os.Remove(tempCacheFile)
-		if err := util.DownloadWithProgress(tempCacheFile, platform.URL, "jre", 0.9, progressCallback); err != nil {
+		if err := download.DownloadWithProgress(tempCacheFile, platform.URL, "jre", 0.9, progressCallback); err != nil {
 			_ = os.Remove(tempCacheFile)
 			return err
 		}
@@ -83,11 +84,11 @@ func DownloadJRE(ctx context.Context, progressCallback func(stage string, progre
 		}
 	}
 
-	// Verify SHA256
+	// Verify hash sha256
 	if progressCallback != nil {
 		progressCallback("jre", 92, "Verifying JRE integrity...", fileName, "", 0, 0)
 	}
-	if err := verifySHA256(cacheFile, platform.SHA256); err != nil {
+	if err := util.VerifySHA256(cacheFile, platform.SHA256); err != nil {
 		_ = os.Remove(cacheFile)
 		return err
 	}
@@ -113,7 +114,6 @@ func DownloadJRE(ctx context.Context, progressCallback func(stage string, progre
 		progressCallback("jre", 98, "Finalizing JRE installation...", fileName, "", 0, 0)
 	}
 
-	// Remove old latest safely
 	_ = os.RemoveAll(latestDir)
 
 	// On Windows, retry a few times because antivirus may lock files
@@ -144,28 +144,21 @@ func DownloadJRE(ctx context.Context, progressCallback func(stage string, progre
 	return nil
 }
 
-// Checks if JRE is installed
-func isJREInstalled(jreDir string) bool {
-	javaBin := filepath.Join(jreDir, "bin", "java")
-	if runtime.GOOS == "windows" {
-		javaBin += ".exe"
-	}
-	_, err := os.Stat(javaBin)
-	return err == nil
-}
-
-func GetJavaExec() string {
+func GetJavaExec() (string, error) {
 	jreDir := filepath.Join(env.GetDefaultAppDir(), "release", "package", "jre", "latest")
 	javaBin := filepath.Join(jreDir, "bin", "java")
 	if runtime.GOOS == "windows" {
 		javaBin += ".exe"
 	}
 
-	// Check if it exists
 	if _, err := os.Stat(javaBin); os.IsNotExist(err) {
 		fmt.Println("Warning: JRE not found, fallback to system java")
-		return "java"
+		return "", hyerrors.ErrJavaNotFound
 	}
 
-	return javaBin
+	if ok := isJavaFunctional(javaBin); ok == false {
+		return "", hyerrors.ErrJavaBroken
+	}
+
+	return javaBin, nil
 }

@@ -55,7 +55,6 @@ type DiskSpaceInfo struct {
 	Error            string `json:"error,omitempty"`
 }
 
-// RunDiagnostics performs comprehensive system diagnostics
 func (a *App) RunDiagnostics() (*DiagnosticReport, error) {
 	report := &DiagnosticReport{
 		Timestamp:  time.Now(),
