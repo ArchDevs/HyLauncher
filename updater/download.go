@@ -1,6 +1,7 @@
 package updater
 
 import (
+	"HyLauncher/internal/env"
 	"HyLauncher/internal/util/download"
 	"context"
 	"fmt"
@@ -8,16 +9,26 @@ import (
 	"path/filepath"
 )
 
-func DownloadUpdate(ctx context.Context, url string, progress func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64)) (string, error) {
-	fmt.Printf("Starting download from: %s\n", url)
+func DownloadUpdate(
+	ctx context.Context,
+	url string,
+	progress func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64),
+) (string, error) {
 
-	tmp := filepath.Join(os.TempDir(), "hylauncher-update.tmp")
+	tmpFile, err := os.CreateTemp(
+		filepath.Join(env.GetDefaultAppDir(), "cache"),
+		"hylauncher-update-*",
+	)
+	if err != nil {
+		return "", err
+	}
 
-	_ = os.Remove(tmp)
+	tmp := tmpFile.Name()
+	tmpFile.Close()
 
 	if err := download.DownloadWithProgress(tmp, url, "update", 1.0, progress); err != nil {
 		_ = os.Remove(tmp)
-		return "", fmt.Errorf("failed to download update: %w", err)
+		return "", err
 	}
 
 	fmt.Printf("Download complete: %s\n", tmp)

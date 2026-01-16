@@ -1,9 +1,11 @@
 package util
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"syscall"
 )
 
 func СopyFile(src, dst string) error {
@@ -40,4 +42,46 @@ func СopyDir(src string, dst string) error {
 
 		return СopyFile(path, targetPath)
 	})
+}
+
+func MoveFile(src, dst string) error {
+	// Try renaming
+	err := os.Rename(src, dst)
+	if err == nil {
+		return nil
+	}
+
+	var linkErr *os.LinkError
+	if errors.As(err, &linkErr) && linkErr.Err == syscall.EXDEV {
+		return copyAndDelete(src, dst)
+	}
+
+	return err
+}
+
+func copyAndDelete(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	info, err := sourceFile.Stat()
+	if err != nil {
+		return err
+	}
+
+	destFile, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, info.Mode())
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	if _, err := io.Copy(destFile, sourceFile); err != nil {
+		return err
+	}
+
+	destFile.Sync()
+	sourceFile.Close()
+	return os.Remove(src)
 }

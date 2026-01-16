@@ -46,6 +46,11 @@ func (a *App) Startup(ctx context.Context) {
 		fmt.Println("Starting background update check...")
 		a.checkUpdateSilently()
 	}()
+
+	go func() {
+		fmt.Println("Starting cleanup")
+		env.CleanupIncompleteDownloads()
+	}()
 }
 
 func (a *App) progressCallback(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64) {

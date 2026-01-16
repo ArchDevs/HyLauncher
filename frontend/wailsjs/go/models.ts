@@ -41,7 +41,9 @@ export namespace app {
 	}
 	export class ConnectivityInfo {
 	    can_reach_game_server: boolean;
+	    can_reach_itchio_server: boolean;
 	    game_server_error?: string;
+	    itchio_server_error?: string;
 	    response_time_ms: number;
 	
 	    static createFrom(source: any = {}) {
@@ -51,7 +53,9 @@ export namespace app {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.can_reach_game_server = source["can_reach_game_server"];
+	        this.can_reach_itchio_server = source["can_reach_itchio_server"];
 	        this.game_server_error = source["game_server_error"];
+	        this.itchio_server_error = source["itchio_server_error"];
 	        this.response_time_ms = source["response_time_ms"];
 	    }
 	}

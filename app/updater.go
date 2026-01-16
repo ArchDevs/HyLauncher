@@ -5,6 +5,8 @@ import (
 	"HyLauncher/updater"
 	"fmt"
 	"os"
+	"os/exec"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -26,6 +28,8 @@ func (a *App) CheckUpdate() (*updater.Asset, error) {
 
 	return asset, nil
 }
+
+// Replace the Update() function in app/updater.go with this corrected version:
 
 func (a *App) Update() error {
 	fmt.Println("Starting launcher update process...")
@@ -53,8 +57,6 @@ func (a *App) Update() error {
 		return NetworkError("downloading launcher update", err)
 	}
 
-	fmt.Printf("Download complete: %s\n", tmp)
-
 	// Verify checksum if provided
 	if asset.Sha256 != "" {
 		fmt.Println("Verifying download checksum...")
@@ -76,12 +78,36 @@ func (a *App) Update() error {
 	}
 
 	fmt.Printf("Running update helper: %s\n", helperPath)
-	if err := updater.Apply(tmp); err != nil {
-		fmt.Printf("Failed to start update helper: %v\n", err)
-		return FileSystemError("starting updater", err)
+	exe, err := os.Executable()
+	if err != nil {
+		return FileSystemError("getting executable path", err)
+	}
+
+	// IMPORTANT: Call the helper, not the launcher itself!
+	cmd := exec.Command(
+		helperPath, // <- Fixed: was 'exe' before
+		exe,        // old executable (launcher)
+		tmp,        // new executable (downloaded update)
+	)
+
+	// Detach the helper process
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	cmd.Stdin = nil
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start update helper: %w", err)
+	}
+
+	// Release the process so it can run independently
+	if err := cmd.Process.Release(); err != nil {
+		fmt.Printf("Warning: failed to release helper process: %v\n", err)
 	}
 
 	fmt.Printf("Update helper started successfully, exiting launcher (updating to version %s)...\n", newVersion)
+
+	time.Sleep(100 * time.Millisecond)
+
 	os.Exit(0)
 	return nil
 }

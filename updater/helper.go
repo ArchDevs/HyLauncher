@@ -4,6 +4,7 @@ import (
 	"HyLauncher/internal/util"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -51,7 +52,7 @@ func EnsureUpdateHelper(ctx context.Context) (string, error) {
 	}
 
 	// Move to final location
-	if err := os.Rename(tmp, helperPath); err != nil {
+	if err := MoveFile(tmp, helperPath); err != nil {
 		return "", fmt.Errorf("failed to install helper: %w", err)
 	}
 
@@ -64,4 +65,39 @@ func EnsureUpdateHelper(ctx context.Context) (string, error) {
 
 	fmt.Printf("Update helper installed: %s\n", helperPath)
 	return helperPath, nil
+}
+
+func MoveFile(src, dst string) error {
+	tmpDst := dst + ".tmp"
+
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(tmpDst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+
+	if err := out.Sync(); err != nil {
+		out.Close()
+		return err
+	}
+
+	if err := out.Close(); err != nil {
+		return err
+	}
+
+	if err := os.Rename(tmpDst, dst); err != nil {
+		return err
+	}
+
+	return os.Remove(src)
 }

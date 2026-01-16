@@ -8,8 +8,8 @@ import (
 
 func CleanupIncompleteDownloads() error {
 	appDir := GetDefaultAppDir()
-
 	cacheDir := filepath.Join(appDir, "cache")
+
 	if err := cleanDirectory(cacheDir, []string{".pwr", ".zip", ".tar.gz"}); err != nil {
 		fmt.Println("Warning: failed to clean cache:", err)
 	}
@@ -24,6 +24,34 @@ func CleanupIncompleteDownloads() error {
 		fmt.Println("Warning: failed to remove staging dir:", err)
 	}
 
+	// Clean up old launcher backup from updates
+	if err := cleanupLauncherBackup(); err != nil {
+		fmt.Println("Warning: failed to clean launcher backup:", err)
+	}
+
+	return nil
+}
+
+func cleanupLauncherBackup() error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+
+	backup := exe + ".old"
+
+	// Check if backup exists
+	if _, err := os.Stat(backup); os.IsNotExist(err) {
+		return nil // No backup to clean
+	}
+
+	// Remove the backup
+	fmt.Println("Removing old launcher backup:", backup)
+	if err := os.Remove(backup); err != nil {
+		return fmt.Errorf("failed to remove backup: %w", err)
+	}
+
+	fmt.Println("Old launcher backup removed successfully")
 	return nil
 }
 
@@ -66,8 +94,8 @@ func cleanIncompleteGame(gameDir string) error {
 	if os.PathSeparator == '\\' {
 		gameClient += ".exe"
 	}
-	clientPath := filepath.Join(gameDir, "Client", gameClient)
 
+	clientPath := filepath.Join(gameDir, "Client", gameClient)
 	if _, err := os.Stat(clientPath); os.IsNotExist(err) {
 		// Game is incomplete, remove entire directory
 		fmt.Println("Incomplete game installation detected, cleaning up...")
