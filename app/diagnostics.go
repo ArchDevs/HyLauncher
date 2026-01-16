@@ -30,9 +30,11 @@ type PlatformInfo struct {
 }
 
 type ConnectivityInfo struct {
-	CanReachGameServer bool   `json:"can_reach_game_server"`
-	GameServerError    string `json:"game_server_error,omitempty"`
-	ResponseTime       int64  `json:"response_time_ms"`
+	CanReachGameServer   bool   `json:"can_reach_game_server"`
+	CanReachItchioServer bool   `json:"can_reach_itchio_server"`
+	GameServerError      string `json:"game_server_error,omitempty"`
+	ItchioServerError    string `json:"itchio_server_error,omitempty"`
+	ResponseTime         int64  `json:"response_time_ms"`
 }
 
 type InstallationInfo struct {
@@ -86,19 +88,32 @@ func (a *App) RunDiagnostics() (*DiagnosticReport, error) {
 }
 
 func checkConnectivity() ConnectivityInfo {
+	gameServersURL := "https://game-patches.hytale.com/patches"
+	itchioServersURL := "https://broth.itch.zone/butler"
+
 	info := ConnectivityInfo{}
 
 	start := time.Now()
-	err := pwr.TestConnection()
-	elapsed := time.Since(start).Milliseconds()
 
-	info.ResponseTime = elapsed
+	errGame := pwr.TestConnection(gameServersURL)
+	errItchio := pwr.TestConnection(itchioServersURL)
 
-	if err != nil {
+	info.ResponseTime = time.Since(start).Milliseconds()
+
+	// Game server
+	if errGame != nil {
 		info.CanReachGameServer = false
-		info.GameServerError = err.Error()
+		info.GameServerError = errGame.Error()
 	} else {
 		info.CanReachGameServer = true
+	}
+
+	// Itchio server
+	if errItchio != nil {
+		info.CanReachItchioServer = false
+		info.ItchioServerError = errItchio.Error()
+	} else {
+		info.CanReachItchioServer = true
 	}
 
 	return info

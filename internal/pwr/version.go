@@ -268,9 +268,7 @@ func VerifyVersionExists(versionType string, version int) error {
 	return nil
 }
 
-func TestConnection() error {
-	testURL := "https://game-patches.hytale.com/"
-
+func TestConnection(testURL string) error {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
