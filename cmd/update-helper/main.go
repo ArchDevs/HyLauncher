@@ -24,15 +24,18 @@ func main() {
 }
 
 func performUpdate(oldExe, newExe string) error {
+	// Verify the new executable exists
 	if _, err := os.Stat(newExe); err != nil {
 		return fmt.Errorf("new executable not found: %w", err)
 	}
 
 	backup := oldExe + ".old"
 
+	// Wait for the old process to exit
 	fmt.Println("Waiting for launcher to exit...")
 	time.Sleep(1500 * time.Millisecond)
 
+	// Try to create backup of old executable
 	fmt.Println("Creating backup...")
 	for i := 0; i < 20; i++ {
 		_ = os.Remove(backup)
@@ -45,8 +48,10 @@ func performUpdate(oldExe, newExe string) error {
 		time.Sleep(200 * time.Millisecond)
 	}
 
+	// Install the new executable
 	fmt.Println("Installing update...")
 	if err := os.Rename(newExe, oldExe); err != nil {
+		// Try to restore backup on failure
 		_ = os.Rename(backup, oldExe)
 		return fmt.Errorf("failed to install update: %w", err)
 	}
@@ -67,9 +72,19 @@ func performUpdate(oldExe, newExe string) error {
 			_ = d.Sync()
 			_ = d.Close()
 		}
+	} else {
+		if f, err := os.Open(oldExe); err == nil {
+			f.Close()
+		} else {
+			return fmt.Errorf("failed to verify new executable: %w", err)
+		}
 	}
 
-	time.Sleep(500 * time.Millisecond)
+	if runtime.GOOS == "windows" {
+		time.Sleep(1 * time.Second)
+	} else {
+		time.Sleep(500 * time.Millisecond)
+	}
 
 	fmt.Println("Restarting launcher...")
 	if err := restartLauncher(oldExe); err != nil {

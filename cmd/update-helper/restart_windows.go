@@ -9,13 +9,17 @@ import (
 )
 
 func restartLauncher(exePath string) error {
-	cmd := exec.Command(exePath)
+	absPath, err := filepath.Abs(exePath)
+	if err != nil {
+		return err
+	}
 
-	cmd.Dir = filepath.Dir(exePath)
+	cmd := exec.Command(absPath)
+
+	cmd.Dir = filepath.Dir(absPath)
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    true,
-		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP | 0x08000000, // CREATE_NO_WINDOW
+		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
 	}
 
 	cmd.Stdin = nil

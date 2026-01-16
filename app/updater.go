@@ -29,8 +29,6 @@ func (a *App) CheckUpdate() (*updater.Asset, error) {
 	return asset, nil
 }
 
-// Replace the Update() function in app/updater.go with this corrected version:
-
 func (a *App) Update() error {
 	fmt.Println("Starting launcher update process...")
 
@@ -90,10 +88,13 @@ func (a *App) Update() error {
 		tmp,        // new executable (downloaded update)
 	)
 
-	// Detach the helper process
+	// Detach the helper process properly on Windows
+	util.HideConsoleWindow(cmd)
+
+	// Don't inherit file handles
+	cmd.Stdin = nil
 	cmd.Stdout = nil
 	cmd.Stderr = nil
-	cmd.Stdin = nil
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start update helper: %w", err)
@@ -106,7 +107,8 @@ func (a *App) Update() error {
 
 	fmt.Printf("Update helper started successfully, exiting launcher (updating to version %s)...\n", newVersion)
 
-	time.Sleep(100 * time.Millisecond)
+	// Give the helper a moment to start before we exit
+	time.Sleep(500 * time.Millisecond)
 
 	os.Exit(0)
 	return nil
