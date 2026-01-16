@@ -11,7 +11,7 @@ depends=('webkit2gtk' 'gtk3')
 makedepends=('go' 'nodejs' 'npm')
 source=("$url/archive/refs/tags/$_pkgver.tar.gz")
 sha256sums=(
-'4124e1675dbda6912341cd17666f732b207bcdd46eff428c3933190deb833aa8')
+'72680b088b58bb900458705e9df2d5aaa963bdcf585a979091d378ea7dc73344')
 
 prepare() {
 go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
