@@ -22,7 +22,7 @@ wails build
 Ждем..
 Получаем бинарник в:
 ```
-buils/bin/
+build/bin/
 ```
 
 # Связь
