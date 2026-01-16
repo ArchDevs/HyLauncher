@@ -1,22 +1,33 @@
+# Maintainer: Terromur <terromuroz@proton.me>
 pkgname=HyLauncher
-pkgver=0.4
-_pkgver=v0.4
-pkgrel=1
+pkgver=0.6.3
+_pkgver=v0.6.3
+pkgrel=2
 pkgdesc="HyLauncher - unofficial Hytale Launcher for free to play gamers"
 arch=('x86_64')
 url="https://github.com/ArchDevs/HyLauncher"
 license=('custom')
 depends=('webkit2gtk' 'gtk3')
-source=(https://github.com/ArchDevs/$pkgname/releases/download/$_pkgver/$pkgname-linux-x64 'HyLauncher.desktop' 'HyLauncher.png')
+makedepends=('go' 'nodejs' 'npm')
+source=("$url/archive/refs/tags/$_pkgver.tar.gz")
 sha256sums=(
-'cb8a82c8556d1ef2a48194aa3741049a4c17bfe41204469ff31f5f8c3dcbd387' 
-'85f507d6d5bda0c68d9c014cac014d7649dacf9d7413c2eb5557d32ab0fa600e'
-'065e5283a7e30fd654e6d18706dd1ae586f193e4698f310614a0593f62285a3f')
+'4124e1675dbda6912341cd17666f732b207bcdd46eff428c3933190deb833aa8')
+
+prepare() {
+go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+  ~/go/bin/wails build
+}
 
 package() {
-  install -Dm755 "$pkgname-linux-x64" "$pkgdir/usr/bin/$pkgname"
+  cd "$pkgname-$pkgver"
 
-  install -Dm644 "$srcdir/$pkgname.desktop" "$pkgdir/usr/share/applications/$pkgname.desktop"
+  install -Dm755 "build/bin/$pkgname" "$pkgdir/usr/bin/$pkgname"
 
-  install -Dm644 "$srcdir/$pkgname.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/$pkgname.png"
+  install -Dm644 "$pkgname.desktop" "$pkgdir/usr/share/applications/$pkgname.desktop"
+
+  install -Dm644 "$pkgname.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/$pkgname.png"
 }
