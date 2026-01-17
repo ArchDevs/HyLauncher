@@ -11,6 +11,8 @@ export function DownloadAndLaunch(arg1:string):Promise<void>;
 
 export function GetCrashReports():Promise<Array<app.CrashReport>>;
 
+export function GetLauncherVersion():Promise<string>;
+
 export function GetLogs():Promise<string>;
 
 export function GetNick():Promise<string>;

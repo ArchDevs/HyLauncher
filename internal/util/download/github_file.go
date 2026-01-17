@@ -33,7 +33,6 @@ func DownloadLatestReleaseAsset(
 	destPath string,
 	progressCallback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64),
 ) error {
-	// Construct GitHub API URL for our repository
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", defaultRepoOwner, defaultRepoName)
 
 	// Create HTTP request with context

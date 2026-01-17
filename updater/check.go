@@ -34,6 +34,7 @@ type Asset struct {
 	Sha256 string `json:"sha256"`
 }
 
+// Checks if there is any new launcher update, returns Asset: url to download, sha256 hash
 func CheckUpdate(ctx context.Context, current string) (*Asset, string, error) {
 	info, err := fetchUpdateInfo(ctx)
 	if err != nil {
@@ -66,6 +67,7 @@ func CheckUpdate(ctx context.Context, current string) (*Asset, string, error) {
 	return asset, info.Version, nil
 }
 
+// Get update-helper asset/info
 func GetHelperAsset(ctx context.Context) (*Asset, error) {
 	info, err := fetchUpdateInfo(ctx)
 	if err != nil {
@@ -86,6 +88,7 @@ func GetHelperAsset(ctx context.Context) (*Asset, error) {
 	return asset, nil
 }
 
+// Creates temp version json, downloads actual version json, reads actual info, returns atest update info
 func fetchUpdateInfo(ctx context.Context) (*UpdateInfo, error) {
 	tempFile, err := util.CreateTempFile("version-*.json")
 	if err != nil {
@@ -93,16 +96,19 @@ func fetchUpdateInfo(ctx context.Context) (*UpdateInfo, error) {
 	}
 	defer os.Remove(tempFile)
 
+	// Download version.json
 	if err := download.DownloadLatestReleaseAsset(ctx, versionJSONAsset, tempFile, nil); err != nil {
 		return nil, fmt.Errorf("failed to download version info: %w", err)
 	}
 
+	// Open version.json temp
 	f, err := os.Open(tempFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open version file: %w", err)
 	}
 	defer f.Close()
 
+	// Read info from downloaded version.json
 	var info UpdateInfo
 	if err := json.NewDecoder(f).Decode(&info); err != nil {
 		return nil, fmt.Errorf("failed to parse version info: %w", err)

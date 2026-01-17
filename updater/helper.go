@@ -10,7 +10,10 @@ import (
 	"runtime"
 )
 
+// Installs UpdateHelper
+// TODO need to be update function name to: InstallUpdateHelper
 func EnsureUpdateHelper(ctx context.Context) (string, error) {
+	// Get path name for the executable that started the current process
 	exe, err := os.Executable()
 	if err != nil {
 		return "", fmt.Errorf("failed to get executable path: %w", err)
@@ -23,6 +26,7 @@ func EnsureUpdateHelper(ctx context.Context) (string, error) {
 		name += ".exe"
 	}
 
+	// Get update-helper path
 	helperPath := filepath.Join(dir, name)
 
 	// Check if helper already exists
@@ -32,11 +36,15 @@ func EnsureUpdateHelper(ctx context.Context) (string, error) {
 
 	fmt.Println("Update helper not found, downloading...")
 
+	// Get info about latest update-helper as: url, hash
 	asset, err := GetHelperAsset(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get helper asset info: %w", err)
 	}
-
+	
+	// Download latest update-helper, returned file path to temp file of helper
+	// !! Possible misunderstanding !! DownloadUpdate downloads any file, right now
+	// it downloads update-helper, as hylauncher-update-*.tmp file. 
 	tmp, err := DownloadUpdate(ctx, asset.URL, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to download helper: %w", err)

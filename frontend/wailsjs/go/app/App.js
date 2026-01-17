@@ -18,6 +18,10 @@ export function GetCrashReports() {
   return window['go']['app']['App']['GetCrashReports']();
 }
 
+export function GetLauncherVersion() {
+  return window['go']['app']['App']['GetLauncherVersion']();
+}
+
 export function GetLogs() {
   return window['go']['app']['App']['GetLogs']();
 }
