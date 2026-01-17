@@ -273,13 +273,3 @@ func formatSpeed(bytesPerSec float64) string {
 
 	return fmt.Sprintf("%.1f %cB/s", bytesPerSec/div, "KMGTPE"[exp])
 }
-
-func CreateTempFile(pattern string) (string, error) {
-	f, err := os.CreateTemp("", pattern)
-	if err != nil {
-		return "", err
-	}
-	path := f.Name()
-	f.Close()
-	return path, nil
-}

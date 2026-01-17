@@ -111,7 +111,8 @@ jobs:
           mkdir release
           cp artifacts/**/** release/
           ls -lh release/
-
+      
+      # TODO Implement normal sha256 hash generation
       - name: Generate version.json
         run: |
           VERSION="${{ inputs.version }}"

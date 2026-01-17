@@ -1,5 +1,7 @@
 package app
 
+// TODO FULL REFACTOR
+
 import (
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/pwr"

@@ -11,6 +11,8 @@ import { DiagnosticsModal } from './components/DiagnosticsModal';
 import { DownloadAndLaunch, OpenFolder, GetVersions, GetNick, SetNick, DeleteGame, RunDiagnostics, SaveDiagnosticReport, Update } from '../wailsjs/go/app/App';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 
+// TODO FULL REFACTOR + Redesign
+
 const App: React.FC = () => {
   const [username, setUsername] = useState<string>("HyLauncher");
   const [current, setCurrent] = useState<string>("");

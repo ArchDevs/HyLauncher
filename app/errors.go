@@ -1,5 +1,7 @@
 package app
 
+// TODO FULL REFACTOR + MERGE /internal/models/errors
+
 import (
 	"fmt"
 	"os"

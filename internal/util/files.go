@@ -1,6 +1,7 @@
 package util
 
 import (
+	"HyLauncher/internal/env"
 	"errors"
 	"io"
 	"os"
@@ -8,7 +9,7 @@ import (
 	"syscall"
 )
 
-func СopyFile(src, dst string) error {
+func CopyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
@@ -25,7 +26,7 @@ func СopyFile(src, dst string) error {
 	return err
 }
 
-func СopyDir(src string, dst string) error {
+func CopyDir(src string, dst string) error {
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -40,7 +41,7 @@ func СopyDir(src string, dst string) error {
 			return os.MkdirAll(targetPath, info.Mode())
 		}
 
-		return СopyFile(path, targetPath)
+		return CopyFile(path, targetPath)
 	})
 }
 
@@ -57,6 +58,16 @@ func MoveFile(src, dst string) error {
 	}
 
 	return err
+}
+
+func CreateTempFile(pattern string) (string, error) {
+	f, err := os.CreateTemp(env.GetCacheDir(), pattern)
+	if err != nil {
+		return "", err
+	}
+	path := f.Name()
+	f.Close()
+	return path, nil
 }
 
 func copyAndDelete(src, dst string) error {

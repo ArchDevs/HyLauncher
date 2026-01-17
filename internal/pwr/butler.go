@@ -1,4 +1,4 @@
-package butler
+package pwr
 
 import (
 	"HyLauncher/internal/env"

@@ -1,6 +1,8 @@
 package app
 
-import "HyLauncher/internal/config"
+import (
+	"HyLauncher/internal/config"
+)
 
 func (a *App) SetNick(nick string) error {
 	a.cfg.Nick = nick
@@ -9,4 +11,8 @@ func (a *App) SetNick(nick string) error {
 
 func (a *App) GetNick() string {
 	return a.cfg.Nick
+}
+
+func (a *App) GetLauncherVersion() string {
+	return config.Default().Version
 }

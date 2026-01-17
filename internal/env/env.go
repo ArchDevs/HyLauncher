@@ -44,6 +44,10 @@ func GetDefaultAppDir() string {
 	}
 }
 
+func GetCacheDir() string {
+	return filepath.Join(GetDefaultAppDir(), "cache")
+}
+
 func CreateFolders() error {
 	basePath := GetDefaultAppDir()
 	packagePath := filepath.Join(basePath, "release", "package") // Package folder

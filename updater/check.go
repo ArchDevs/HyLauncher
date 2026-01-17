@@ -1,6 +1,7 @@
 package updater
 
 import (
+	"HyLauncher/internal/util"
 	"HyLauncher/internal/util/download"
 	"context"
 	"encoding/json"
@@ -86,7 +87,7 @@ func GetHelperAsset(ctx context.Context) (*Asset, error) {
 }
 
 func fetchUpdateInfo(ctx context.Context) (*UpdateInfo, error) {
-	tempFile, err := download.CreateTempFile("version-*.json")
+	tempFile, err := util.CreateTempFile("version-*.json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file: %w", err)
 	}

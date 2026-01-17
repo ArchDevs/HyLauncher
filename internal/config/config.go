@@ -15,10 +15,12 @@ func configPath() string {
 
 func Save(cfg *Config) error {
 	path := configPath()
+	// Create config if not exists
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
 
+	// Serialize config
 	data, err := toml.Marshal(cfg)
 	if err != nil {
 		return err
@@ -30,6 +32,7 @@ func Save(cfg *Config) error {
 func Load() (*Config, error) {
 	path := configPath()
 
+	// Get config data
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {

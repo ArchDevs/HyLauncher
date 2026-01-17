@@ -12,7 +12,6 @@ import (
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/java"
 	"HyLauncher/internal/pwr"
-	"HyLauncher/internal/pwr/butler"
 )
 
 var (
@@ -42,7 +41,7 @@ func EnsureInstalled(ctx context.Context, progress func(stage string, progress f
 	}
 
 	// Install Butler
-	if _, err := butler.InstallButler(ctx, progress); err != nil {
+	if _, err := pwr.InstallButler(ctx, progress); err != nil {
 		return fmt.Errorf("failed to install Butler tool: %w", err)
 	}
 

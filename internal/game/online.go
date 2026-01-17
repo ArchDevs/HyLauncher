@@ -82,7 +82,7 @@ func extractAndApplyFix(zipPath, gameDir, cacheDir string) error {
 	if err := os.MkdirAll(filepath.Dir(clientDst), 0755); err != nil {
 		return fmt.Errorf("failed to create client directory: %w", err)
 	}
-	if err := util.СopyFile(clientSrc, clientDst); err != nil {
+	if err := util.CopyFile(clientSrc, clientDst); err != nil {
 		return fmt.Errorf("failed to copy client executable: %w", err)
 	}
 
@@ -94,7 +94,7 @@ func extractAndApplyFix(zipPath, gameDir, cacheDir string) error {
 	if err := os.RemoveAll(serverDst); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove existing server folder: %w", err)
 	}
-	if err := util.СopyDir(serverSrc, serverDst); err != nil {
+	if err := util.CopyDir(serverSrc, serverDst); err != nil {
 		return fmt.Errorf("failed to copy server folder: %w", err)
 	}
 
