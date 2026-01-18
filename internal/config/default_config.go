@@ -13,6 +13,5 @@ func Default() Config {
 			},
 		},
 		CurrentProfile: id,
-		Nick:           "HyLauncher",
 	}
 }

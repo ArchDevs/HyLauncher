@@ -80,12 +80,10 @@ func (a *App) SetNick(nick string) error {
 	for i, p := range a.cfg.Profiles {
 		if p.ID == a.cfg.CurrentProfile {
 			a.cfg.Profiles[i].Name = nick
-			a.cfg.Nick = nick
 			return config.Save(a.cfg)
 		}
 	}
-	a.cfg.Nick = nick
-	return config.Save(a.cfg)
+	return nil
 }
 
 func (a *App) GetNick() string {
