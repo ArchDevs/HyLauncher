@@ -29,6 +29,8 @@ export function GetNick():Promise<string>;
 
 export function GetProfiles():Promise<Array<config.Profile>>;
 
+export function GetSettings():Promise<config.GameSettings>;
+
 export function GetVersions():Promise<string|string>;
 
 export function OpenFolder():Promise<void>;
@@ -36,6 +38,8 @@ export function OpenFolder():Promise<void>;
 export function RunDiagnostics():Promise<app.DiagnosticReport>;
 
 export function SaveDiagnosticReport():Promise<string>;
+
+export function SaveSettings(arg1:config.GameSettings):Promise<void>;
 
 export function SetCurrentProfile(arg1:string):Promise<void>;
 

@@ -93,3 +93,12 @@ func (a *App) GetNick() string {
 func (a *App) GetLauncherVersion() string {
 	return config.Default().Version
 }
+
+func (a *App) GetSettings() config.GameSettings {
+	return a.cfg.Settings
+}
+
+func (a *App) SaveSettings(settings config.GameSettings) error {
+	a.cfg.Settings = settings
+	return config.Save(a.cfg)
+}

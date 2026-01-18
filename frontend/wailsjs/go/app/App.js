@@ -50,6 +50,10 @@ export function GetProfiles() {
   return window['go']['app']['App']['GetProfiles']();
 }
 
+export function GetSettings() {
+  return window['go']['app']['App']['GetSettings']();
+}
+
 export function GetVersions() {
   return window['go']['app']['App']['GetVersions']();
 }
@@ -64,6 +68,10 @@ export function RunDiagnostics() {
 
 export function SaveDiagnosticReport() {
   return window['go']['app']['App']['SaveDiagnosticReport']();
+}
+
+export function SaveSettings(arg1) {
+  return window['go']['app']['App']['SaveSettings'](arg1);
 }
 
 export function SetCurrentProfile(arg1) {

@@ -115,7 +115,11 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 	// Launch the game
 	a.progressCallback("launch", 100, "Launching game...", "", "", 0, 0)
 
-	if err := game.Launch(playerName, "latest"); err != nil {
+	// Use the current profile's ID as the UUID to ensure persistence across name changes
+	// and consistency with the config file
+	playerUUID := a.cfg.CurrentProfile
+
+	if err := game.Launch(playerName, playerUUID, "latest"); err != nil {
 		wrappedErr := hyerrors.NewAppError(hyerrors.ErrorTypeGame, "Failed to launch game", err)
 		a.emitError(wrappedErr)
 		return wrappedErr

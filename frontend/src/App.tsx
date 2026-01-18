@@ -7,6 +7,7 @@ import { ControlSection } from './components/ControlSection';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 import { ErrorModal } from './components/ErrorModal';
 import { DiagnosticsModal } from './components/DiagnosticsModal';
+import { SettingsModal } from './components/SettingsModal';
 
 import { DownloadAndLaunch, OpenFolder, GetVersions, GetCurrentProfile, GetProfiles, SetCurrentProfile, AddProfile, UpdateProfile, DeleteProfile, DeleteGame, RunDiagnostics, SaveDiagnosticReport, Update } from '../wailsjs/go/app/App';
 import { EventsOn } from '../wailsjs/runtime/runtime';
@@ -36,6 +37,7 @@ const App: React.FC = () => {
 
   const [showDelete, setShowDelete] = useState<boolean>(false);
   const [showDiag, setShowDiag] = useState<boolean>(false);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
   const [error, setError] = useState<any>(null);
 
   const refreshProfiles = async () => {
@@ -170,11 +172,13 @@ const App: React.FC = () => {
           actions={{
             openFolder: OpenFolder,
             showDiagnostics: () => setShowDiag(true),
-            showDelete: () => setShowDelete(true)
+            showDelete: () => setShowDelete(true),
+            showSettings: () => setShowSettings(true)
           }}
         />
       </main>
 
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showDelete && <DeleteConfirmationModal onConfirm={() => { DeleteGame(); setShowDelete(false); }} onCancel={() => setShowDelete(false)} />}
       {showDiag && <DiagnosticsModal onClose={() => setShowDiag(false)} onRunDiagnostics={RunDiagnostics} onSaveDiagnostics={SaveDiagnosticReport} />}
       {error && <ErrorModal error={error} onClose={() => setError(null)} />}

@@ -12,7 +12,7 @@ import (
 	"HyLauncher/internal/java"
 )
 
-func Launch(playerName string, version string) error {
+func Launch(playerName string, playerUUID string, version string) error {
 	baseDir := env.GetDefaultAppDir()
 	gameDir := filepath.Join(baseDir, "release", "package", "game", version)
 	userDataDir := filepath.Join(baseDir, "UserData")
@@ -33,8 +33,6 @@ func Launch(playerName string, version string) error {
 	}
 
 	_ = os.MkdirAll(userDataDir, 0755)
-
-	playerUUID := OfflineUUID(playerName).String()
 
 	cmd := exec.Command(clientPath,
 		"--app-dir", gameDir,

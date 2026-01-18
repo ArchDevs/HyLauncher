@@ -15,13 +15,14 @@ interface ControlSectionProps {
     openFolder: () => void;
     showDiagnostics: () => void;
     showDelete: () => void;
+    showSettings: () => void;
   };
 }
 
-export const ControlSection: React.FC<ControlSectionProps> = ({ 
-  onPlay, isDownloading, progress, status, speed, downloaded, total, currentFile, actions 
+export const ControlSection: React.FC<ControlSectionProps> = ({
+  onPlay, isDownloading, progress, status, speed, downloaded, total, currentFile, actions
 }) => {
-  
+
   // Your original formatting helper
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B';
@@ -37,16 +38,15 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
         <div className="flex gap-[10px]">
           <NavBtn onClick={actions.openFolder} icon={<FolderOpen size={20} />} />
           <NavBtn onClick={actions.showDiagnostics} icon={<Activity size={20} />} />
-          <NavBtn icon={<Settings size={20} />} />
+          <NavBtn onClick={actions.showSettings} icon={<Settings size={20} />} />
           <NavBtn onClick={actions.showDelete} icon={<Trash size={20} />} />
         </div>
         <motion.button
           whileTap={isDownloading ? {} : { scale: 0.98 }}
           onClick={onPlay}
           disabled={isDownloading}
-          className={`w-full h-[94px] bg-[#090909]/[0.55] backdrop-blur-xl text-white font-black text-4xl tracking-tighter rounded-[14px] border border-[#FFA845]/[0.10] shadow-lg disabled:opacity-50 ${
-            isDownloading ? 'cursor-not-allowed' : 'cursor-pointer'
-          }`}
+          className={`w-full h-[94px] bg-[#090909]/[0.55] backdrop-blur-xl text-white font-black text-4xl tracking-tighter rounded-[14px] border border-[#FFA845]/[0.10] shadow-lg disabled:opacity-50 ${isDownloading ? 'cursor-not-allowed' : 'cursor-pointer'
+            }`}
         >
           {isDownloading ? 'DOWNLOADING...' : 'PLAY'}
         </motion.button>

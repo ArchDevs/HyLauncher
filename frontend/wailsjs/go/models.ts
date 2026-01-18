@@ -199,6 +199,30 @@ export namespace app {
 
 export namespace config {
 	
+	export class GameSettings {
+	    minMemory: number;
+	    maxMemory: number;
+	    width: number;
+	    height: number;
+	    fullscreen: boolean;
+	    javaArgs: string;
+	    gameDir: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GameSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.minMemory = source["minMemory"];
+	        this.maxMemory = source["maxMemory"];
+	        this.width = source["width"];
+	        this.height = source["height"];
+	        this.fullscreen = source["fullscreen"];
+	        this.javaArgs = source["javaArgs"];
+	        this.gameDir = source["gameDir"];
+	    }
+	}
 	export class Profile {
 	    id: string;
 	    name: string;
