@@ -24,7 +24,7 @@ interface DiagnosticReport {
   };
   local_installation: {
     game_installed: boolean;
-    current_version: string;
+    current_version: number;
     install_path: string;
     jre_installed: boolean;
     butler_installed: boolean;

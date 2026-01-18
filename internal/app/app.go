@@ -9,9 +9,9 @@ import (
 
 	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
-	"HyLauncher/internal/game"
 	"HyLauncher/internal/patch"
 	"HyLauncher/internal/progress"
+	"HyLauncher/internal/service"
 	"HyLauncher/pkg/hyerrors"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -23,6 +23,8 @@ type App struct {
 	ctx      context.Context
 	cfg      *config.Config
 	progress *progress.Reporter
+
+	gameSvc *service.GameService
 }
 
 func NewApp() *App {
@@ -35,6 +37,11 @@ func NewApp() *App {
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	a.progress = progress.New(ctx)
+
+	a.gameSvc = service.NewGameService(
+		ctx,
+		a.progress,
+	)
 
 	fmt.Println("Application starting up...")
 	fmt.Printf("Current launcher version: %s\n", AppVersion)
@@ -79,7 +86,7 @@ func (a *App) emitError(err error) {
 func (a *App) GetVersions() (currentVersion string, latestVersion string) {
 	current := patch.GetLocalVersion()
 	latest := patch.FindLatestVersion("release")
-	return current, strconv.Itoa(latest)
+	return strconv.Itoa(current), strconv.Itoa(latest)
 }
 
 func (a *App) DownloadAndLaunch(playerName string) error {
@@ -101,7 +108,7 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 	}
 
 	// Ensure game is installed
-	if err := game.EnsureInstalled(a.ctx, a.progress); err != nil {
+	if err := a.gameSvc.EnsureInstalled(a.ctx, a.progress); err != nil {
 		return a.handleError(
 			hyerrors.ErrorTypeGame,
 			"Failed to install or update game",
@@ -110,7 +117,7 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 	}
 
 	// Launch the game
-	if err := game.Launch(playerName, "latest"); err != nil {
+	if err := a.gameSvc.Launch(playerName); err != nil {
 		return a.handleError(
 			hyerrors.ErrorTypeGame,
 			"Failed to launch game",

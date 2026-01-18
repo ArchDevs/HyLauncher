@@ -32,11 +32,10 @@ func ApplyOnlineFixWindows(ctx context.Context, gameDir string, reporter *progre
 	// Download from GitHub releases
 	reporter.Report(progress.StageOnlineFix, 0, "Downloading online-fix...")
 
+	// Create a scaler for the download portion (0-70%)
 	scaler := progress.NewScaler(reporter, progress.StageOnlineFix, 0, 70)
 
-	if err := download.DownloadLatestReleaseAsset(ctx, onlineFixAssetName, zipPath, func(stage string, prog float64, message string, currentFile string, speed string, downloaded, total int64) {
-		scaler.ReportDownload(progress.StageOnlineFix, prog, message, onlineFixAssetName, speed, downloaded, total)
-	}); err != nil {
+	if err := download.DownloadLatestReleaseAsset(ctx, onlineFixAssetName, zipPath, progress.StageOnlineFix, reporter, scaler); err != nil {
 		_ = os.Remove(zipPath)
 		return fmt.Errorf("failed to download online-fix: %w", err)
 	}

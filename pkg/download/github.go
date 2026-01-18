@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"HyLauncher/internal/progress"
 )
 
 const (
@@ -27,11 +29,15 @@ type GitHubRelease struct {
 	Assets  []GitHubReleaseAsset `json:"assets"`
 }
 
+// DownloadLatestReleaseAsset downloads an asset from the latest GitHub release
+// If reporter and scaler are nil, downloads silently without progress updates
 func DownloadLatestReleaseAsset(
 	ctx context.Context,
 	assetName string,
 	destPath string,
-	progressCallback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64),
+	stage progress.Stage,
+	reporter *progress.Reporter,
+	scaler *progress.Scaler,
 ) error {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", defaultRepoOwner, defaultRepoName)
 
@@ -65,11 +71,9 @@ func DownloadLatestReleaseAsset(
 
 	// Find the requested asset
 	var downloadURL string
-	var assetSize int64
 	for _, asset := range release.Assets {
 		if asset.Name == assetName {
 			downloadURL = asset.BrowserDownloadURL
-			assetSize = asset.Size
 			break
 		}
 	}
@@ -84,19 +88,19 @@ func DownloadLatestReleaseAsset(
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
-	// Download the file
-	if progressCallback != nil {
-		progressCallback("download", 0, fmt.Sprintf("Downloading %s from release %s...", assetName, release.TagName), assetName, "", 0, assetSize)
+	// Download the file with progress if reporter is provided
+	if reporter != nil {
+		reporter.Report(stage, 0, fmt.Sprintf("Downloading %s from release %s...", assetName, release.TagName))
 	}
 
-	if err := DownloadWithProgress(destPath, downloadURL, "download", 1.0, progressCallback); err != nil {
+	if err := DownloadWithReporter(destPath, downloadURL, assetName, reporter, stage, scaler); err != nil {
 		// Clean up partial download on error
 		_ = os.Remove(destPath)
 		return fmt.Errorf("failed to download %s: %w", assetName, err)
 	}
 
-	if progressCallback != nil {
-		progressCallback("download", 100, fmt.Sprintf("Downloaded %s successfully", assetName), assetName, "", assetSize, assetSize)
+	if reporter != nil {
+		reporter.Report(stage, 100, fmt.Sprintf("Downloaded %s successfully", assetName))
 	}
 
 	return nil

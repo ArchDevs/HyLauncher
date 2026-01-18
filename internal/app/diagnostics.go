@@ -41,7 +41,7 @@ type ConnectivityInfo struct {
 
 type InstallationInfo struct {
 	GameInstalled   bool   `json:"game_installed"`
-	CurrentVersion  string `json:"current_version"`
+	CurrentVersion  int    `json:"current_version"`
 	InstallPath     string `json:"install_path"`
 	JREInstalled    bool   `json:"jre_installed"`
 	ButlerInstalled bool   `json:"butler_installed"`
@@ -220,7 +220,7 @@ Response Time: %dms
 --- Local Installation ---
 Install Path: %s
 Game Installed: %v
-Current Version: %s
+Current Version: %d
 JRE Installed: %v
 Butler Installed: %v
 

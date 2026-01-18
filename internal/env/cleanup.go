@@ -10,7 +10,7 @@ func CleanupLauncher() error {
 	appDir := GetDefaultAppDir()
 	cacheDir := filepath.Join(appDir, "cache")
 
-	if err := cleanDirectory(cacheDir, []string{".pwr", ".zip", ".tar.gz"}); err != nil {
+	if err := cleanDirectoryWithFileExentsions(cacheDir, []string{".pwr", ".zip", ".tar.gz"}); err != nil {
 		fmt.Println("Warning: failed to clean cache:", err)
 	}
 
@@ -19,7 +19,7 @@ func CleanupLauncher() error {
 		fmt.Println("Warning: failed to clean game directory:", err)
 	}
 
-	stagingDir := filepath.Join(gameLatest, "staging-temp")
+	stagingDir := filepath.Join(GetCacheDir(), "staging-temp")
 	if err := os.RemoveAll(stagingDir); err != nil {
 		fmt.Println("Warning: failed to remove staging dir:", err)
 	}
@@ -55,7 +55,7 @@ func cleanupLauncherBackup() error {
 	return nil
 }
 
-func cleanDirectory(dir string, extensions []string) error {
+func cleanDirectoryWithFileExentsions(dir string, extensions []string) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return nil
 	}
@@ -85,6 +85,27 @@ func cleanDirectory(dir string, extensions []string) error {
 	return nil
 }
 
+func cleanDirectory(dir string) error {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return nil
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		path := filepath.Join(dir, entry.Name())
+
+		if err := os.RemoveAll(path); err != nil {
+			fmt.Println("Warning: failed to remove", path, ":", err)
+		}
+	}
+
+	return nil
+}
+
 func cleanIncompleteGame(gameDir string) error {
 	if _, err := os.Stat(gameDir); os.IsNotExist(err) {
 		return nil
@@ -99,7 +120,7 @@ func cleanIncompleteGame(gameDir string) error {
 	if _, err := os.Stat(clientPath); os.IsNotExist(err) {
 		// Game is incomplete, remove entire directory
 		fmt.Println("Incomplete game installation detected, cleaning up...")
-		return os.RemoveAll(gameDir)
+		return cleanDirectory(gameDir)
 	}
 
 	return nil

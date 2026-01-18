@@ -13,7 +13,7 @@ func isWayland() bool {
 	return waylandDisplay != "" || sessionType == "wayland"
 }
 
-func setSDLVideoDriver(cmd *exec.Cmd) {
+func SetSDLVideoDriver(cmd *exec.Cmd) {
 	if runtime.GOOS == "linux" && isWayland() {
 		env := os.Environ()
 		env = append(env, "SDL_VIDEODRIVER=wayland")

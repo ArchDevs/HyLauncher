@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -33,19 +32,19 @@ var (
 	lastCheckTime     = make(map[string]time.Time)
 )
 
-func GetLocalVersion() string {
+func GetLocalVersion() int {
 	path := filepath.Join(env.GetDefaultAppDir(), "release", "version.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "0"
+		return 0
 	}
 
 	var info VersionInfo
 	if err := json.Unmarshal(data, &info); err != nil {
-		return "0"
+		return 0
 	}
 
-	return strconv.Itoa(info.Version)
+	return info.Version
 }
 
 func SaveLocalVersion(v int) error {

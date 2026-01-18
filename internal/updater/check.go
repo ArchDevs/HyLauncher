@@ -1,6 +1,7 @@
 package updater
 
 import (
+	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/download"
 	"HyLauncher/pkg/fileutil"
 	"context"
@@ -97,7 +98,7 @@ func fetchUpdateInfo(ctx context.Context) (*UpdateInfo, error) {
 	defer os.Remove(tempFile)
 
 	// Download version.json
-	if err := download.DownloadLatestReleaseAsset(ctx, versionJSONAsset, tempFile, nil); err != nil {
+	if err := download.DownloadLatestReleaseAsset(ctx, versionJSONAsset, tempFile, progress.StageUpdate, nil, nil); err != nil {
 		return nil, fmt.Errorf("failed to download version info: %w", err)
 	}
 

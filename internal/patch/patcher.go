@@ -18,7 +18,7 @@ import (
 func ApplyPWR(ctx context.Context, pwrFile string, reporter *progress.Reporter) error {
 
 	gameLatest := filepath.Join(env.GetDefaultAppDir(), "release", "package", "game", "latest")
-	stagingDir := filepath.Join(gameLatest, "staging-temp")
+	stagingDir := filepath.Join(env.GetCacheDir(), "staging-temp")
 	_ = os.MkdirAll(stagingDir, 0755)
 
 	butlerPath := filepath.Join(env.GetDefaultAppDir(), "tools", "butler", "butler")
