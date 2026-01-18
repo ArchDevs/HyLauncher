@@ -25,12 +25,12 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
           transition={{ type: "spring", damping: 20, stiffness: 300 }}
           className="bg-[#0f0f0f] border border-[#FFA845]/20 rounded-2xl p-8 max-w-md w-full shadow-2xl"
         >
-          <h2 className="text-2xl font-bold text-white mb-4">Вы уверены?</h2>
+          <h2 className="text-2xl font-bold text-white mb-4">Are you sure?</h2>
 
           <p className="text-gray-300 mb-8 leading-relaxed">
-            Вы точно хотите удалить игру?<br />
+            Are you sure you want to delete the game?<br />
             <span className="text-red-400 font-medium">
-              Это действие удалит все файлы игры без возможности восстановления!
+              This action will delete all game files permanently!
             </span>
           </p>
 
@@ -39,13 +39,13 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
               onClick={onCancel}
               className="px-6 py-3 bg-[#1a1a1a] hover:bg-[#222] text-gray-300 rounded-lg transition-colors border border-white/10"
             >
-              Отмена
+              Cancel
             </button>
             <button
               onClick={onConfirm}
               className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors shadow-lg shadow-red-900/30"
             >
-              Удалить всё
+              Delete Everything
             </button>
           </div>
         </motion.div>

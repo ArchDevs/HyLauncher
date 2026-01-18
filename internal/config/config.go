@@ -6,6 +6,7 @@ import (
 
 	"HyLauncher/internal/env"
 
+	"github.com/google/uuid"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -43,6 +44,12 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
+	// Check for migration
+	var migrationData struct {
+		Nick string `toml:"nick"`
+	}
+	_ = toml.Unmarshal(data, &migrationData)
+
 	cfg := Default()
 	if err := toml.Unmarshal(data, &cfg); err != nil {
 		_ = os.Rename(path, path+".broken")
@@ -50,6 +57,19 @@ func Load() (*Config, error) {
 		cfg = Default()
 		_ = Save(&cfg)
 		return &cfg, nil
+	}
+
+	// Migration: If no profiles but has a legacy nick, create a default profile
+	if len(cfg.Profiles) == 0 && migrationData.Nick != "" {
+		id := uuid.New().String()
+		cfg.Profiles = []Profile{
+			{
+				ID:   id,
+				Name: migrationData.Nick,
+			},
+		}
+		cfg.CurrentProfile = id
+		_ = Save(&cfg)
 	}
 
 	return &cfg, nil

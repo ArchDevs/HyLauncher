@@ -19,9 +19,11 @@ func main() {
 
 	err := wails.Run(&options.App{
 		Title:         "HyLauncher",
-		Width:         1280,
-		Height:        720,
-		DisableResize: true,
+		Width:         1024,
+		Height:        640,
+		MinWidth:      640,
+		MinHeight:     480,
+		DisableResize: false,
 		Frameless:     true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,

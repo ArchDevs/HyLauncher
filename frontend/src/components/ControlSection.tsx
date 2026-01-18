@@ -5,23 +5,26 @@ import { FolderOpen, Activity, Settings, Trash } from 'lucide-react';
 interface ControlSectionProps {
   onPlay: () => void;
   isDownloading: boolean;
+  isPlaying: boolean;
+  isUpdateAvailable?: boolean;
   progress: number;
   status: string;
-  speed: string;       // Added
-  downloaded: number;  // Added
-  total: number;       // Added
-  currentFile: string; // Added
+  speed: string;
+  downloaded: number;
+  total: number;
+  currentFile: string;
   actions: {
     openFolder: () => void;
     showDiagnostics: () => void;
     showDelete: () => void;
+    showSettings: () => void;
   };
 }
 
-export const ControlSection: React.FC<ControlSectionProps> = ({ 
-  onPlay, isDownloading, progress, status, speed, downloaded, total, currentFile, actions 
+export const ControlSection: React.FC<ControlSectionProps> = ({
+  onPlay, isDownloading, isPlaying, isUpdateAvailable, progress, status, speed, downloaded, total, currentFile, actions
 }) => {
-  
+
   // Your original formatting helper
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B';
@@ -37,18 +40,23 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
         <div className="flex gap-[10px]">
           <NavBtn onClick={actions.openFolder} icon={<FolderOpen size={20} />} />
           <NavBtn onClick={actions.showDiagnostics} icon={<Activity size={20} />} />
-          <NavBtn icon={<Settings size={20} />} />
+          <NavBtn onClick={actions.showSettings} icon={<Settings size={20} />} />
           <NavBtn onClick={actions.showDelete} icon={<Trash size={20} />} />
         </div>
         <motion.button
           whileTap={isDownloading ? {} : { scale: 0.98 }}
           onClick={onPlay}
           disabled={isDownloading}
-          className={`w-full h-[94px] bg-[#090909]/[0.55] backdrop-blur-xl text-white font-black text-4xl tracking-tighter rounded-[14px] border border-[#FFA845]/[0.10] shadow-lg disabled:opacity-50 ${
-            isDownloading ? 'cursor-not-allowed' : 'cursor-pointer'
-          }`}
+          className={`w-full h-[94px] backdrop-blur-xl text-white font-black text-4xl tracking-tighter rounded-[14px] shadow-lg disabled:opacity-50 transition-all ${isDownloading
+            ? 'bg-[#090909]/[0.55] border border-[#FFA845]/[0.10] cursor-not-allowed'
+            : isPlaying
+              ? 'bg-red-500/20 border border-red-500/30 hover:bg-red-500/30 cursor-pointer'
+              : isUpdateAvailable
+                ? 'bg-blue-600/30 border border-blue-400/50 hover:bg-blue-600/40 text-blue-50 cursor-pointer shadow-[0_0_15px_rgba(59,130,246,0.2)]'
+                : 'bg-[#090909]/[0.55] border border-[#FFA845]/[0.10] cursor-pointer'
+            }`}
         >
-          {isDownloading ? 'DOWNLOADING...' : 'PLAY'}
+          {isDownloading ? 'DOWNLOADING...' : isPlaying ? 'STOP' : isUpdateAvailable ? 'UPDATE' : 'PLAY'}
         </motion.button>
       </div>
 

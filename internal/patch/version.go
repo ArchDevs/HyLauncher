@@ -31,8 +31,8 @@ var (
 	lastCheckTime     = make(map[string]time.Time)
 )
 
-func GetLocalVersion() string {
-	path := filepath.Join(env.GetDefaultAppDir(), "release", "version.json")
+func GetLocalVersion(channel string) string {
+	path := filepath.Join(env.GetDefaultAppDir(), channel, "version.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "0"
@@ -46,8 +46,8 @@ func GetLocalVersion() string {
 	return strconv.Itoa(info.Version)
 }
 
-func SaveLocalVersion(v int) error {
-	path := filepath.Join(env.GetDefaultAppDir(), "release", "version.json")
+func SaveLocalVersion(channel string, v int) error {
+	path := filepath.Join(env.GetDefaultAppDir(), channel, "version.json")
 	_ = os.MkdirAll(filepath.Dir(path), 0755)
 	data, _ := json.Marshal(VersionInfo{Version: v})
 	return os.WriteFile(path, data, 0644)

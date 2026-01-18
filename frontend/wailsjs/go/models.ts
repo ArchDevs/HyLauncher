@@ -1,5 +1,60 @@
 export namespace app {
 	
+	export class CoverImage {
+	    s3Key: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CoverImage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.s3Key = source["s3Key"];
+	    }
+	}
+	export class BlogPost {
+	    _id: string;
+	    title: string;
+	    // Go type: time
+	    publishedAt: any;
+	    slug: string;
+	    coverImage: CoverImage;
+	    bodyExcerpt: string;
+	    author: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BlogPost(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this._id = source["_id"];
+	        this.title = source["title"];
+	        this.publishedAt = this.convertValues(source["publishedAt"], null);
+	        this.slug = source["slug"];
+	        this.coverImage = this.convertValues(source["coverImage"], CoverImage);
+	        this.bodyExcerpt = source["bodyExcerpt"];
+	        this.author = source["author"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ConnectivityInfo {
 	    can_reach_game_server: boolean;
 	    can_reach_itchio_server: boolean;
@@ -20,6 +75,7 @@ export namespace app {
 	        this.response_time_ms = source["response_time_ms"];
 	    }
 	}
+	
 	export class DiskSpaceInfo {
 	    install_directory: string;
 	    error?: string;
@@ -136,8 +192,71 @@ export namespace app {
 		}
 	}
 	
+	export class GameVersions {
+	    current: string;
+	    latest: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GameVersions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.current = source["current"];
+	        this.latest = source["latest"];
+	    }
+	}
 	
 	
+
+}
+
+export namespace config {
+	
+	export class GameSettings {
+	    minMemory: number;
+	    maxMemory: number;
+	    width: number;
+	    height: number;
+	    fullscreen: boolean;
+	    javaArgs: string;
+	    gameDir: string;
+	    channel: string;
+	    gameVersion: number;
+	    onlineFix: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new GameSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.minMemory = source["minMemory"];
+	        this.maxMemory = source["maxMemory"];
+	        this.width = source["width"];
+	        this.height = source["height"];
+	        this.fullscreen = source["fullscreen"];
+	        this.javaArgs = source["javaArgs"];
+	        this.gameDir = source["gameDir"];
+	        this.channel = source["channel"];
+	        this.gameVersion = source["gameVersion"];
+	        this.onlineFix = source["onlineFix"];
+	    }
+	}
+	export class Profile {
+	    id: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Profile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	    }
+	}
 
 }
 
