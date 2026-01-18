@@ -6,6 +6,7 @@ import (
 
 	"HyLauncher/internal/env"
 
+	"github.com/google/uuid"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -50,6 +51,19 @@ func Load() (*Config, error) {
 		cfg = Default()
 		_ = Save(&cfg)
 		return &cfg, nil
+	}
+
+	// Migration: If no profiles but has a nick, create a default profile
+	if len(cfg.Profiles) == 0 && cfg.Nick != "" {
+		id := uuid.New().String()
+		cfg.Profiles = []Profile{
+			{
+				ID:   id,
+				Name: cfg.Nick,
+			},
+		}
+		cfg.CurrentProfile = id
+		_ = Save(&cfg)
 	}
 
 	return &cfg, nil

@@ -25,6 +25,9 @@
     "src",
     "wailsjs"
   ],
+  "exclude": [
+    "wailsjs/**/*.js"
+  ],
   "references": [
     {
       "path": "./tsconfig.node.json"
