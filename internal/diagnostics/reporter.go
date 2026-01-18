@@ -12,6 +12,8 @@ import (
 	"HyLauncher/pkg/hyerrors"
 )
 
+// POSSIBLE REFACTOR
+
 // Reporter handles error logging and crash reporting
 type Reporter struct {
 	logDir   string

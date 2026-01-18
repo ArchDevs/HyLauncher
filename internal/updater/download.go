@@ -1,6 +1,7 @@
 package updater
 
 import (
+	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/download"
 	"HyLauncher/pkg/fileutil"
 	"context"
@@ -12,7 +13,7 @@ import (
 func DownloadTemp(
 	ctx context.Context,
 	url string,
-	progress func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64),
+	reporter *progress.Reporter,
 ) (string, error) {
 
 	tmpPath, err := fileutil.CreateTempFile("file-update-*")
@@ -20,11 +21,17 @@ func DownloadTemp(
 		return "", err
 	}
 
-	if err := download.DownloadWithProgress(tmpPath, url, "update", 1.0, progress); err != nil {
+	reporter.Report(progress.StageUpdate, 0, "Downloading launcher update...")
+
+	scaler := progress.NewScaler(reporter, progress.StageUpdate, 0, 100)
+
+	if err := download.DownloadWithReporter(tmpPath, url, "launcher", reporter, progress.StageUpdate, scaler); err != nil {
 		_ = os.Remove(tmpPath)
 		return "", err
 	}
 
 	fmt.Printf("Download complete: %s\n", tmpPath)
+	reporter.Report(progress.StageUpdate, 100, "Download complete")
+
 	return tmpPath, nil
 }

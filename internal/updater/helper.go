@@ -11,7 +11,6 @@ import (
 )
 
 // Installs UpdateHelper
-// TODO need to be update function name to: InstallUpdateHelper
 func EnsureUpdateHelper(ctx context.Context) (string, error) {
 	// Get path name for the executable that started the current process
 	exe, err := os.Executable()

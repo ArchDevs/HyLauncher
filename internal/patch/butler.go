@@ -2,6 +2,7 @@ package patch
 
 import (
 	"HyLauncher/internal/env"
+	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/download"
 	"HyLauncher/pkg/extract"
 	"context"
@@ -11,7 +12,7 @@ import (
 	"runtime"
 )
 
-func InstallButler(ctx context.Context, progressCallback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64)) (string, error) {
+func InstallButler(ctx context.Context, reporter *progress.Reporter) (string, error) {
 	toolsDir := filepath.Join(env.GetDefaultAppDir(), "tools", "butler")
 	zipPath := filepath.Join(toolsDir, "butler.zip")
 	tempZipPath := zipPath + ".tmp"
@@ -32,9 +33,7 @@ func InstallButler(ctx context.Context, progressCallback func(stage string, prog
 
 	// If binary already exists, skip
 	if _, err := os.Stat(butlerPath); err == nil {
-		if progressCallback != nil {
-			progressCallback("butler", 100, "Butler already installed", "", "", 0, 0)
-		}
+		reporter.Report(progress.StageButler, 100, "Butler already installed")
 		return butlerPath, nil
 	}
 
@@ -52,11 +51,12 @@ func InstallButler(ctx context.Context, progressCallback func(stage string, prog
 	}
 
 	fmt.Println("Downloading Butler...")
-	if progressCallback != nil {
-		progressCallback("butler", 0, "Downloading Butler...", "butler.zip", "", 0, 0)
-	}
+	reporter.Report(progress.StageButler, 0, "Downloading butler.zip...")
 
-	if err := download.DownloadWithProgress(tempZipPath, url, "butler", 0.7, progressCallback); err != nil {
+	// Create a scaler for the download portion (0-70%)
+	scaler := progress.NewScaler(reporter, progress.StageButler, 0, 70)
+
+	if err := download.DownloadWithReporter(tempZipPath, url, "butler.zip", reporter, progress.StageButler, scaler); err != nil {
 		_ = os.Remove(tempZipPath)
 		return "", err
 	}
@@ -68,9 +68,7 @@ func InstallButler(ctx context.Context, progressCallback func(stage string, prog
 	}
 
 	fmt.Println("Extracting Butler...")
-	if progressCallback != nil {
-		progressCallback("butler", 80, "Extracting Butler...", "butler.zip", "", 0, 0)
-	}
+	reporter.Report(progress.StageButler, 80, "Extracting butler.zip")
 
 	if err := extract.ExtractZip(zipPath, toolsDir); err != nil {
 		return "", err
@@ -86,9 +84,7 @@ func InstallButler(ctx context.Context, progressCallback func(stage string, prog
 	// Cleanup zip
 	_ = os.Remove(zipPath)
 
-	if progressCallback != nil {
-		progressCallback("butler", 100, "Butler installed", "", "", 0, 0)
-	}
+	reporter.Report(progress.StageButler, 100, "Butler successfully installed!")
 
 	return butlerPath, nil
 }

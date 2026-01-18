@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+// TODO FULL REFACTOR
+
 type VersionInfo struct {
 	Version int `json:"version"`
 }

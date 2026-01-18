@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"HyLauncher/internal/env"
+	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/download"
 	"HyLauncher/pkg/fileutil"
 )
@@ -25,7 +26,7 @@ type JREJSON struct {
 	DownloadURL map[string]map[string]JREPlatform `json:"download_url"`
 }
 
-func DownloadJRE(ctx context.Context, progressCallback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64)) error {
+func DownloadJRE(ctx context.Context, reporter *progress.Reporter) error {
 	osName := env.GetOS()
 	arch := env.GetArch()
 	basePath := env.GetDefaultAppDir()
@@ -35,11 +36,10 @@ func DownloadJRE(ctx context.Context, progressCallback func(stage string, progre
 	latestDir := filepath.Join(jreDir, "latest")
 
 	if isJREInstalled(latestDir) {
-		if progressCallback != nil {
-			progressCallback("jre", 100, "JRE already installed", "", "", 0, 0)
-		}
+		reporter.Report(progress.StageJRE, 100, "JRE already installed")
 		return nil
 	}
+	reporter.Report(progress.StageJRE, 0, "Starting JRE installation")
 
 	resp, err := http.Get("https://launcher.hytale.com/version/release/jre.json")
 	if err != nil {
@@ -72,21 +72,20 @@ func DownloadJRE(ctx context.Context, progressCallback func(stage string, progre
 	// Download JRE archive if not cached
 	if _, err := os.Stat(cacheFile); os.IsNotExist(err) {
 		_ = os.Remove(tempCacheFile)
-		if err := download.DownloadWithProgress(tempCacheFile, platform.URL, "jre", 0.9, progressCallback); err != nil {
-			_ = os.Remove(tempCacheFile)
-			return err
-		}
 
-		if err := os.Rename(tempCacheFile, cacheFile); err != nil {
+		// Create a scaler for the download portion (0-90%)
+		scaler := progress.NewScaler(reporter, progress.StageJRE, 0, 90)
+
+		if err := download.DownloadWithReporter(cacheFile, platform.URL, fileName, reporter, progress.StageJRE, scaler); err != nil {
 			_ = os.Remove(tempCacheFile)
 			return err
 		}
+	} else {
+		reporter.Report(progress.StageJRE, 90, "JRE archive cached")
 	}
 
 	// Verify hash sha256
-	if progressCallback != nil {
-		progressCallback("jre", 92, "Verifying JRE integrity...", fileName, "", 0, 0)
-	}
+	reporter.Report(progress.StageJRE, 92, "Verifying JRE integrity")
 	if err := fileutil.VerifySHA256(cacheFile, platform.SHA256); err != nil {
 		_ = os.Remove(cacheFile)
 		return err
@@ -96,9 +95,7 @@ func DownloadJRE(ctx context.Context, progressCallback func(stage string, progre
 	tempDir := filepath.Join(jreDir, "tmp-"+jreData.Version)
 	_ = os.RemoveAll(tempDir)
 
-	if progressCallback != nil {
-		progressCallback("jre", 95, "Extracting JRE...", fileName, "", 0, 0)
-	}
+	reporter.Report(progress.StageJRE, 95, "Extracting JRE")
 	if err := extractJRE(cacheFile, tempDir); err != nil {
 		return err
 	}
@@ -109,9 +106,7 @@ func DownloadJRE(ctx context.Context, progressCallback func(stage string, progre
 	}
 
 	// Atomic rename: tmp -> latest
-	if progressCallback != nil {
-		progressCallback("jre", 98, "Finalizing JRE installation...", fileName, "", 0, 0)
-	}
+	reporter.Report(progress.StageJRE, 98, "Finalizing JRE installation...")
 
 	_ = os.RemoveAll(latestDir)
 
@@ -136,10 +131,7 @@ func DownloadJRE(ctx context.Context, progressCallback func(stage string, progre
 	// Cleanup cache
 	_ = os.Remove(cacheFile)
 
-	if progressCallback != nil {
-		progressCallback("jre", 100, "JRE installed successfully", fileName, "", 0, 0)
-	}
-
+	reporter.Report(progress.StageJRE, 100, "JRE installed successfully")
 	return nil
 }
 

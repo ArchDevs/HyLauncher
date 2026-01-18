@@ -2,6 +2,7 @@ package app
 
 import (
 	"HyLauncher/internal/platform"
+	"HyLauncher/internal/progress"
 	"HyLauncher/internal/updater"
 	"HyLauncher/pkg/fileutil"
 	"HyLauncher/pkg/hyerrors"
@@ -47,11 +48,10 @@ func (a *App) Update() error {
 
 	fmt.Printf("Downloading update from: %s\n", asset.URL)
 
-	tmp, err := updater.DownloadTemp(a.ctx, asset.URL, func(stage string, progress float64, message string, currentFile string, speed string, downloaded int64, total int64) {
-		fmt.Printf("[%s] %s: %.1f%% (%d/%d bytes) at %s\n", stage, message, progress, downloaded, total, speed)
-		runtime.EventsEmit(a.ctx, "update:progress", stage, progress, message, currentFile, speed, downloaded, total)
-	})
+	// Create progress reporter
+	reporter := progress.New(a.ctx)
 
+	tmp, err := updater.DownloadTemp(a.ctx, asset.URL, reporter)
 	if err != nil {
 		fmt.Printf("Download failed: %v\n", err)
 		return hyerrors.NewAppError(hyerrors.ErrorTypeNetwork, "downloading launcher update", err)
@@ -60,6 +60,8 @@ func (a *App) Update() error {
 	// Verify checksum if provided
 	if asset.Sha256 != "" {
 		fmt.Println("Verifying download checksum...")
+		reporter.Report(progress.StageUpdate, 100, "Verifying checksum...")
+
 		if err := fileutil.VerifySHA256(tmp, asset.Sha256); err != nil {
 			fmt.Printf("Verification failed: %v\n", err)
 			os.Remove(tmp)

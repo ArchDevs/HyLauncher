@@ -11,36 +11,38 @@ import (
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/game"
 	"HyLauncher/internal/patch"
+	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/hyerrors"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-type App struct {
-	ctx context.Context
-	cfg *config.Config
-}
+var AppVersion string = config.Default().Version
 
-type ProgressUpdate struct {
-	Stage       string  `json:"stage"`
-	Progress    float64 `json:"progress"`
-	Message     string  `json:"message"`
-	CurrentFile string  `json:"currentFile"`
-	Speed       string  `json:"speed"`
-	Downloaded  int64   `json:"downloaded"`
-	Total       int64   `json:"total"`
+type App struct {
+	ctx      context.Context
+	cfg      *config.Config
+	progress *progress.Reporter
 }
 
 func NewApp() *App {
 	cfg, _ := config.Load()
-	return &App{cfg: cfg}
+	return &App{
+		cfg: cfg,
+	}
 }
 
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
+	a.progress = progress.New(ctx)
 
 	fmt.Println("Application starting up...")
 	fmt.Printf("Current launcher version: %s\n", AppVersion)
+
+	go func() {
+		fmt.Println("Creating folders...")
+		env.CreateFolders()
+	}()
 
 	// Check for launcher updates in background
 	go func() {
@@ -54,16 +56,11 @@ func (a *App) Startup(ctx context.Context) {
 	}()
 }
 
-func (a *App) progressCallback(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64) {
-	runtime.EventsEmit(a.ctx, "progress-update", ProgressUpdate{
-		Stage:       stage,
-		Progress:    progress,
-		Message:     message,
-		CurrentFile: currentFile,
-		Speed:       speed,
-		Downloaded:  downloaded,
-		Total:       total,
-	})
+// handleError creates an AppError, emits it to frontend, and returns it
+func (a *App) handleError(errType hyerrors.ErrorType, userMsg string, err error) error {
+	appErr := hyerrors.NewAppError(errType, userMsg, err)
+	a.emitError(appErr)
+	return appErr
 }
 
 // emitError sends structured errors to frontend
@@ -71,11 +68,13 @@ func (a *App) emitError(err error) {
 	if appErr, ok := err.(*hyerrors.AppError); ok {
 		runtime.EventsEmit(a.ctx, "error", appErr)
 	} else {
-		runtime.EventsEmit(a.ctx, "error", hyerrors.NewAppError(hyerrors.ErrorTypeUnknown, err.Error(), err))
+		runtime.EventsEmit(a.ctx, "error", hyerrors.NewAppError(
+			hyerrors.ErrorTypeUnknown,
+			err.Error(),
+			err,
+		))
 	}
 }
-
-var AppVersion string = config.Default().Version
 
 func (a *App) GetVersions() (currentVersion string, latestVersion string) {
 	current := patch.GetLocalVersion()
@@ -86,39 +85,37 @@ func (a *App) GetVersions() (currentVersion string, latestVersion string) {
 func (a *App) DownloadAndLaunch(playerName string) error {
 	// Validate nickname
 	if len(playerName) == 0 {
-		err := hyerrors.NewAppError(
+		return a.handleError(
 			hyerrors.ErrorTypeValidation,
 			"Please enter a nickname",
 			nil,
 		)
-		a.emitError(err)
-		return err
 	}
 
 	if len(playerName) > 16 {
-		err := hyerrors.NewAppError(
+		return a.handleError(
 			hyerrors.ErrorTypeValidation,
 			"Nickname is too long (max 16 characters)",
 			nil,
 		)
-		a.emitError(err)
-		return err
 	}
 
 	// Ensure game is installed
-	if err := game.EnsureInstalled(a.ctx, a.progressCallback); err != nil {
-		wrappedErr := hyerrors.NewAppError(hyerrors.ErrorTypeGame, "Failed to install or update game", err)
-		a.emitError(wrappedErr)
-		return wrappedErr
+	if err := game.EnsureInstalled(a.ctx, a.progress); err != nil {
+		return a.handleError(
+			hyerrors.ErrorTypeGame,
+			"Failed to install or update game",
+			err,
+		)
 	}
 
 	// Launch the game
-	a.progressCallback("launch", 100, "Launching game...", "", "", 0, 0)
-
 	if err := game.Launch(playerName, "latest"); err != nil {
-		wrappedErr := hyerrors.NewAppError(hyerrors.ErrorTypeGame, "Failed to launch game", err)
-		a.emitError(wrappedErr)
-		return wrappedErr
+		return a.handleError(
+			hyerrors.ErrorTypeGame,
+			"Failed to launch game",
+			err,
+		)
 	}
 
 	return nil

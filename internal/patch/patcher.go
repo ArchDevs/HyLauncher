@@ -11,11 +11,11 @@ import (
 
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/platform"
+	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/download"
 )
 
-func ApplyPWR(ctx context.Context, pwrFile string,
-	progressCallback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64)) error {
+func ApplyPWR(ctx context.Context, pwrFile string, reporter *progress.Reporter) error {
 
 	gameLatest := filepath.Join(env.GetDefaultAppDir(), "release", "package", "game", "latest")
 	stagingDir := filepath.Join(gameLatest, "staging-temp")
@@ -38,9 +38,7 @@ func ApplyPWR(ctx context.Context, pwrFile string,
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	if progressCallback != nil {
-		progressCallback("game", 60, "Applying game patch...", "", "", 0, 0)
-	}
+	reporter.Report(progress.StagePatch, 60, "Applying game patch...")
 
 	if err := cmd.Run(); err != nil {
 		return err
@@ -58,15 +56,12 @@ func ApplyPWR(ctx context.Context, pwrFile string,
 		_ = os.Rename(stagingDir, gameLatest)
 	}
 
-	if progressCallback != nil {
-		progressCallback("game", 100, "Game installed successfully", "", "", 0, 0)
-	}
+	reporter.Report(progress.StagePatch, 100, "Game patched!")
 
 	return nil
 }
 
-func DownloadPWR(ctx context.Context, versionType string, prevVer int, targetVer int,
-	progressCallback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64)) (string, error) {
+func DownloadPWR(ctx context.Context, versionType string, prevVer int, targetVer int, reporter *progress.Reporter) (string, error) {
 
 	cacheDir := filepath.Join(env.GetDefaultAppDir(), "cache")
 	_ = os.MkdirAll(cacheDir, 0755)
@@ -81,24 +76,24 @@ func DownloadPWR(ctx context.Context, versionType string, prevVer int, targetVer
 	_ = os.Remove(tempDest)
 
 	if _, err := os.Stat(dest); err == nil {
-		if progressCallback != nil {
-			progressCallback("game", 40, "PWR file cached", fileName, "", 0, 0)
-		}
+		reporter.Report(progress.StagePWR, 100, "PWR file cached")
 		return dest, nil
 	}
 
 	url := fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/%d/%s",
 		osName, arch, versionType, prevVer, fileName)
 
-	if err := download.DownloadWithProgress(tempDest, url, "game", 0.4, progressCallback); err != nil {
+	reporter.Report(progress.StagePWR, 0, "Downloading PWR file...")
+
+	// Create a scaler for the download portion (0-100%)
+	scaler := progress.NewScaler(reporter, progress.StagePWR, 0, 100)
+
+	if err := download.DownloadWithReporter(dest, url, fileName, reporter, progress.StagePWR, scaler); err != nil {
 		_ = os.Remove(tempDest)
 		return "", err
 	}
 
-	if err := os.Rename(tempDest, dest); err != nil {
-		_ = os.Remove(tempDest)
-		return "", err
-	}
+	reporter.Report(progress.StagePWR, 100, "PWR file downloaded")
 
 	return dest, nil
 }
