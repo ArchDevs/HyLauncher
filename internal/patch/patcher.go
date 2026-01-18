@@ -7,18 +7,28 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"time"
 
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/platform"
 	"HyLauncher/pkg/download"
 )
 
-func ApplyPWR(ctx context.Context, pwrFile string,
+func ApplyPWR(ctx context.Context, channel string, pwrFile string, installDirName string,
 	progressCallback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64)) error {
 
-	gameLatest := filepath.Join(env.GetDefaultAppDir(), "release", "package", "game", "latest")
-	stagingDir := filepath.Join(gameLatest, "staging-temp")
+	gameInstallDir := filepath.Join(env.GetDefaultAppDir(), channel, "package", "game", installDirName)
+	stagingDir := filepath.Join(env.GetDefaultAppDir(), channel, "package", "game", "staging-temp")
+
+	// Create parent directory
+	_ = os.MkdirAll(filepath.Dir(gameInstallDir), 0755)
+
+	// Create target directory explicitly (butler requires it to exist)
+	if err := os.MkdirAll(gameInstallDir, 0755); err != nil {
+		return fmt.Errorf("failed to create target directory: %w", err)
+	}
+
+	// Clean up any previous staging directory
+	_ = os.RemoveAll(stagingDir)
 	_ = os.MkdirAll(stagingDir, 0755)
 
 	butlerPath := filepath.Join(env.GetDefaultAppDir(), "tools", "butler", "butler")
@@ -26,37 +36,44 @@ func ApplyPWR(ctx context.Context, pwrFile string,
 		butlerPath += ".exe"
 	}
 
+	// Verify butler exists
+	if _, err := os.Stat(butlerPath); err != nil {
+		return fmt.Errorf("butler tool not found at %s: %w", butlerPath, err)
+	}
+
 	cmd := exec.CommandContext(ctx, butlerPath,
 		"apply",
 		"--staging-dir", stagingDir,
 		pwrFile,
-		gameLatest,
+		gameInstallDir,
 	)
 
 	platform.HideConsoleWindow(cmd)
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	// Open log file for this operation
+	logDir := filepath.Join(env.GetDefaultAppDir(), "logs")
+	_ = os.MkdirAll(logDir, 0755)
+	logFile, err := os.Create(filepath.Join(logDir, "butler_apply.log"))
+	if err == nil {
+		defer logFile.Close()
+		cmd.Stdout = logFile
+		cmd.Stderr = logFile
+		fmt.Fprintf(logFile, "Starting butler apply for %s to %s\n", pwrFile, gameInstallDir)
+	} else {
+		// Fallback if log file fails
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	if progressCallback != nil {
-		progressCallback("game", 60, "Applying game patch...", "", "", 0, 0)
+		progressCallback("game", 60, "Applying game patch (this may take a while)...", "", "", 0, 0)
 	}
 
 	if err := cmd.Run(); err != nil {
-		return err
+		return fmt.Errorf("butler apply failed (check logs/butler_apply.log): %w", err)
 	}
 
-	// Retry rename on Windows if locked
-	if runtime.GOOS == "windows" {
-		for i := 0; i < 5; i++ {
-			if err := os.Rename(stagingDir, gameLatest); err == nil {
-				break
-			}
-			time.Sleep(2 * time.Second)
-		}
-	} else {
-		_ = os.Rename(stagingDir, gameLatest)
-	}
+	_ = os.RemoveAll(stagingDir)
 
 	if progressCallback != nil {
 		progressCallback("game", 100, "Game installed successfully", "", "", 0, 0)

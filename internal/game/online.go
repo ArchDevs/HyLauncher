@@ -1,7 +1,6 @@
 package game
 
 import (
-	"HyLauncher/internal/env"
 	"HyLauncher/pkg/download"
 	"HyLauncher/pkg/extract"
 	"HyLauncher/pkg/fileutil"
@@ -119,16 +118,13 @@ func wrapProgressCallback(callback func(stage string, progress float64, message 
 	}
 }
 
-func EnsureServerAndClientFix(ctx context.Context, progressCallback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64)) error {
+func EnsureServerAndClientFix(ctx context.Context, gameDir string, progressCallback func(stage string, progress float64, message string, currentFile string, speed string, downloaded, total int64)) error {
 	if runtime.GOOS != "windows" {
 		return nil
 	}
 
-	baseDir := env.GetDefaultAppDir()
-	gameLatestDir := filepath.Join(baseDir, "release", "package", "game", "latest")
-
 	// Check if server exists
-	serverBat := filepath.Join(gameLatestDir, "Server", "start-server.bat")
+	serverBat := filepath.Join(gameDir, "Server", "start-server.bat")
 	if _, err := os.Stat(serverBat); err == nil {
 		return nil
 	}
@@ -138,7 +134,7 @@ func EnsureServerAndClientFix(ctx context.Context, progressCallback func(stage s
 		progressCallback("online-fix", 0, "Server missing, downloading online fix...", "", "", 0, 0)
 	}
 
-	if err := ApplyOnlineFixWindows(ctx, gameLatestDir, progressCallback); err != nil {
+	if err := ApplyOnlineFixWindows(ctx, gameDir, progressCallback); err != nil {
 		return fmt.Errorf("failed to apply online fix: %w", err)
 	}
 

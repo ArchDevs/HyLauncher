@@ -30,6 +30,10 @@ export function GetCurrentProfile() {
   return window['go']['app']['App']['GetCurrentProfile']();
 }
 
+export function GetGameVersions(arg1) {
+  return window['go']['app']['App']['GetGameVersions'](arg1);
+}
+
 export function GetLauncherVersion() {
   return window['go']['app']['App']['GetLauncherVersion']();
 }
@@ -80,6 +84,10 @@ export function SetCurrentProfile(arg1) {
 
 export function SetNick(arg1) {
   return window['go']['app']['App']['SetNick'](arg1);
+}
+
+export function StopGame() {
+  return window['go']['app']['App']['StopGame']();
 }
 
 export function Update() {

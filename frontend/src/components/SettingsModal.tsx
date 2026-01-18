@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, X, Save, HardDrive, Monitor, Cpu, Folder, Loader2 } from 'lucide-react';
-import { GetSettings, SaveSettings } from '../../wailsjs/go/app/App';
+import { GetSettings, SaveSettings, GetGameVersions } from '../../wailsjs/go/app/App';
 import { config } from '../../wailsjs/go/models';
 
 interface SettingsModalProps {
@@ -11,12 +11,28 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const [activeTab, setActiveTab] = useState<'game' | 'java' | 'video'>('game');
     const [settings, setSettings] = useState<config.GameSettings | null>(null);
+    const [availableVersions, setAvailableVersions] = useState<number[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         loadSettings();
     }, []);
+
+    useEffect(() => {
+        if (settings?.channel) {
+            loadVersions(settings.channel);
+        }
+    }, [settings?.channel]);
+
+    const loadVersions = async (channel: string) => {
+        try {
+            const versions = await GetGameVersions(channel);
+            setAvailableVersions(versions || []);
+        } catch (err) {
+            console.error("Failed to load versions:", err);
+        }
+    };
 
     const loadSettings = async () => {
         try {
@@ -132,6 +148,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                             </button>
                                         </div>
                                     </Section>
+
+                                    <Section title="Update Settings" description="Configure game version and update channel">
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="text-xs text-gray-500 mb-1 block">Update Channel</label>
+                                                <select
+                                                    value={settings.channel || 'release'}
+                                                    onChange={(e) => updateSetting('channel', e.target.value)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:border-[#FFA845]/50 focus:outline-none transition-colors appearance-none"
+                                                >
+                                                    <option value="release">Release</option>
+                                                    <option value="pre-release">Pre-Release</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-gray-500 mb-1 block">Target Version</label>
+                                                <select
+                                                    value={settings.gameVersion}
+                                                    onChange={(e) => updateSetting('gameVersion', parseInt(e.target.value))}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:border-[#FFA845]/50 focus:outline-none transition-colors appearance-none"
+                                                >
+                                                    <option value={0}>Latest (Auto-Update)</option>
+                                                    {availableVersions.map(v => (
+                                                        <option key={v} value={v}>Version {v}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </Section>
+
+                                    <div className="flex items-center justify-between bg-white/5 p-4 rounded-lg border border-white/5">
+                                        <div>
+                                            <h4 className="text-sm font-medium text-white">Online Fix</h4>
+                                            <p className="text-xs text-gray-500">Installs Online-Fix in your game </p>
+                                        </div>
+                                        <button
+                                            onClick={() => updateSetting('onlineFix', !settings.onlineFix)}
+                                            className={`w-12 h-6 rounded-full transition-colors relative ${settings.onlineFix ? 'bg-[#FFA845]' : 'bg-gray-700'}`}
+                                        >
+                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.onlineFix ? 'left-7' : 'left-1'}`} />
+                                        </button>
+                                    </div>
                                 </div>
                             )}
 
@@ -252,8 +310,8 @@ const TabButton = ({ active, onClick, icon, label }: { active: boolean, onClick:
     <button
         onClick={onClick}
         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm font-medium ${active
-                ? 'bg-[#FFA845]/20 text-[#FFA845] border border-[#FFA845]/20'
-                : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
+            ? 'bg-[#FFA845]/20 text-[#FFA845] border border-[#FFA845]/20'
+            : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
             }`}
     >
         {icon}

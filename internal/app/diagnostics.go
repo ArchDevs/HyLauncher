@@ -124,7 +124,7 @@ func checkConnectivity() ConnectivityInfo {
 func checkLocalInstallation() InstallationInfo {
 	info := InstallationInfo{
 		InstallPath:    env.GetDefaultAppDir(),
-		CurrentVersion: patch.GetLocalVersion(),
+		CurrentVersion: patch.GetLocalVersion("release"),
 	}
 
 	// Check if game is installed

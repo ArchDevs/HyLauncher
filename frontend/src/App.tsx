@@ -9,9 +9,9 @@ import { ErrorModal } from './components/ErrorModal';
 import { DiagnosticsModal } from './components/DiagnosticsModal';
 import { SettingsModal } from './components/SettingsModal';
 
-import { DownloadAndLaunch, OpenFolder, GetVersions, GetCurrentProfile, GetProfiles, SetCurrentProfile, AddProfile, UpdateProfile, DeleteProfile, DeleteGame, RunDiagnostics, SaveDiagnosticReport, Update } from '../wailsjs/go/app/App';
+import { DownloadAndLaunch, OpenFolder, GetVersions, GetCurrentProfile, GetProfiles, SetCurrentProfile, AddProfile, UpdateProfile, DeleteProfile, DeleteGame, RunDiagnostics, SaveDiagnosticReport, Update, StopGame, GetSettings } from '../wailsjs/go/app/App';
 import { EventsOn } from '../wailsjs/runtime/runtime';
-import { config } from '../wailsjs/go/models';
+import { config, app } from '../wailsjs/go/models';
 import { NewsSection } from './components/NewsSection';
 import { useWindowState } from './hooks/useWindowState';
 
@@ -22,9 +22,12 @@ const App: React.FC = () => {
   const [currentProfile, setCurrentProfile] = useState<config.Profile | null>(null);
   const [profiles, setProfiles] = useState<config.Profile[]>([]);
   const [current, setCurrent] = useState<string>("");
+  const [latestGameVersion, setLatestGameVersion] = useState<string>("");
+  const [isGameUpdateAvailable, setIsGameUpdateAvailable] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [status, setStatus] = useState<string>("Ready to play");
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
   const [currentFile, setCurrentFile] = useState<string>("");
   const [downloadSpeed, setDownloadSpeed] = useState<string>("");
@@ -50,13 +53,32 @@ const App: React.FC = () => {
     }
   };
 
+  const checkGameUpdates = async () => {
+    try {
+      const versions = await GetVersions();
+      const settings = await GetSettings();
+
+      const cur = versions.current;
+      const lat = versions.latest;
+
+      setCurrent(cur);
+      setLatestGameVersion(lat);
+
+      const curNum = parseInt(cur);
+      const latNum = parseInt(lat);
+      const isLatestSelected = settings.gameVersion === 0;
+      const hasInstalledVersion = curNum > 0;
+      const needsUpdate = isLatestSelected && hasInstalledVersion && curNum < latNum;
+
+      setIsGameUpdateAvailable(needsUpdate);
+    } catch (err) {
+      console.error("Failed to check game updates:", err);
+    }
+  };
+
   useEffect(() => {
     refreshProfiles();
-
-    GetVersions().then((v: any) => {
-      if (Array.isArray(v)) setCurrent(v[0]);
-      else setCurrent(v);
-    });
+    checkGameUpdates();
 
     EventsOn('update:available', (asset: any) => {
       console.log('Update available event received:', asset);
@@ -82,10 +104,20 @@ const App: React.FC = () => {
         setTimeout(() => {
           setIsDownloading(false);
           setProgress(0);
-          setStatus("Ready to play");
           setDownloadSpeed("");
-        }, 2000);
+        }, 500);
       }
+    });
+
+    EventsOn('game-launched', () => {
+      setIsPlaying(true);
+      setIsDownloading(false);
+      setStatus("Game Running...");
+    });
+
+    EventsOn('game-closed', () => {
+      setIsPlaying(false);
+      setStatus("Ready to play");
     });
   }, []);
 
@@ -156,11 +188,17 @@ const App: React.FC = () => {
 
         <ControlSection
           onPlay={() => {
-            if (currentProfile) {
+            if (isPlaying) {
+              StopGame();
+            } else if (currentProfile) {
               setIsDownloading(true);
-              DownloadAndLaunch(currentProfile.name);
+              DownloadAndLaunch(currentProfile.name).then(() => {
+                checkGameUpdates();
+              });
             }
           }}
+          isPlaying={isPlaying}
+          isUpdateAvailable={isGameUpdateAvailable}
 
           isDownloading={isDownloading}
           progress={progress}
@@ -178,7 +216,7 @@ const App: React.FC = () => {
         />
       </main>
 
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsModal onClose={() => { setShowSettings(false); checkGameUpdates(); }} />}
       {showDelete && <DeleteConfirmationModal onConfirm={() => { DeleteGame(); setShowDelete(false); }} onCancel={() => setShowDelete(false)} />}
       {showDiag && <DiagnosticsModal onClose={() => setShowDiag(false)} onRunDiagnostics={RunDiagnostics} onSaveDiagnostics={SaveDiagnosticReport} />}
       {error && <ErrorModal error={error} onClose={() => setError(null)} />}

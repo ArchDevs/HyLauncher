@@ -12,13 +12,15 @@ import (
 	"HyLauncher/internal/java"
 )
 
-func Launch(playerName string, playerUUID string, version string) error {
+func Launch(playerName string, channel string, playerUUID string, version string, enableOnlineFix bool) (*exec.Cmd, error) {
 	baseDir := env.GetDefaultAppDir()
-	gameDir := filepath.Join(baseDir, "release", "package", "game", version)
+	gameDir := filepath.Join(baseDir, channel, "package", "game", version)
 	userDataDir := filepath.Join(baseDir, "UserData")
 
-	if err := EnsureServerAndClientFix(context.Background(), nil); err != nil {
-		return err
+	if enableOnlineFix {
+		if err := EnsureServerAndClientFix(context.Background(), gameDir, nil); err != nil {
+			return nil, err
+		}
 	}
 
 	gameClient := "HytaleClient"
@@ -27,9 +29,14 @@ func Launch(playerName string, playerUUID string, version string) error {
 	}
 
 	clientPath := filepath.Join(gameDir, "Client", gameClient)
+	// Check if client executable exists
+	if _, err := os.Stat(clientPath); err != nil {
+		return nil, fmt.Errorf("game executable not found at %s: %w", clientPath, err)
+	}
+
 	javaBin, err := java.GetJavaExec()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	_ = os.MkdirAll(userDataDir, 0755)
@@ -49,11 +56,12 @@ func Launch(playerName string, playerUUID string, version string) error {
 	setSDLVideoDriver(cmd)
 
 	fmt.Printf(
-		"Launching %s (%s) with UUID %s\n",
+		"Launching %s (%s - %s) with UUID %s\n",
 		playerName,
+		channel,
 		version,
 		playerUUID,
 	)
 
-	return cmd.Start()
+	return cmd, cmd.Start()
 }

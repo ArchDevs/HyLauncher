@@ -14,13 +14,16 @@ func Default() Config {
 		},
 		CurrentProfile: id,
 		Settings: GameSettings{
-			MinMemory:  2,
-			MaxMemory:  4,
-			Width:      1024,
-			Height:     640,
-			Fullscreen: false,
-			JavaArgs:   "-XX:+UseG1GC -Dsun.rmi.dgc.server.gcInterval=2147483646 -XX:+UnlockExperimentalVMOptions -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M",
-			GameDir:    "",
+			MinMemory:   2,
+			MaxMemory:   4,
+			Width:       1024,
+			Height:      640,
+			Fullscreen:  false,
+			JavaArgs:    "-XX:+UseG1GC -Dsun.rmi.dgc.server.gcInterval=2147483646 -XX:+UnlockExperimentalVMOptions -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M",
+			GameDir:     "",
+			Channel:     "release",
+			GameVersion: 0,
+			OnlineFix:   true,
 		},
 	}
 }

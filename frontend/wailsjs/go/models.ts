@@ -192,6 +192,20 @@ export namespace app {
 		}
 	}
 	
+	export class GameVersions {
+	    current: string;
+	    latest: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GameVersions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.current = source["current"];
+	        this.latest = source["latest"];
+	    }
+	}
 	
 	
 
@@ -207,6 +221,9 @@ export namespace config {
 	    fullscreen: boolean;
 	    javaArgs: string;
 	    gameDir: string;
+	    channel: string;
+	    gameVersion: number;
+	    onlineFix: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new GameSettings(source);
@@ -221,6 +238,9 @@ export namespace config {
 	        this.fullscreen = source["fullscreen"];
 	        this.javaArgs = source["javaArgs"];
 	        this.gameDir = source["gameDir"];
+	        this.channel = source["channel"];
+	        this.gameVersion = source["gameVersion"];
+	        this.onlineFix = source["onlineFix"];
 	    }
 	}
 	export class Profile {
