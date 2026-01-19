@@ -14,12 +14,20 @@ export function DownloadAndLaunch(arg1) {
   return window['go']['app']['App']['DownloadAndLaunch'](arg1);
 }
 
+export function GetBranch() {
+  return window['go']['app']['App']['GetBranch']();
+}
+
 export function GetCrashReports() {
   return window['go']['app']['App']['GetCrashReports']();
 }
 
 export function GetLauncherVersion() {
   return window['go']['app']['App']['GetLauncherVersion']();
+}
+
+export function GetLocalGameVersion() {
+  return window['go']['app']['App']['GetLocalGameVersion']();
 }
 
 export function GetLogs() {
@@ -30,20 +38,16 @@ export function GetNick() {
   return window['go']['app']['App']['GetNick']();
 }
 
-export function GetVersions() {
-  return window['go']['app']['App']['GetVersions']();
-}
-
 export function OpenFolder() {
   return window['go']['app']['App']['OpenFolder']();
 }
 
-export function RunDiagnostics() {
-  return window['go']['app']['App']['RunDiagnostics']();
+export function SetBranch(arg1) {
+  return window['go']['app']['App']['SetBranch'](arg1);
 }
 
-export function SaveDiagnosticReport() {
-  return window['go']['app']['App']['SaveDiagnosticReport']();
+export function SetLocalGameVersion(arg1) {
+  return window['go']['app']['App']['SetLocalGameVersion'](arg1);
 }
 
 export function SetNick(arg1) {

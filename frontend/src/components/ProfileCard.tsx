@@ -3,7 +3,7 @@ import { Edit3, ChevronDown, ArrowUpCircle } from 'lucide-react';
 
 interface ProfileProps {
   username: string;
-  currentVersion: string;
+  currentVersion: number;
   isEditing: boolean;
   onEditToggle: (val: boolean) => void;
   onUserChange: (val: string) => void;

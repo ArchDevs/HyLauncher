@@ -2,7 +2,9 @@ package config
 
 func Default() Config {
 	return Config{
-		Version: "0.6.5",
-		Nick:    "HyLauncher",
+		Version:            "0.6.5",
+		Nick:               "HyLauncher",
+		CurrentGameVersion: 0,
+		Branch:             "release",
 	}
 }

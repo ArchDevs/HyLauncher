@@ -6,16 +6,15 @@ import { UpdateOverlay } from './components/UpdateOverlay';
 import { ControlSection } from './components/ControlSection';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 import { ErrorModal } from './components/ErrorModal';
-import { DiagnosticsModal } from './components/DiagnosticsModal';
 
-import { DownloadAndLaunch, OpenFolder, GetVersions, GetNick, SetNick, DeleteGame, RunDiagnostics, SaveDiagnosticReport, Update } from '../wailsjs/go/app/App';
+import { DownloadAndLaunch, OpenFolder, GetNick, SetNick, DeleteGame, Update, GetLocalGameVersion } from '../wailsjs/go/app/App';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 
 // TODO FULL REFACTOR + Redesign
 
 const App: React.FC = () => {
   const [username, setUsername] = useState<string>("HyLauncher");
-  const [current, setCurrent] = useState<string>("");
+  const [current, setCurrent] = useState<number>(0);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [status, setStatus] = useState<string>("Ready to play");
@@ -36,11 +35,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     GetNick().then((n: string) => n && setUsername(n));
-    
-    GetVersions().then((v: any) => {
-        if (Array.isArray(v)) setCurrent(v[0]);
-        else setCurrent(v);
-    });
+
+    GetLocalGameVersion().then((curr: number) => setCurrent(curr));
 
     EventsOn('update:available', (asset: any) => {
       console.log('Update available event received:', asset);
@@ -136,7 +132,6 @@ const App: React.FC = () => {
       </main>
 
       {showDelete && <DeleteConfirmationModal onConfirm={() => { DeleteGame(); setShowDelete(false); }} onCancel={() => setShowDelete(false)} />}
-      {showDiag && <DiagnosticsModal onClose={() => setShowDiag(false)} onRunDiagnostics={RunDiagnostics} onSaveDiagnostics={SaveDiagnosticReport} />}
       {error && <ErrorModal error={error} onClose={() => setError(null)} />}
     </div>
   );

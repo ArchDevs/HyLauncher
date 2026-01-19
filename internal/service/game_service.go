@@ -1,6 +1,7 @@
 package service
 
 import (
+	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/game"
 	"HyLauncher/internal/java"
@@ -33,33 +34,34 @@ func NewGameService(ctx context.Context, reporter *progress.Reporter) *GameServi
 	}
 }
 
-func (s *GameService) VerifyGame() bool {
+func (s *GameService) VerifyGame(branch string) error {
 	s.reporter.Report(progress.StageVerify, 0, "Starting verifying game installation...")
 
-	err := java.VerifyJRE()
+	err := java.VerifyJRE(branch)
 	if err != nil {
-		return false
+		return err
 	}
 
 	s.reporter.Report(progress.StageVerify, 30, "JRE is installed...")
 
 	err = patch.VerifyButler()
 	if err != nil {
-		return false
+		return err
 	}
 
 	s.reporter.Report(progress.StageVerify, 65, "Butler is installed...")
 
-	if !(patch.GetLocalVersion() >= 0) {
-		return false
+	err = game.CheckInstalled(branch)
+	if err != nil {
+		return err
 	}
 
 	s.reporter.Report(progress.StageVerify, 100, "Hytale is installed...")
 	s.reporter.Report(progress.StageComplete, 0, "Launcher completed checking, everything is installed")
-	return true
+	return nil
 }
 
-func (s *GameService) EnsureInstalled(ctx context.Context, reporter *progress.Reporter) error {
+func (s *GameService) EnsureInstalled(ctx context.Context, branch string, reporter *progress.Reporter) error {
 	installMutex.Lock()
 	if isInstalling {
 		installMutex.Unlock()
@@ -74,49 +76,38 @@ func (s *GameService) EnsureInstalled(ctx context.Context, reporter *progress.Re
 		installMutex.Unlock()
 	}()
 
-	var (
-		wg         sync.WaitGroup
-		errCh      = make(chan error, 3)
-		versionRes int
-	)
+	versionRes := make(chan int, 1)
 
 	if reporter != nil {
 		reporter.Report(progress.StageVerify, 0, "Checking for game updates")
 	}
 
-	if s.VerifyGame() == true {
+	if s.VerifyGame(branch) == nil {
 		return nil
 	}
 
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		versionRes = patch.FindLatestVersion("release")
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if err := java.EnsureJRE(ctx, reporter); err != nil {
-			errCh <- fmt.Errorf("failed to install Butler tool: %w", err)
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if err := patch.EnsureButler(ctx, reporter); err != nil {
-			errCh <- err
-		}
-	}()
-
-	wg.Wait()
-	close(errCh)
-
-	for err := range errCh {
+		latestVersion, err := patch.FindLatestVersion(branch)
 		if err != nil {
-			return fmt.Errorf("Warning: %w", err)
+			fmt.Println("Can not find latest version:", err)
+			latestVersion = 0
 		}
+		versionRes <- latestVersion
+	}()
+
+	var latestVersion int
+	select {
+	case latestVersion = <-versionRes:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	if err := java.EnsureJRE(ctx, branch, reporter); err != nil {
+		return fmt.Errorf("failed to install jre: %w", err)
+	}
+
+	if err := patch.EnsureButler(ctx, reporter); err != nil {
+		return fmt.Errorf("failed to install Butler tool: %w", err)
 	}
 
 	if reporter != nil {
@@ -124,15 +115,18 @@ func (s *GameService) EnsureInstalled(ctx context.Context, reporter *progress.Re
 		reporter.Report(progress.StageComplete, 0, fmt.Sprintf("Found version %d", versionRes))
 	}
 
-	fmt.Printf("Found latest version: %d\n", versionRes)
+	fmt.Printf("Found latest version: %d\n", latestVersion)
 
-	return s.Install(ctx, "release", versionRes, reporter)
+	return s.Install(ctx, branch, latestVersion, reporter)
 }
 
 func (s *GameService) Install(ctx context.Context, branch string, latestVersion int, reporter *progress.Reporter) error {
-	local := patch.GetLocalVersion()
+	local, err := config.GetLocalGameVersion()
+	if err != nil {
+		return fmt.Errorf("Could not fetch local game version")
+	}
 
-	gameLatestDir := filepath.Join(env.GetDefaultAppDir(), "release", "package", "game", "latest")
+	gameLatestDir := filepath.Join(env.GetDefaultAppDir(), branch, "package", "game", "latest")
 
 	clientPath, clientErr := fileutil.GetNativeFile(filepath.Join(gameLatestDir, "Client", "HytaleClient"))
 
@@ -174,7 +168,7 @@ func (s *GameService) Install(ctx context.Context, branch string, latestVersion 
 		reporter.Report(progress.StagePatch, 0, "Applying game patch...")
 	}
 
-	if err := patch.ApplyPWR(ctx, pwrPath, reporter); err != nil {
+	if err := patch.ApplyPWR(ctx, pwrPath, branch, reporter); err != nil {
 		return fmt.Errorf("failed to apply game patch: %w", err)
 	}
 
@@ -184,7 +178,7 @@ func (s *GameService) Install(ctx context.Context, branch string, latestVersion 
 	}
 
 	// Save the new version
-	if err := patch.SaveLocalVersion(latestVersion); err != nil {
+	if err := config.SaveLocalGameVersion(latestVersion); err != nil {
 		fmt.Printf("Warning: failed to save version info: %v\n", err)
 	}
 
@@ -210,12 +204,12 @@ func (s *GameService) Install(ctx context.Context, branch string, latestVersion 
 	return nil
 }
 
-func (s *GameService) Launch(playerName string) error {
+func (s *GameService) Launch(playerName, branch string) error {
 	baseDir := env.GetDefaultAppDir()
-	gameDir := filepath.Join(baseDir, "release", "package", "game", "latest")
+	gameDir := filepath.Join(baseDir, branch, "package", "game", "latest")
 	userDataDir := filepath.Join(baseDir, "UserData")
 
-	if err := game.EnsureServerAndClientFix(context.Background(), nil); err != nil {
+	if err := game.EnsureServerAndClientFix(context.Background(), branch, nil); err != nil {
 		return err
 	}
 
@@ -224,7 +218,7 @@ func (s *GameService) Launch(playerName string) error {
 		return err
 	}
 
-	javaBin, err := java.GetJavaExec()
+	javaBin, err := java.GetJavaExec(branch)
 	if err != nil {
 		return err
 	}

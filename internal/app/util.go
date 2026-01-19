@@ -1,6 +1,7 @@
 package app
 
 import (
+	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/pkg/hyerrors"
 	"fmt"
@@ -38,6 +39,11 @@ func (a *App) OpenFolder() error {
 }
 
 func (a *App) DeleteGame() error {
+	branch, err := config.GetBranch()
+	if err != nil {
+		return fmt.Errorf("Could not get branch: %w", err)
+	}
+
 	homeDir := env.GetDefaultAppDir()
 
 	entries, err := os.ReadDir(homeDir)
@@ -66,7 +72,7 @@ func (a *App) DeleteGame() error {
 	}
 
 	// Recreate folder structure
-	if err := env.CreateFolders(); err != nil {
+	if err := env.CreateFolders(branch); err != nil {
 		return hyerrors.NewAppError(hyerrors.ErrorTypeFileSystem, "recreating folder structure", err)
 	}
 

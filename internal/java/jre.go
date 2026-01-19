@@ -32,19 +32,19 @@ type JREJSON struct {
 	DownloadURL map[string]map[string]JREPlatform `json:"download_url"`
 }
 
-func EnsureJRE(ctx context.Context, reporter *progress.Reporter) error {
+func EnsureJRE(ctx context.Context, branch string, reporter *progress.Reporter) error {
 	osName := env.GetOS()
 	arch := env.GetArch()
 	basePath := env.GetDefaultAppDir()
 
 	cacheDir := filepath.Join(basePath, "cache")
-	jreDir := filepath.Join(basePath, "release", "package", "jre")
+	jreDir := filepath.Join(basePath, branch, "package", "jre")
 	latestDir := filepath.Join(jreDir, "latest")
 
-	err := VerifyJRE()
+	err := VerifyJRE(branch)
 	if err != nil {
 		if errors.Is(err, ErrJavaBroken) || errors.Is(err, ErrJavaNotFound) {
-			if reinstallErr := ReinstallJRE(jreDir, latestDir, cacheDir, osName, arch, reporter); reinstallErr != nil {
+			if reinstallErr := ReinstallJRE(jreDir, latestDir, cacheDir, osName, arch, branch, reporter); reinstallErr != nil {
 				return reinstallErr
 			}
 		} else {
@@ -54,8 +54,9 @@ func EnsureJRE(ctx context.Context, reporter *progress.Reporter) error {
 	return nil
 }
 
-func DownloadJRE(jreDir, latestDir, cacheDir, osName, arch string, reporter *progress.Reporter) error {
-	resp, err := http.Get("https://launcher.hytale.com/version/release/jre.json")
+func DownloadJRE(jreDir, latestDir, cacheDir, osName, arch, branch string, reporter *progress.Reporter) error {
+	url := fmt.Sprintf("https://launcher.hytale.com/version/%s/jre.json", branch)
+	resp, err := http.Get(url)
 	if err != nil {
 		return err
 	}
@@ -147,7 +148,7 @@ func DownloadJRE(jreDir, latestDir, cacheDir, osName, arch string, reporter *pro
 	return nil
 }
 
-func ReinstallJRE(jreDir, latestDir, cacheDir, osName, arch string, reporter *progress.Reporter) error {
+func ReinstallJRE(jreDir, latestDir, cacheDir, osName, arch, branch string, reporter *progress.Reporter) error {
 	err := os.RemoveAll(jreDir)
 	if err != nil {
 		fmt.Println("Warning: can not delete jre folder")
@@ -160,9 +161,9 @@ func ReinstallJRE(jreDir, latestDir, cacheDir, osName, arch string, reporter *pr
 		return err
 	}
 
-	err = DownloadJRE(jreDir, latestDir, cacheDir, osName, arch, reporter)
+	err = DownloadJRE(jreDir, latestDir, cacheDir, osName, arch, branch, reporter)
 	if err != nil {
-		fmt.Println("Warning: can not download jre")
+		fmt.Printf("Warning: can not download jre: %s", err)
 		return err
 	}
 
@@ -170,8 +171,8 @@ func ReinstallJRE(jreDir, latestDir, cacheDir, osName, arch string, reporter *pr
 	return nil
 }
 
-func VerifyJRE() error {
-	jreDir := filepath.Join(env.GetDefaultAppDir(), "release", "package", "jre", "latest")
+func VerifyJRE(branch string) error {
+	jreDir := filepath.Join(env.GetDefaultAppDir(), branch, "package", "jre", "latest")
 	javaBin := filepath.Join(jreDir, "bin", "java")
 
 	if !fileutil.FileExistsNative(javaBin) {
@@ -187,15 +188,15 @@ func VerifyJRE() error {
 	return nil
 }
 
-func GetJavaExec() (string, error) {
-	err := VerifyJRE()
+func GetJavaExec(branch string) (string, error) {
+	err := VerifyJRE(branch)
 	if err != nil {
 		return "", err
 	}
 
 	javaBin := filepath.Join(
 		env.GetDefaultAppDir(),
-		"release",
+		branch,
 		"package",
 		"jre",
 		"latest",

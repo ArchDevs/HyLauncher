@@ -15,10 +15,9 @@ import (
 	"HyLauncher/pkg/download"
 )
 
-func ApplyPWR(ctx context.Context, pwrFile string, reporter *progress.Reporter) error {
-
-	gameLatest := filepath.Join(env.GetDefaultAppDir(), "release", "package", "game", "latest")
-	stagingDir := filepath.Join(env.GetCacheDir(), "staging-temp")
+func ApplyPWR(ctx context.Context, pwrFile, branch string, reporter *progress.Reporter) error {
+	gameLatest := filepath.Join(env.GetDefaultAppDir(), branch, "package", "game", "latest")
+	stagingDir := filepath.Join(gameLatest, "staging-temp")
 	_ = os.MkdirAll(stagingDir, 0755)
 
 	butlerPath := filepath.Join(env.GetDefaultAppDir(), "tools", "butler", "butler")
@@ -34,7 +33,6 @@ func ApplyPWR(ctx context.Context, pwrFile string, reporter *progress.Reporter) 
 	)
 
 	platform.HideConsoleWindow(cmd)
-
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -44,7 +42,11 @@ func ApplyPWR(ctx context.Context, pwrFile string, reporter *progress.Reporter) 
 		return err
 	}
 
-	// Retry rename on Windows if locked
+	if cmd.Process != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Process.Release()
+	}
+
 	if runtime.GOOS == "windows" {
 		for i := 0; i < 5; i++ {
 			if err := os.Rename(stagingDir, gameLatest); err == nil {
@@ -57,11 +59,10 @@ func ApplyPWR(ctx context.Context, pwrFile string, reporter *progress.Reporter) 
 	}
 
 	reporter.Report(progress.StagePatch, 100, "Game patched!")
-
 	return nil
 }
 
-func DownloadPWR(ctx context.Context, versionType string, prevVer int, targetVer int, reporter *progress.Reporter) (string, error) {
+func DownloadPWR(ctx context.Context, branch string, prevVer int, targetVer int, reporter *progress.Reporter) (string, error) {
 
 	cacheDir := filepath.Join(env.GetDefaultAppDir(), "cache")
 	_ = os.MkdirAll(cacheDir, 0755)
@@ -81,11 +82,10 @@ func DownloadPWR(ctx context.Context, versionType string, prevVer int, targetVer
 	}
 
 	url := fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/%d/%s",
-		osName, arch, versionType, prevVer, fileName)
+		osName, arch, branch, prevVer, fileName)
 
 	reporter.Report(progress.StagePWR, 0, "Downloading PWR file...")
 
-	// Create a scaler for the download portion (0-100%)
 	scaler := progress.NewScaler(reporter, progress.StagePWR, 0, 100)
 
 	if err := download.DownloadWithReporter(dest, url, fileName, reporter, progress.StagePWR, scaler); err != nil {

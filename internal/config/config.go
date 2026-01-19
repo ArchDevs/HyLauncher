@@ -9,6 +9,11 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
+func New() *Config {
+	cfg := Default()
+	return &cfg
+}
+
 func configPath() string {
 	return filepath.Join(env.GetDefaultAppDir(), "config.toml")
 }

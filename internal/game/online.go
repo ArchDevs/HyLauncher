@@ -3,8 +3,8 @@ package game
 import (
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/progress"
+	"HyLauncher/pkg/archive"
 	"HyLauncher/pkg/download"
-	"HyLauncher/pkg/extract"
 	"HyLauncher/pkg/fileutil"
 	"context"
 	"fmt"
@@ -68,7 +68,7 @@ func extractAndApplyFix(zipPath, gameDir, cacheDir string) error {
 	defer os.RemoveAll(tempDir)
 
 	// Extract zip
-	if err := extract.ExtractZip(zipPath, tempDir); err != nil {
+	if err := archive.ExtractZip(zipPath, tempDir); err != nil {
 		return fmt.Errorf("failed to extract ZIP: %w", err)
 	}
 
@@ -106,13 +106,13 @@ func extractAndApplyFix(zipPath, gameDir, cacheDir string) error {
 	return nil
 }
 
-func EnsureServerAndClientFix(ctx context.Context, reporter *progress.Reporter) error {
+func EnsureServerAndClientFix(ctx context.Context, branch string, reporter *progress.Reporter) error {
 	if runtime.GOOS != "windows" {
 		return nil
 	}
 
 	baseDir := env.GetDefaultAppDir()
-	gameLatestDir := filepath.Join(baseDir, "release", "package", "game", "latest")
+	gameLatestDir := filepath.Join(baseDir, branch, "package", "game", "latest")
 
 	// Check if server exists
 	serverBat := filepath.Join(gameLatestDir, "Server", "start-server.bat")

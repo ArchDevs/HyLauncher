@@ -1,255 +1,185 @@
 package patch
 
 import (
-	"HyLauncher/internal/env"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
 )
 
-// TODO FULL REFACTOR
-
-type VersionInfo struct {
-	Version int `json:"version"`
-}
-
 type VersionCheckResult struct {
 	LatestVersion int
 	Error         error
-	CheckedURLs   []string
-	SuccessURL    string
 }
 
-var (
-	versionCache      = make(map[string]*VersionCheckResult)
-	versionCacheMutex sync.RWMutex
-	versionCacheTTL   = 5 * time.Minute
-	lastCheckTime     = make(map[string]time.Time)
-)
-
-func GetLocalVersion() int {
-	path := filepath.Join(env.GetDefaultAppDir(), "release", "version.json")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return 0
-	}
-
-	var info VersionInfo
-	if err := json.Unmarshal(data, &info); err != nil {
-		return 0
-	}
-
-	return info.Version
+type cache struct {
+	mu      sync.RWMutex
+	data    map[string]*VersionCheckResult
+	lastSet map[string]time.Time
+	ttl     time.Duration
 }
 
-func SaveLocalVersion(v int) error {
-	path := filepath.Join(env.GetDefaultAppDir(), "release", "version.json")
-	_ = os.MkdirAll(filepath.Dir(path), 0755)
-	data, _ := json.Marshal(VersionInfo{Version: v})
-	return os.WriteFile(path, data, 0644)
+var versionCache = &cache{
+	data:    make(map[string]*VersionCheckResult),
+	lastSet: make(map[string]time.Time),
+	ttl:     5 * time.Minute,
 }
 
-func FindLatestVersion(versionType string) int {
-	result := FindLatestVersionWithDetails(versionType)
+func (c *cache) get(key string) (*VersionCheckResult, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
-	if result.Error != nil {
-		fmt.Printf("Error finding latest version: %v\n", result.Error)
-		fmt.Printf("Platform: %s/%s\n", runtime.GOOS, runtime.GOARCH)
-		fmt.Printf("Checked %d URLs\n", len(result.CheckedURLs))
-		if len(result.CheckedURLs) > 0 {
-			fmt.Printf("Sample URL: %s\n", result.CheckedURLs[0])
-		}
+	result, exists := c.data[key]
+	if !exists || time.Since(c.lastSet[key]) >= c.ttl {
+		return nil, false
 	}
-
-	return result.LatestVersion
+	return result, true
 }
 
-func FindLatestVersionWithDetails(versionType string) VersionCheckResult {
-	cacheKey := fmt.Sprintf("%s-%s-%s", runtime.GOOS, runtime.GOARCH, versionType)
+func (c *cache) set(key string, result *VersionCheckResult) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	// Check cache first
-	versionCacheMutex.RLock()
-	if cached, exists := versionCache[cacheKey]; exists {
-		if time.Since(lastCheckTime[cacheKey]) < versionCacheTTL {
-			fmt.Printf("Using cached version: %d\n", cached.LatestVersion)
-			versionCacheMutex.RUnlock()
-			return *cached
-		}
+	c.data[key] = result
+	c.lastSet[key] = time.Now()
+}
+
+func (c *cache) clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.data = make(map[string]*VersionCheckResult)
+	c.lastSet = make(map[string]time.Time)
+}
+
+func FindLatestVersion(versionType string) (int, error) {
+	key := fmt.Sprintf("%s-%s-%s", runtime.GOOS, runtime.GOARCH, versionType)
+
+	if cached, ok := versionCache.get(key); ok {
+		return cached.LatestVersion, cached.Error
 	}
-	versionCacheMutex.RUnlock()
 
-	fmt.Println("Performing version check...")
-	result := performVersionCheck(versionType)
+	result := checkVersion(versionType)
+	versionCache.set(key, &result)
 
-	// Cache the result
-	versionCacheMutex.Lock()
-	versionCache[cacheKey] = &result
-	lastCheckTime[cacheKey] = time.Now()
-	versionCacheMutex.Unlock()
-
-	return result
+	return result.LatestVersion, result.Error
 }
 
 func ClearVersionCache() {
-	versionCacheMutex.Lock()
-	versionCache = make(map[string]*VersionCheckResult)
-	lastCheckTime = make(map[string]time.Time)
-	versionCacheMutex.Unlock()
-	fmt.Println("Version cache cleared")
+	versionCache.clear()
 }
 
-func performVersionCheck(versionType string) VersionCheckResult {
-	osName := runtime.GOOS
-	arch := runtime.GOARCH
+func checkVersion(versionType string) VersionCheckResult {
+	client := createRobustClient()
 
-	result := VersionCheckResult{
-		LatestVersion: 0,
-		CheckedURLs:   make([]string, 0),
+	baseVersion := findBaseVersion(client, versionType)
+	if baseVersion == 0 {
+		return VersionCheckResult{
+			Error: fmt.Errorf("cannot reach game servers or no patches available for %s/%s (check firewall/network)", runtime.GOOS, runtime.GOARCH),
+		}
 	}
 
-	client := &http.Client{
-		Timeout: 5 * time.Second,
+	latestVersion := findLatestVersion(client, versionType, baseVersion)
+	return VersionCheckResult{LatestVersion: latestVersion}
+}
+
+func createRobustClient() *http.Client {
+	return &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			Proxy:                 http.ProxyFromEnvironment,
+			MaxIdleConns:          10,
+			IdleConnTimeout:       30 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
+}
 
-	// Try known good versions first to establish a baseline
-	knownVersions := []int{100, 50, 25, 10, 5, 1}
-	var foundBase int
+func findBaseVersion(client *http.Client, versionType string) int {
+	knownVersions := []int{25, 10, 5, 1}
 
-	fmt.Println("Searching for base version...")
 	for _, v := range knownVersions {
-		url := fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/0/%d.pwr",
-			osName, arch, versionType, v)
-
-		result.CheckedURLs = append(result.CheckedURLs, url)
-
-		resp, err := client.Head(url)
-		if err == nil && resp.StatusCode == http.StatusOK {
-			foundBase = v
-			result.LatestVersion = v
-			result.SuccessURL = url
-			fmt.Printf("Found base version %d\n", v)
-			break
-		}
-
-		// Small delay to avoid overwhelming network
-		time.Sleep(200 * time.Millisecond)
-	}
-
-	// If no known version worked, we have a problem
-	if foundBase == 0 {
-		result.Error = fmt.Errorf(
-			"cannot reach game server or no versions available for %s/%s",
-			osName, arch,
-		)
-		return result
-	}
-
-	// For small base versions (≤10), just do linear search up to a reasonable max
-	if foundBase <= 10 {
-		fmt.Println("Doing linear search for latest version...")
-		maxCheck := foundBase + 50
-		if maxCheck > 200 {
-			maxCheck = 200
-		}
-
-		for v := foundBase + 1; v <= maxCheck; v++ {
-			url := fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/0/%d.pwr",
-				osName, arch, versionType, v)
-
-			resp, err := client.Head(url)
-			time.Sleep(200 * time.Millisecond)
-
-			if err == nil && resp.StatusCode == http.StatusOK {
-				result.LatestVersion = v
-				result.SuccessURL = url
-				fmt.Printf("Found version %d\n", v)
-			} else {
-				break
+		// Try each version with retry
+		for attempt := 0; attempt < 2; attempt++ {
+			if versionExists(client, versionType, v) {
+				return v
+			}
+			if attempt < 1 {
+				time.Sleep(time.Second)
 			}
 		}
+	}
+	return 0
+}
 
-		fmt.Printf("Latest version found: %d\n", result.LatestVersion)
-		return result
+func findLatestVersion(client *http.Client, versionType string, base int) int {
+	if base <= 10 {
+		return linearSearch(client, versionType, base, min(base+50, 200))
 	}
 
-	// For larger base versions, use exponential search
-	fmt.Println("Searching for latest version...")
-	step := foundBase
-	current := foundBase
-	maxVersion := 500
+	upper := exponentialSearch(client, versionType, base, 500)
+	return binarySearch(client, versionType, base, upper)
+}
 
-	for current < maxVersion {
-		next := current + step
-		if next > maxVersion {
-			next = maxVersion
-		}
-
-		url := fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/0/%d.pwr",
-			osName, arch, versionType, next)
-
-		resp, err := client.Head(url)
-		time.Sleep(200 * time.Millisecond)
-
-		if err == nil && resp.StatusCode == http.StatusOK {
-			result.LatestVersion = next
-			result.SuccessURL = url
-			current = next
-			step *= 2
-			fmt.Printf("Version %d exists, trying higher...\n", next)
+func linearSearch(client *http.Client, versionType string, start, end int) int {
+	latest := start
+	for v := start + 1; v <= end; v++ {
+		if versionExists(client, versionType, v) {
+			latest = v
 		} else {
 			break
 		}
 	}
+	return latest
+}
 
-	// Binary search between last known good and failed version
-	low := result.LatestVersion
-	high := current + step
-	if high > maxVersion {
-		high = maxVersion
-	}
+func exponentialSearch(client *http.Client, versionType string, base, max int) int {
+	current := base
+	step := base
 
-	if high > low {
-		fmt.Printf("Binary search between %d and %d...\n", low, high)
-
-		for low < high {
-			mid := (low + high + 1) / 2
-
-			url := fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/0/%d.pwr",
-				osName, arch, versionType, mid)
-
-			resp, err := client.Head(url)
-			time.Sleep(200 * time.Millisecond)
-
-			if err == nil && resp.StatusCode == http.StatusOK {
-				result.LatestVersion = mid
-				result.SuccessURL = url
-				low = mid
-				fmt.Printf("Version %d exists\n", mid)
-			} else {
-				high = mid - 1
-			}
+	for current < max {
+		next := min(current+step, max)
+		if versionExists(client, versionType, next) {
+			current = next
+			step *= 2
+		} else {
+			return current + step
 		}
 	}
+	return max
+}
 
-	fmt.Printf("Latest version found: %d\n", result.LatestVersion)
-	return result
+func binarySearch(client *http.Client, versionType string, low, high int) int {
+	latest := low
+
+	for low < high {
+		mid := (low + high + 1) / 2
+		if versionExists(client, versionType, mid) {
+			latest = mid
+			low = mid
+		} else {
+			high = mid - 1
+		}
+	}
+	return latest
+}
+
+func versionExists(client *http.Client, versionType string, version int) bool {
+	url := fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/0/%d.pwr",
+		runtime.GOOS, runtime.GOARCH, versionType, version)
+
+	resp, err := client.Head(url)
+	time.Sleep(200 * time.Millisecond)
+
+	return err == nil && resp.StatusCode == http.StatusOK
 }
 
 func VerifyVersionExists(versionType string, version int) error {
-	osName := runtime.GOOS
-	arch := runtime.GOARCH
-
-	url := fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/0/%d.pwr",
-		osName, arch, versionType, version)
-
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -257,31 +187,9 @@ func VerifyVersionExists(versionType string, version int) error {
 		},
 	}
 
-	resp, err := client.Head(url)
-	if err != nil {
-		return fmt.Errorf("cannot reach server: %w", err)
+	if versionExists(client, versionType, version) {
+		return nil
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("version %d not found (HTTP %d)", version, resp.StatusCode)
-	}
-
-	return nil
-}
-
-func TestConnection(testURL string) error {
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-	}
-
-	resp, err := client.Head(testURL)
-	if err != nil {
-		return fmt.Errorf("cannot reach game server: %w", err)
-	}
-
-	if resp.StatusCode >= 500 {
-		return fmt.Errorf("game server error (HTTP %d)", resp.StatusCode)
-	}
-
-	return nil
+	return fmt.Errorf("version %d not found", version)
 }

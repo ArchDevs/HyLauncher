@@ -11,7 +11,7 @@ import (
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/download"
-	"HyLauncher/pkg/extract"
+	"HyLauncher/pkg/archive"
 	"HyLauncher/pkg/fileutil"
 )
 
@@ -109,7 +109,7 @@ func DownloadButler(toolsDir, zipPath, tempZipPath, osName, arch string, reporte
 
 	reporter.Report(progress.StageButler, 80, "Extracting butler.zip")
 
-	if err := extract.ExtractZip(zipPath, toolsDir); err != nil {
+	if err := archive.ExtractZip(zipPath, toolsDir); err != nil {
 		return err
 	}
 

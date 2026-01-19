@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
-	"HyLauncher/internal/patch"
 	"HyLauncher/internal/progress"
 	"HyLauncher/internal/service"
 	"HyLauncher/pkg/hyerrors"
@@ -23,12 +21,13 @@ type App struct {
 	ctx      context.Context
 	cfg      *config.Config
 	progress *progress.Reporter
+	branch   string
 
 	gameSvc *service.GameService
 }
 
 func NewApp() *App {
-	cfg, _ := config.Load()
+	cfg := config.New()
 	return &App{
 		cfg: cfg,
 	}
@@ -43,12 +42,20 @@ func (a *App) Startup(ctx context.Context) {
 		a.progress,
 	)
 
+	branch, err := config.GetBranch()
+	if err != nil {
+		fmt.Printf("Game version grabbed: %s\n", err)
+	}
+
+	a.branch = branch
+
 	fmt.Println("Application starting up...")
 	fmt.Printf("Current launcher version: %s\n", AppVersion)
+	fmt.Printf("Game version picker: %s\n", branch)
 
 	go func() {
 		fmt.Println("Creating folders...")
-		env.CreateFolders()
+		env.CreateFolders(branch)
 	}()
 
 	// Check for launcher updates in background
@@ -59,7 +66,7 @@ func (a *App) Startup(ctx context.Context) {
 
 	go func() {
 		fmt.Println("Starting cleanup")
-		env.CleanupLauncher()
+		env.CleanupLauncher(branch)
 	}()
 }
 
@@ -83,12 +90,6 @@ func (a *App) emitError(err error) {
 	}
 }
 
-func (a *App) GetVersions() (currentVersion string, latestVersion string) {
-	current := patch.GetLocalVersion()
-	latest := patch.FindLatestVersion("release")
-	return strconv.Itoa(current), strconv.Itoa(latest)
-}
-
 func (a *App) DownloadAndLaunch(playerName string) error {
 	// Validate nickname
 	if len(playerName) == 0 {
@@ -108,7 +109,7 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 	}
 
 	// Ensure game is installed
-	if err := a.gameSvc.EnsureInstalled(a.ctx, a.progress); err != nil {
+	if err := a.gameSvc.EnsureInstalled(a.ctx, a.branch, a.progress); err != nil {
 		return a.handleError(
 			hyerrors.ErrorTypeGame,
 			"Failed to install or update game",
@@ -117,7 +118,7 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 	}
 
 	// Launch the game
-	if err := a.gameSvc.Launch(playerName); err != nil {
+	if err := a.gameSvc.Launch(playerName, a.branch); err != nil {
 		return a.handleError(
 			hyerrors.ErrorTypeGame,
 			"Failed to launch game",

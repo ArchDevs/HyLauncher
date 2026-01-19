@@ -48,9 +48,9 @@ func GetCacheDir() string {
 	return filepath.Join(GetDefaultAppDir(), "cache")
 }
 
-func CreateFolders() error {
+func CreateFolders(branch string) error {
 	basePath := GetDefaultAppDir()
-	packagePath := filepath.Join(basePath, "release", "package") // Package folder
+	packagePath := filepath.Join(basePath, branch, "package") // Package folder
 
 	paths := []string{
 		basePath,                                   // main folder

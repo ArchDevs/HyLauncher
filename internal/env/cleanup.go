@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-func CleanupLauncher() error {
+func CleanupLauncher(branch string) error {
 	appDir := GetDefaultAppDir()
 	cacheDir := filepath.Join(appDir, "cache")
 
@@ -14,12 +14,12 @@ func CleanupLauncher() error {
 		fmt.Println("Warning: failed to clean cache:", err)
 	}
 
-	gameLatest := filepath.Join(appDir, "release", "package", "game", "latest")
+	gameLatest := filepath.Join(appDir, branch, "package", "game", "latest")
 	if err := cleanIncompleteGame(gameLatest); err != nil {
 		fmt.Println("Warning: failed to clean game directory:", err)
 	}
 
-	stagingDir := filepath.Join(GetCacheDir(), "staging-temp")
+	stagingDir := filepath.Join(gameLatest, "staging-temp")
 	if err := os.RemoveAll(stagingDir); err != nil {
 		fmt.Println("Warning: failed to remove staging dir:", err)
 	}

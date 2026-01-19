@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
-import { GetNick, GetVersions, SetNick, DownloadAndLaunch } from '../../wailsjs/go/app/App';
+import { GetNick, GetLocalGameVersion, SetNick, DownloadAndLaunch } from '../../wailsjs/go/app/App';
 
 export const useLauncher = () => {
   const [username, setUsername] = useState("HyLauncher");
   const [isLoadingNick, setIsLoadingNick] = useState(true);
-  const [current, setCurrent] = useState("");
+  const [current, setCurrent] = useState(0);
   const [latest, setLatest] = useState("");
   const [statusMessage, setStatusMessage] = useState("Ready to play");
   const [isDownloading, setIsDownloading] = useState(false);
@@ -18,9 +18,8 @@ export const useLauncher = () => {
       try {
         const nick = await GetNick();
         if (nick?.trim()) setUsername(nick.trim());
-        const [curr, late] = await GetVersions();
+        const curr = await GetLocalGameVersion()
         setCurrent(curr);
-        setLatest(late);
       } catch (err) {
         setStatusMessage("Warning: Connection issue");
       } finally {
