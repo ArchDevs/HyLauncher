@@ -7,40 +7,29 @@ on:
         description: "Release version (e.g. 1.2.0)"
         required: true
       notes:
-        description: "Release notes"
+        description: "Optional release notes"
         required: false
 
 jobs:
-  build:
-    name: Build binaries
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            goos: linux
-            ext: ""
-          - os: windows-latest
-            goos: windows
-            ext: ".exe"
-
-    runs-on: ${{ matrix.os }}
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed for tags & changelog
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.24"
 
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Linux deps
-        if: runner.os == 'Linux'
         run: |
           sudo apt update
           sudo apt install -y \
@@ -51,68 +40,20 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Build update-helper
-        shell: bash
         run: |
-          mkdir -p build/release
-
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            GOOS=windows GOARCH=amd64 \
-              go build -o build/release/update-helper${{ matrix.ext }} ./cmd/update-helper
-          else
-            GOOS=linux GOARCH=amd64 \
-              go build \
-              -o build/release/update-helper ./cmd/update-helper
-            chmod +x build/release/update-helper
-          fi
+          mkdir -p release
+          GOOS=linux GOARCH=amd64 go build -o release/update-helper-linux ./cmd/update-helper
+          GOOS=windows GOARCH=amd64 go build -o release/update-helper-windows.exe ./cmd/update-helper
 
       - name: Build HyLauncher
         run: |
-          wails build -platform ${{ matrix.goos }}/amd64
+          wails build -platform linux/amd64
+          wails build -platform windows/amd64 -nsis
 
-      - name: Collect binaries
-        shell: bash
-        run: |
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            cp build/bin/HyLauncher.exe build/release/HyLauncher-windows-x64.exe
-          else
-            cp build/bin/HyLauncher build/release/HyLauncher-linux-x64
-            chmod +x build/release/HyLauncher-linux-x64
-          fi
+          cp build/bin/HyLauncher release/HyLauncher-linux-x64
+          cp build/bin/HyLauncher-Setup.exe release/HyLauncher-Setup-windows-x64.exe
+          chmod +x release/HyLauncher-linux-x64
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: release-${{ matrix.goos }}
-          path: build/release/*
-
-  release:
-    name: Create GitHub release
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Ensure zip is installed
-        run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            choco install zip -y
-          else
-            sudo apt update && sudo apt install -y zip
-          fi
-
-      - name: Prepare release directory
-        run: |
-          mkdir release
-          cp artifacts/**/** release/
-          ls -lh release/
-      
-      # TODO Implement normal sha256 hash generation
       - name: Generate version.json
         run: |
           VERSION="${{ inputs.version }}"
@@ -120,7 +61,7 @@ jobs:
           LINUX_LAUNCHER_SHA=$(sha256sum release/HyLauncher-linux-x64 | cut -d' ' -f1)
           LINUX_HELPER_SHA=$(sha256sum release/update-helper-linux | cut -d' ' -f1)
 
-          WINDOWS_LAUNCHER_SHA=$(sha256sum release/HyLauncher-windows-x64.exe | cut -d' ' -f1)
+          WINDOWS_LAUNCHER_SHA=$(sha256sum release/HyLauncher-Setup-windows-x64.exe | cut -d' ' -f1)
           WINDOWS_HELPER_SHA=$(sha256sum release/update-helper-windows.exe | cut -d' ' -f1)
 
           cat <<EOF > release/version.json
@@ -133,7 +74,7 @@ jobs:
                   "sha256": "$LINUX_LAUNCHER_SHA"
                 },
                 "helper": {
-                  "url": "https://github.com/ArchDevs/HyLauncher/releases/latest/download/update-helper",
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-linux",
                   "sha256": "$LINUX_HELPER_SHA"
                 }
               }
@@ -141,11 +82,11 @@ jobs:
             "windows": {
               "amd64": {
                 "launcher": {
-                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-windows-x64.exe",
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-Setup-windows-x64.exe",
                   "sha256": "$WINDOWS_LAUNCHER_SHA"
                 },
                 "helper": {
-                  "url": "https://github.com/ArchDevs/HyLauncher/releases/latest/download/update-helper.exe",
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-windows.exe",
                   "sha256": "$WINDOWS_HELPER_SHA"
                 }
               }
@@ -153,21 +94,28 @@ jobs:
           }
           EOF
 
-      - name: Package online-fix.zip
+      - name: Generate changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Packaging online-fix.zip..."
-          cd assets
-          zip -r ../release/online-fix.zip Client Server
-          cd ..
-          ls -lh release/online-fix.zip
+          PREV_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
 
-      - uses: softprops/action-gh-release@v2
+          if [ -z "$PREV_TAG" ]; then
+            echo "Initial release" > changelog.txt
+          else
+            git log "$PREV_TAG"..HEAD \
+              --pretty=format:"- %s (%h)" > changelog.txt
+          fi
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.version }}
           name: v${{ inputs.version }}
-          body: ${{ inputs.notes }}
+          body_path: changelog.txt
           files: |
             release/*
+
 
   cleanup:
     name: Cleanup old artifacts

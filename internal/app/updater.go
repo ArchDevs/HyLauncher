@@ -11,7 +11,9 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"runtime"
+
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func (a *App) CheckUpdate() (*updater.Asset, error) {
@@ -123,6 +125,9 @@ func (a *App) Update() error {
 }
 
 func (a *App) checkUpdateSilently() {
+	if runtime.GOOS != "windows" {
+		return
+	}
 	fmt.Println("Running silent update check...")
 
 	asset, newVersion, err := updater.CheckUpdate(a.ctx, AppVersion)
@@ -137,5 +142,5 @@ func (a *App) checkUpdateSilently() {
 	}
 
 	fmt.Printf("Update available: %s (notifying frontend)\n", newVersion)
-	runtime.EventsEmit(a.ctx, "update:available", asset)
+	wailsRuntime.EventsEmit(a.ctx, "update:available", asset)
 }
