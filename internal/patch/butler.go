@@ -10,8 +10,8 @@ import (
 
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/progress"
-	"HyLauncher/pkg/download"
 	"HyLauncher/pkg/archive"
+	"HyLauncher/pkg/download"
 	"HyLauncher/pkg/fileutil"
 )
 
@@ -91,6 +91,9 @@ func VerifyButler() error {
 }
 
 func DownloadButler(toolsDir, zipPath, tempZipPath, osName, arch string, reporter *progress.Reporter) error {
+	if osName == "darwin" {
+		arch = "amd64"
+	}
 	url := fmt.Sprintf("https://broth.itch.zone/butler/%s-%s/LATEST/archive/default", osName, arch)
 
 	reporter.Report(progress.StageButler, 0, "Downloading butler.zip...")
