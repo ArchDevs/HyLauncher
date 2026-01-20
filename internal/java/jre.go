@@ -193,18 +193,15 @@ func GetJavaExec(branch string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return getJavaExecutablePath(branch), nil
+}
 
-	javaBin := filepath.Join(
-		env.GetDefaultAppDir(),
-		branch,
-		"package",
-		"jre",
-		"latest",
-		"bin",
-		"java",
-	)
-	if runtime.GOOS == "windows" {
-		javaBin += ".exe"
+func getJavaExecutablePath(branch string) string {
+	base := filepath.Join(env.GetDefaultAppDir(), branch, "package", "jre", "latest")
+	if runtime.GOOS == "darwin" {
+		return filepath.Join(base, "Contents", "Home", "bin", "java")
+	} else if runtime.GOOS == "windows" {
+		return filepath.Join(base, "bin", "java.exe")
 	}
-	return javaBin, nil
+	return filepath.Join(base, "bin", "java")
 }

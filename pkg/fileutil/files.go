@@ -6,8 +6,18 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"syscall"
 )
+
+func GetClientPath(gameDir string) string {
+	if runtime.GOOS == "darwin" {
+		return filepath.Join(gameDir, "Client", "Hytale.app", "Contents", "MacOS", "HytaleClient")
+	} else if runtime.GOOS == "windows" {
+		return filepath.Join(gameDir, "Client", "HytaleClient.exe")
+	}
+	return filepath.Join(gameDir, "Client", "HytaleClient")
+}
 
 func CopyFile(src, dst string) error {
 	in, err := os.Open(src)

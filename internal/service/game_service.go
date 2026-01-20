@@ -136,7 +136,7 @@ func (s *GameService) Install(ctx context.Context, branch string, latestVersion 
 	}
 
 	gameLatestDir := filepath.Join(env.GetDefaultAppDir(), branch, "package", "game", "latest")
-	clientPath, clientErr := fileutil.GetNativeFile(filepath.Join(gameLatestDir, "Client", "HytaleClient"))
+	clientPath, clientErr := fileutil.GetNativeFile(fileutil.GetClientPath(gameLatestDir))
 
 	// Check if game is already up to date
 	if local == latestVersion && clientErr == nil {
@@ -222,11 +222,8 @@ func (s *GameService) Launch(playerName, branch string) error {
 		return fmt.Errorf("apply game fixes: %w", err)
 	}
 
-	clientPath, err := fileutil.GetNativeFile(filepath.Join(gameDir, "Client", "HytaleClient"))
-	if err != nil {
-		return fmt.Errorf("find game client: %w", err)
-	}
-
+	// Get client executable path
+	clientPath := fileutil.GetClientPath(gameDir)
 	javaBin, err := java.GetJavaExec(branch)
 	if err != nil {
 		return fmt.Errorf("find java: %w", err)
@@ -235,6 +232,16 @@ func (s *GameService) Launch(playerName, branch string) error {
 	if err := os.MkdirAll(userDataDir, 0755); err != nil {
 		return fmt.Errorf("create user data dir: %w", err)
 	}
+
+	if runtime.GOOS == "darwin" {
+		_ = os.Chmod(clientPath, 0755)
+		_ = os.Chmod(javaBin, 0755)
+	}
+
+	clientPath, _ = filepath.Abs(clientPath)
+	javaBin, _ = filepath.Abs(javaBin)
+	userDataDir, _ = filepath.Abs(userDataDir)
+	gameDir, _ = filepath.Abs(gameDir)
 
 	playerUUID := game.OfflineUUID(playerName).String()
 
@@ -253,6 +260,7 @@ func (s *GameService) Launch(playerName, branch string) error {
 	game.SetSDLVideoDriver(cmd)
 
 	fmt.Printf("Launching %s (latest) with UUID %s\n", playerName, playerUUID)
+	fmt.Printf("Launching command: %s\n", cmd)
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start game process: %w", err)
