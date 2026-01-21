@@ -45,22 +45,10 @@ func FileExistsNative(filePath string) bool {
 }
 
 func FileFunctional(filePath string) bool {
-	cmd := exec.Command(filePath, "--help")
-	if err := cmd.Run(); err != nil {
-		return false
-	}
-	return true
-}
-
-func GetNativeFile(filePath string) (string, error) {
-	if env.GetOS() == "windows" {
-		filePath += ".exe"
-	}
-	_, err := os.Stat(filePath)
-	if err != nil {
-		return "", fmt.Errorf("Could not find file: %s", filePath)
-	}
-	return filePath, nil
+	cmd := exec.Command(filePath, "--version")
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	return cmd.Run() == nil
 }
 
 func GetClientPath(gameDir string) string {

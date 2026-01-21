@@ -72,18 +72,20 @@ func ReinstallButler(toolsDir, zipPath, tempZipPath, osName, arch string, report
 
 func VerifyButler() error {
 	butlerDir := filepath.Join(env.GetDefaultAppDir(), "tools", "butler")
+
 	butlerPath := filepath.Join(butlerDir, "butler")
 	if runtime.GOOS == "windows" {
 		butlerPath += ".exe"
 	}
 
-	if !fileutil.FileExistsNative(butlerPath) {
-		fmt.Println("Warning: Butler not found")
-		return ErrButlerNotFound
+	if _, err := os.Stat(butlerPath); err != nil {
+		if os.IsNotExist(err) {
+			return ErrButlerNotFound
+		}
+		return err
 	}
 
 	if !fileutil.FileFunctional(butlerPath) {
-		fmt.Println("Warning: Butler executable is broken")
 		return ErrButlerBroken
 	}
 
@@ -132,12 +134,17 @@ func DownloadButler(toolsDir, zipPath, tempZipPath, osName, arch string, reporte
 }
 
 func GetButlerExec() (string, error) {
-	err := VerifyButler()
-	if err != nil {
+	if err := VerifyButler(); err != nil {
 		return "", err
 	}
 
-	butlerPath := filepath.Join(env.GetDefaultAppDir(), "tools", "butler")
+	butlerPath := filepath.Join(
+		env.GetDefaultAppDir(),
+		"tools",
+		"butler",
+		"butler",
+	)
+
 	if runtime.GOOS == "windows" {
 		butlerPath += ".exe"
 	}

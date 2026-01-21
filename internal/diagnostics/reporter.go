@@ -53,13 +53,9 @@ func NewReporter(rootDir, appVersion string) (*Reporter, error) {
 		return nil, err
 	}
 
-	path := filepath.Join(rootDir, "logs", "errors.log")
-
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			return nil, err
-		}
-		return nil, fmt.Errorf("failed to stat %s: %w", path, err)
+	if err := ensureErrorsFile(rootDir); err != nil {
+		fmt.Printf("%s\n", err)
+		return nil, err
 	}
 
 	hyerrors.RegisterHandlerFunc(r.handleError)
@@ -103,6 +99,10 @@ func (r *Reporter) handleError(err *hyerrors.Error) {
 func (r *Reporter) logError(err *hyerrors.Error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	if err := ensureErrorsFile(r.rootDir); err != nil {
+		fmt.Printf("%s\n", err)
+	}
 
 	logPath := filepath.Join(r.logsDir(), "errors.log")
 	f, fileErr := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -273,4 +273,19 @@ func severityString(s hyerrors.Severity) string {
 	default:
 		return "UNKNOWN"
 	}
+}
+
+func ensureErrorsFile(appDir string) error {
+	path := filepath.Join(appDir, "logs", "errors.log")
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			return err
+		}
+		if _, err := os.Create(path); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -12,20 +12,27 @@ func (a *App) SetNick(nick string) error {
 		return err
 	}
 
-	a.cfg.Nick = nick
-
-	if err := config.Save(a.cfg); err != nil {
+	if err := config.SaveNick(nick); err != nil {
 		appErr := hyerrors.WrapConfig(err, "failed to save nickname").
 			WithContext("nick", nick)
 		hyerrors.Report(appErr)
 		return appErr
 	}
 
+	a.cfg.Nick = nick
 	return nil
 }
 
-func (a *App) GetNick() string {
-	return a.cfg.Nick
+func (a *App) GetNick() (string, error) {
+	nick, err := config.GetNick()
+	if err != nil {
+		appErr := hyerrors.WrapConfig(err, "failed to get nickname")
+		hyerrors.Report(appErr)
+		return "", appErr
+	}
+
+	a.cfg.Nick = nick
+	return nick, nil
 }
 
 func (a *App) GetLauncherVersion() string {
@@ -39,11 +46,21 @@ func (a *App) SetLocalGameVersion(version int) error {
 		hyerrors.Report(appErr)
 		return appErr
 	}
+
+	a.cfg.CurrentGameVersion = version
 	return nil
 }
 
-func (a *App) GetLocalGameVersion() int {
-	return a.cfg.CurrentGameVersion
+func (a *App) GetLocalGameVersion() (int, error) {
+	version, err := config.GetLocalGameVersion()
+	if err != nil {
+		appErr := hyerrors.WrapConfig(err, "failed to get game version")
+		hyerrors.Report(appErr)
+		return 0, appErr
+	}
+
+	a.cfg.CurrentGameVersion = version
+	return version, nil
 }
 
 func (a *App) SetBranch(branch string) error {
@@ -53,6 +70,8 @@ func (a *App) SetBranch(branch string) error {
 		hyerrors.Report(appErr)
 		return appErr
 	}
+
+	a.cfg.Branch = branch
 	return nil
 }
 
@@ -63,5 +82,7 @@ func (a *App) GetBranch() (string, error) {
 		hyerrors.Report(appErr)
 		return "", appErr
 	}
+
+	a.cfg.Branch = branch
 	return branch, nil
 }
