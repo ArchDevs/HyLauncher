@@ -17,62 +17,82 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # needed for tags & changelog
+          fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
           go-version: "1.24"
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 24
 
-      - name: Linux deps
+      - name: Build update-helper binaries
+        run: |
+          mkdir -p release
+          echo "Building update-helper for Linux..."
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o release/update-helper-linux ./cmd/update-helper
+          
+          echo "Building update-helper for Windows..."
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o release/update-helper-windows.exe ./cmd/update-helper
+
+      - name: Install Linux dependencies
         run: |
           sudo apt update
           sudo apt install -y \
-            build-essential pkg-config \
-            libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev
+            build-essential \
+            pkg-config \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev
+
+      - name: Set pkg-config path for WebKitGTK 4.1
+        run: |
+          export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH"
+          
+          # Create a symlink for webkit2gtk-4.0 to point to 4.1
+          sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc \
+                      /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc
 
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Build update-helper
+      - name: Build Linux launcher
         run: |
-          mkdir -p release
-          GOOS=linux GOARCH=amd64 go build -o release/update-helper-linux ./cmd/update-helper
-          GOOS=windows GOARCH=amd64 go build -o release/update-helper-windows.exe ./cmd/update-helper
-
-      - name: Build HyLauncher
-        run: |
-          mkdir -p release
-
-          # Linux portable
+          echo "Building HyLauncher for Linux amd64..."
           wails build -platform linux/amd64
           cp build/bin/HyLauncher release/HyLauncher-linux-x64
           chmod +x release/HyLauncher-linux-x64
 
-          # Portable windows
-          CGO_ENABLED=0 wails build -platform windows/amd64
+      - name: Build Windows portable launcher
+        run: |
+          echo "Building HyLauncher portable for Windows amd64..."
+          wails build -platform windows/amd64
           cp build/bin/HyLauncher.exe release/HyLauncher-windows-x64-portable.exe
 
-          # NSIS Installer
-          CGO_ENABLED=0 wails build -platform windows/amd64 -nsis
-          cp build/bin/HyLauncher-amd64-installer.exe \
-             release/HyLauncher-setup-windows-x64.exe
+      - name: Build Windows installer
+        run: |
+          echo "Building HyLauncher NSIS installer for Windows amd64..."
+          wails build -platform windows/amd64 -nsis
+          cp build/bin/HyLauncher-amd64-installer.exe release/HyLauncher-windows-x64-setup.exe
 
-      - name: Generate version.json
+      - name: Generate version manifest
         run: |
           VERSION="${{ inputs.version }}"
-
+          
+          echo "Calculating checksums..."
           LINUX_LAUNCHER_SHA=$(sha256sum release/HyLauncher-linux-x64 | cut -d' ' -f1)
           LINUX_HELPER_SHA=$(sha256sum release/update-helper-linux | cut -d' ' -f1)
-
+          
           WINDOWS_LAUNCHER_SHA=$(sha256sum release/HyLauncher-windows-x64-portable.exe | cut -d' ' -f1)
           WINDOWS_HELPER_SHA=$(sha256sum release/update-helper-windows.exe | cut -d' ' -f1)
-
+          
+          echo "Generating version.json..."
           cat <<EOF > release/version.json
           {
             "version": "$VERSION",
@@ -107,8 +127,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          echo "Generating changelog..."
           PREV_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
-
+          
           if [ -z "$PREV_TAG" ]; then
             echo "Initial release" > changelog.txt
           else
@@ -130,25 +151,24 @@ jobs:
     needs: release
     if: success()
     runs-on: ubuntu-latest
-
     permissions:
       actions: write
 
     steps:
-      - name: Delete artifacts from previous runs
+      - name: Delete old workflow artifacts
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Fetching artifacts…"
-
+          echo "Fetching artifacts..."
+          
           ARTIFACTS=$(gh api repos/${{ github.repository }}/actions/artifacts \
             --jq '.artifacts[] | select(.workflow_run.id != '${{ github.run_id }}') | .id')
-
+          
           if [ -z "$ARTIFACTS" ]; then
             echo "No old artifacts found."
             exit 0
           fi
-
+          
           for id in $ARTIFACTS; do
             echo "Deleting artifact ID: $id"
             gh api -X DELETE repos/${{ github.repository }}/actions/artifacts/$id
