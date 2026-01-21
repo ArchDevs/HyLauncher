@@ -41,36 +41,46 @@ func (a *App) OpenFolder() error {
 func (a *App) DeleteGame() error {
 	branch, err := config.GetBranch()
 	if err != nil {
-		return fmt.Errorf("Could not get branch: %w", err)
+		return fmt.Errorf("could not get branch: %w", err)
 	}
 
 	homeDir := env.GetDefaultAppDir()
+
+	exclude := map[string]struct{}{
+		"UserData": {},
+	}
 
 	entries, err := os.ReadDir(homeDir)
 	if err != nil {
 		return hyerrors.WrapFileSystem(err, "reading game directory")
 	}
 
-	// Track deletion errors
 	var deleteErrors []string
 
 	for _, entry := range entries {
-		if entry.IsDir() {
-			dirPath := filepath.Join(homeDir, entry.Name())
-			if err := os.RemoveAll(dirPath); err != nil {
-				deleteErrors = append(deleteErrors, entry.Name())
-			}
+		if !entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+
+		if _, ok := exclude[name]; ok {
+			continue
+		}
+
+		dirPath := filepath.Join(homeDir, name)
+		if err := os.RemoveAll(dirPath); err != nil {
+			deleteErrors = append(deleteErrors, name)
 		}
 	}
 
 	if len(deleteErrors) > 0 {
 		return hyerrors.WrapFileSystem(
-			fmt.Errorf("Failed to detele folders: %v", deleteErrors),
+			fmt.Errorf("failed to delete folders: %v", deleteErrors),
 			"failed to delete folders",
 		)
 	}
 
-	// Recreate folder structure
 	if err := env.CreateFolders(branch); err != nil {
 		return hyerrors.WrapFileSystem(err, "recreating folder structure")
 	}
