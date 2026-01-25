@@ -5,64 +5,84 @@ import (
 	"fmt"
 
 	"HyLauncher/internal/config"
-	"HyLauncher/internal/diagnostics"
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/progress"
 	"HyLauncher/internal/service"
 	"HyLauncher/pkg/hyerrors"
+	"HyLauncher/pkg/model"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var AppVersion string = config.Default().Version
+var AppVersion string = config.LauncherDefault().Version
 
 type App struct {
 	ctx         context.Context
-	cfg         *config.Config
+	launcherCfg *config.LauncherConfig
+	instanceCfg *config.InstanceConfig
 	progress    *progress.Reporter
-	diagnostics *diagnostics.Reporter
-	branch      string
-	gameSvc     *service.GameService
+	instance    model.InstanceModel
+
+	crashSvc *service.Reporter
+	gameSvc  *service.GameService
 }
 
 func NewApp() *App {
-	return &App{
-		cfg: config.New(),
-	}
+	return &App{}
 }
 
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	a.progress = progress.New(ctx)
 
-	reporter, err := diagnostics.NewReporter(
+	hyerrors.RegisterHandlerFunc(func(err *hyerrors.Error) {
+		runtime.EventsEmit(ctx, "error", err)
+	})
+
+	launcherCfg, err := config.LoadLauncher()
+	if err != nil {
+		panic(err) // launcher config is critical
+	}
+	a.launcherCfg = launcherCfg
+
+	instanceName := launcherCfg.Instance
+	instanceCfg, err := config.LoadInstance(instanceName)
+	if err != nil {
+		panic(err)
+	}
+	a.instanceCfg = instanceCfg
+
+	instance, err := config.LoadInstance(instanceName)
+	if err != nil {
+		hyerrors.WrapConfig(err, "failed to get instance").
+			WithContext("default_instance", "default")
+		config.UpdateInstance(instanceName, func(cfg *config.InstanceConfig) error {
+			cfg.ID = instanceName
+			return nil
+		})
+	}
+
+	crashReporter, err := service.NewCrashReporter(
 		env.GetDefaultAppDir(),
 		AppVersion,
 	)
 	if err != nil {
 		fmt.Printf("failed to initialize diagnostics: %v\n", err)
 	}
-	a.diagnostics = reporter
 
-	hyerrors.RegisterHandlerFunc(func(err *hyerrors.Error) {
-		runtime.EventsEmit(ctx, "error", err)
-	})
+	a.instance.Branch = a.instanceCfg.Branch
+	a.instance.BuildVersion = instance.Build
+	a.instance.InstanceID = instance.ID
+	a.instance.InstanceName = instance.Name
 
+	a.crashSvc = crashReporter
 	a.gameSvc = service.NewGameService(ctx, a.progress)
 
-	branch, err := config.GetBranch()
-	if err != nil {
-		hyerrors.WrapConfig(err, "failed to get branch").
-			WithContext("default_branch", "stable")
-		branch = "stable"
-	}
-	a.branch = branch
+	fmt.Printf("Application starting: v%s, branch=%s\n", AppVersion, a.instance.Branch)
 
-	fmt.Printf("Application starting: v%s, branch=%s\n", AppVersion, branch)
-
-	go env.CreateFolders(branch)
+	go env.CreateFolders(a.instance.InstanceID)
 	go a.checkUpdateSilently()
-	go env.CleanupLauncher(branch)
+	go env.CleanupLauncher(a.instance)
 }
 
 func (a *App) DownloadAndLaunch(playerName string) error {
@@ -71,18 +91,18 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 		return err
 	}
 
-	if err := a.gameSvc.EnsureInstalled(a.ctx, a.branch, a.progress); err != nil {
+	if err := a.gameSvc.EnsureInstalled(a.ctx, a.instance, a.progress); err != nil {
 		appErr := hyerrors.WrapGame(err, "failed to install game").
-			WithContext("branch", a.branch)
+			WithContext("branch", a.instance.Branch)
 		hyerrors.Report(appErr)
 		return appErr
 	}
 
-	if err := a.gameSvc.Launch(playerName, a.branch); err != nil {
+	if err := a.gameSvc.Launch(playerName, a.instance); err != nil {
 		appErr := hyerrors.GameCritical("failed to launch game").
 			WithDetails(err.Error()).
 			WithContext("player", playerName).
-			WithContext("branch", a.branch)
+			WithContext("branch", a.instance.Branch)
 		hyerrors.Report(appErr)
 		return appErr
 	}
@@ -102,15 +122,15 @@ func (a *App) validatePlayerName(name string) error {
 }
 
 func (a *App) GetLogs() (string, error) {
-	if a.diagnostics == nil {
+	if a.crashSvc == nil {
 		return "", fmt.Errorf("diagnostics not initialized")
 	}
-	return a.diagnostics.GetLogs()
+	return a.crashSvc.GetLogs()
 }
 
-func (a *App) GetCrashReports() ([]diagnostics.CrashReport, error) {
-	if a.diagnostics == nil {
+func (a *App) GetCrashReports() ([]service.CrashReport, error) {
+	if a.crashSvc == nil {
 		return nil, fmt.Errorf("diagnostics not initialized")
 	}
-	return a.diagnostics.GetCrashReports()
+	return a.crashSvc.GetCrashReports()
 }

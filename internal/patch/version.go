@@ -53,14 +53,14 @@ func (c *cache) clear() {
 	c.lastSet = make(map[string]time.Time)
 }
 
-func FindLatestVersion(versionType string) (int, error) {
-	key := fmt.Sprintf("%s-%s-%s", runtime.GOOS, runtime.GOARCH, versionType)
+func FindLatestVersion(branch string) (int, error) {
+	key := fmt.Sprintf("%s-%s-%s", runtime.GOOS, runtime.GOARCH, branch)
 
 	if cached, ok := versionCache.get(key); ok {
 		return cached.LatestVersion, cached.Error
 	}
 
-	result := checkVersion(versionType)
+	result := checkVersion(branch)
 	versionCache.set(key, &result)
 
 	return result.LatestVersion, result.Error
@@ -70,17 +70,17 @@ func ClearVersionCache() {
 	versionCache.clear()
 }
 
-func checkVersion(versionType string) VersionCheckResult {
+func checkVersion(branch string) VersionCheckResult {
 	client := createRobustClient()
 
-	baseVersion := findBaseVersion(client, versionType)
+	baseVersion := findBaseVersion(client, branch)
 	if baseVersion == 0 {
 		return VersionCheckResult{
 			Error: fmt.Errorf("cannot reach game servers or no patches available for %s/%s (check firewall/network)", runtime.GOOS, runtime.GOARCH),
 		}
 	}
 
-	latestVersion := findLatestVersion(client, versionType, baseVersion)
+	latestVersion := findLatestVersion(client, branch, baseVersion)
 	return VersionCheckResult{LatestVersion: latestVersion}
 }
 
@@ -100,13 +100,13 @@ func createRobustClient() *http.Client {
 	}
 }
 
-func findBaseVersion(client *http.Client, versionType string) int {
+func findBaseVersion(client *http.Client, branch string) int {
 	knownVersions := []int{25, 10, 5, 1}
 
 	for _, v := range knownVersions {
 		// Try each version with retry
 		for attempt := 0; attempt < 2; attempt++ {
-			if versionExists(client, versionType, v) {
+			if versionExists(client, branch, v) {
 				return v
 			}
 			if attempt < 1 {
@@ -117,19 +117,19 @@ func findBaseVersion(client *http.Client, versionType string) int {
 	return 0
 }
 
-func findLatestVersion(client *http.Client, versionType string, base int) int {
+func findLatestVersion(client *http.Client, branch string, base int) int {
 	if base <= 10 {
-		return linearSearch(client, versionType, base, min(base+50, 200))
+		return linearSearch(client, branch, base, min(base+50, 200))
 	}
 
-	upper := exponentialSearch(client, versionType, base, 500)
-	return binarySearch(client, versionType, base, upper)
+	upper := exponentialSearch(client, branch, base, 500)
+	return binarySearch(client, branch, base, upper)
 }
 
-func linearSearch(client *http.Client, versionType string, start, end int) int {
+func linearSearch(client *http.Client, branch string, start, end int) int {
 	latest := start
 	for v := start + 1; v <= end; v++ {
-		if versionExists(client, versionType, v) {
+		if versionExists(client, branch, v) {
 			latest = v
 		} else {
 			break
@@ -138,13 +138,13 @@ func linearSearch(client *http.Client, versionType string, start, end int) int {
 	return latest
 }
 
-func exponentialSearch(client *http.Client, versionType string, base, max int) int {
+func exponentialSearch(client *http.Client, branch string, base, max int) int {
 	current := base
 	step := base
 
 	for current < max {
 		next := min(current+step, max)
-		if versionExists(client, versionType, next) {
+		if versionExists(client, branch, next) {
 			current = next
 			step *= 2
 		} else {
@@ -154,12 +154,12 @@ func exponentialSearch(client *http.Client, versionType string, base, max int) i
 	return max
 }
 
-func binarySearch(client *http.Client, versionType string, low, high int) int {
+func binarySearch(client *http.Client, branch string, low, high int) int {
 	latest := low
 
 	for low < high {
 		mid := (low + high + 1) / 2
-		if versionExists(client, versionType, mid) {
+		if versionExists(client, branch, mid) {
 			latest = mid
 			low = mid
 		} else {
@@ -169,9 +169,9 @@ func binarySearch(client *http.Client, versionType string, low, high int) int {
 	return latest
 }
 
-func versionExists(client *http.Client, versionType string, version int) bool {
+func versionExists(client *http.Client, branch string, version int) bool {
 	url := fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/0/%d.pwr",
-		runtime.GOOS, runtime.GOARCH, versionType, version)
+		runtime.GOOS, runtime.GOARCH, branch, version)
 
 	resp, err := client.Head(url)
 	time.Sleep(200 * time.Millisecond)
@@ -179,7 +179,7 @@ func versionExists(client *http.Client, versionType string, version int) bool {
 	return err == nil && resp.StatusCode == http.StatusOK
 }
 
-func VerifyVersionExists(versionType string, version int) error {
+func VerifyVersionExists(branch string, version int) error {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -187,7 +187,7 @@ func VerifyVersionExists(versionType string, version int) error {
 		},
 	}
 
-	if versionExists(client, versionType, version) {
+	if versionExists(client, branch, version) {
 		return nil
 	}
 

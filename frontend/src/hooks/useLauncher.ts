@@ -18,7 +18,7 @@ export const useLauncher = () => {
       try {
         const nick = await GetNick();
         if (nick?.trim()) setUsername(nick.trim());
-        const curr = await GetLocalGameVersion()
+        const curr = await GetLocalGameVersion("default")
         setCurrent(curr);
       } catch (err) {
         setStatusMessage("Warning: Connection issue");

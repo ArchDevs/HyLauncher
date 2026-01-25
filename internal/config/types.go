@@ -1,8 +1,14 @@
 package config
 
-type Config struct {
-	Version            string `toml:"version"`
-	Nick               string `toml:"nick"`
-	CurrentGameVersion int    `toml:"current_game_version"`
-	Branch             string `toml:"branch"`
+type LauncherConfig struct {
+	Nick     string `toml:"nick"`
+	Version  string `toml:"version"`
+	Instance string `toml:"instance"`
+}
+
+type InstanceConfig struct {
+	ID     string `toml:"id"`
+	Name   string `toml:"name"` // Instance name
+	Branch string `toml:"branch"`
+	Build  int    `toml:"build"` // Game build aka version
 }

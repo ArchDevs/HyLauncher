@@ -9,12 +9,14 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/fileutil"
+	"HyLauncher/pkg/model"
 
 	"github.com/anacrolix/torrent"
 	"github.com/mholt/archives"
@@ -265,13 +267,15 @@ func extractFileFromArchive(f archives.FileInfo, targetPath string) error {
 	return err
 }
 
-func EnsureServerAndClientFix(ctx context.Context, branch string, reporter *progress.Reporter) error {
+func EnsureServerAndClientFix(ctx context.Context, requst model.InstanceModel, reporter *progress.Reporter) error {
 	if runtime.GOOS != "windows" {
 		return nil
 	}
 
-	baseDir := env.GetDefaultAppDir()
-	gameLatestDir := filepath.Join(baseDir, branch, "package", "game", "latest")
+	gameLatestDir := filepath.Join(
+		env.GetInstance(requst.InstanceID),
+		strconv.Itoa(requst.BuildVersion),
+	)
 
 	serverBat := filepath.Join(gameLatestDir, "Server", "start-server.bat")
 	if _, err := os.Stat(serverBat); err == nil {

@@ -1,7 +1,6 @@
 package app
 
 import (
-	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/pkg/hyerrors"
 	"fmt"
@@ -38,12 +37,8 @@ func (a *App) OpenFolder() error {
 	return nil
 }
 
-func (a *App) DeleteGame() error {
-	branch, err := config.GetBranch()
-	if err != nil {
-		return fmt.Errorf("could not get branch: %w", err)
-	}
-
+// TODO move to instance_service.go DeleteGame()
+func (a *App) DeleteGame(instance string) error {
 	homeDir := env.GetDefaultAppDir()
 
 	exclude := map[string]struct{}{
@@ -81,7 +76,7 @@ func (a *App) DeleteGame() error {
 		)
 	}
 
-	if err := env.CreateFolders(branch); err != nil {
+	if err := env.CreateFolders(instance); err != nil {
 		return hyerrors.WrapFileSystem(err, "recreating folder structure")
 	}
 

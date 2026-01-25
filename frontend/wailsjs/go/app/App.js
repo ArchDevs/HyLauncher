@@ -6,16 +6,12 @@ export function CheckUpdate() {
   return window['go']['app']['App']['CheckUpdate']();
 }
 
-export function DeleteGame() {
-  return window['go']['app']['App']['DeleteGame']();
+export function DeleteGame(arg1) {
+  return window['go']['app']['App']['DeleteGame'](arg1);
 }
 
 export function DownloadAndLaunch(arg1) {
   return window['go']['app']['App']['DownloadAndLaunch'](arg1);
-}
-
-export function GetBranch() {
-  return window['go']['app']['App']['GetBranch']();
 }
 
 export function GetCrashReports() {
@@ -26,8 +22,8 @@ export function GetLauncherVersion() {
   return window['go']['app']['App']['GetLauncherVersion']();
 }
 
-export function GetLocalGameVersion() {
-  return window['go']['app']['App']['GetLocalGameVersion']();
+export function GetLocalGameVersion(arg1) {
+  return window['go']['app']['App']['GetLocalGameVersion'](arg1);
 }
 
 export function GetLogs() {
@@ -42,16 +38,12 @@ export function OpenFolder() {
   return window['go']['app']['App']['OpenFolder']();
 }
 
-export function SetBranch(arg1) {
-  return window['go']['app']['App']['SetBranch'](arg1);
+export function SetLocalGameVersion(arg1, arg2) {
+  return window['go']['app']['App']['SetLocalGameVersion'](arg1, arg2);
 }
 
-export function SetLocalGameVersion(arg1) {
-  return window['go']['app']['App']['SetLocalGameVersion'](arg1);
-}
-
-export function SetNick(arg1) {
-  return window['go']['app']['App']['SetNick'](arg1);
+export function SetNick(arg1, arg2) {
+  return window['go']['app']['App']['SetNick'](arg1, arg2);
 }
 
 export function Update() {

@@ -1,20 +1,21 @@
 package env
 
 import (
+	"HyLauncher/pkg/model"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
-func CleanupLauncher(branch string) error {
-	appDir := GetDefaultAppDir()
-	cacheDir := filepath.Join(appDir, "cache")
+func CleanupLauncher(request model.InstanceModel) error {
+	cacheDir := GetCacheDir()
 
 	if err := cleanDirectoryWithFileExentsions(cacheDir, []string{".pwr", ".zip", ".tar.gz"}); err != nil {
 		fmt.Println("Warning: failed to clean cache:", err)
 	}
 
-	gameLatest := filepath.Join(appDir, branch, "package", "game", "latest")
+	gameLatest := filepath.Join(GetInstance(request.InstanceID), request.Branch, strconv.Itoa(request.BuildVersion))
 	if err := cleanIncompleteGame(gameLatest); err != nil {
 		fmt.Println("Warning: failed to clean game directory:", err)
 	}

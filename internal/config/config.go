@@ -1,54 +1,43 @@
 package config
 
 import (
-	"HyLauncher/internal/env"
 	"os"
 	"path/filepath"
 
 	"github.com/pelletier/go-toml/v2"
 )
 
-func New() *Config {
-	cfg := Default()
-	return &cfg
-}
-
-func configPath() string {
-	return filepath.Join(env.GetDefaultAppDir(), "config.toml")
-}
-
-func Save(cfg *Config) error {
-	path := configPath()
-	// Create config if not exists
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
-	}
-	// Serialize config
-	data, err := toml.Marshal(cfg)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0644)
-}
-
-func Load() (*Config, error) {
-	path := configPath()
-	// Get config data
+func load[T any](path string, defaults func() T) (*T, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			cfg := Default()
-			_ = Save(&cfg)
+			cfg := defaults()
+			_ = save(path, &cfg)
 			return &cfg, nil
 		}
 		return nil, err
 	}
-	cfg := Default()
+
+	cfg := defaults()
 	if err := toml.Unmarshal(data, &cfg); err != nil {
 		_ = os.Rename(path, path+".broken")
-		cfg = Default()
-		_ = Save(&cfg)
+		cfg = defaults()
+		_ = save(path, &cfg)
 		return &cfg, nil
 	}
+
 	return &cfg, nil
+}
+
+func save[T any](path string, cfg *T) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+
+	data, err := toml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, data, 0644)
 }

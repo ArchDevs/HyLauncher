@@ -5,84 +5,78 @@ import (
 	"HyLauncher/pkg/hyerrors"
 )
 
-func (a *App) SetNick(nick string) error {
+func (a *App) SetNick(nick, instanceID string) error {
 	if nick == "" {
 		err := hyerrors.Validation("nickname cannot be empty")
 		hyerrors.Report(err)
 		return err
 	}
 
-	if err := config.SaveNick(nick); err != nil {
+	err := config.UpdateLauncher(func(cfg *config.LauncherConfig) error {
+		cfg.Nick = nick
+		return nil
+	})
+
+	if err != nil {
 		appErr := hyerrors.WrapConfig(err, "failed to save nickname").
 			WithContext("nick", nick)
 		hyerrors.Report(appErr)
 		return appErr
 	}
 
-	a.cfg.Nick = nick
+	a.launcherCfg.Nick = nick
 	return nil
 }
 
 func (a *App) GetNick() (string, error) {
-	nick, err := config.GetNick()
+	cfg, err := config.LoadLauncher()
 	if err != nil {
 		appErr := hyerrors.WrapConfig(err, "failed to get nickname")
 		hyerrors.Report(appErr)
 		return "", appErr
 	}
 
-	a.cfg.Nick = nick
-	return nick, nil
+	a.launcherCfg.Nick = cfg.Nick
+	return cfg.Nick, nil
 }
 
 func (a *App) GetLauncherVersion() string {
-	return config.Default().Version
+	return config.LauncherDefault().Version
 }
 
-func (a *App) SetLocalGameVersion(version int) error {
-	if err := config.SaveLocalGameVersion(version); err != nil {
+func (a *App) SetLocalGameVersion(version int, instanceID string) error {
+	if version < 0 {
+		err := hyerrors.Validation("game version cannot be negative")
+		hyerrors.Report(err)
+		return err
+	}
+
+	err := config.UpdateInstance(instanceID, func(cfg *config.InstanceConfig) error {
+		cfg.Build = version
+		return nil
+	})
+
+	if err != nil {
 		appErr := hyerrors.WrapConfig(err, "failed to save game version").
-			WithContext("version", version)
+			WithContext("version", version).
+			WithContext("instance", instanceID)
 		hyerrors.Report(appErr)
 		return appErr
 	}
 
-	a.cfg.CurrentGameVersion = version
+	a.instanceCfg.Build = version
 	return nil
 }
 
-func (a *App) GetLocalGameVersion() (int, error) {
-	version, err := config.GetLocalGameVersion()
+func (a *App) GetLocalGameVersion(instanceID string) (int, error) {
+	cfg, err := config.LoadInstance(instanceID)
 	if err != nil {
-		appErr := hyerrors.WrapConfig(err, "failed to get game version")
+		appErr := hyerrors.WrapConfig(err, "failed to get game version").
+			WithContext("instance", instanceID)
 		hyerrors.Report(appErr)
 		return 0, appErr
 	}
 
-	a.cfg.CurrentGameVersion = version
-	return version, nil
-}
-
-func (a *App) SetBranch(branch string) error {
-	if err := config.SaveBranch(branch); err != nil {
-		appErr := hyerrors.WrapConfig(err, "failed to save branch").
-			WithContext("branch", branch)
-		hyerrors.Report(appErr)
-		return appErr
-	}
-
-	a.cfg.Branch = branch
-	return nil
-}
-
-func (a *App) GetBranch() (string, error) {
-	branch, err := config.GetBranch()
-	if err != nil {
-		appErr := hyerrors.WrapConfig(err, "failed to get branch")
-		hyerrors.Report(appErr)
-		return "", appErr
-	}
-
-	a.cfg.Branch = branch
-	return branch, nil
+	a.instanceCfg.Build = cfg.Build
+	return cfg.Build, nil
 }

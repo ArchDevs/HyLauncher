@@ -36,7 +36,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     GetNick().then((n: string) => n && setUsername(n));
-    GetLocalGameVersion().then((curr: number) => setCurrent(curr));
+    GetLocalGameVersion("default").then((curr: number) => setCurrent(curr));
     GetLauncherVersion().then((version: string) => setLauncherVersion(version));
 
     const offUpdateAvailable = EventsOn('update:available', (asset: any) => {
@@ -119,7 +119,7 @@ const App: React.FC = () => {
             currentVersion={current}
             isEditing={isEditing}
             onEditToggle={(val: boolean) => setIsEditing(val)}
-            onUserChange={(val: string) => { SetNick(val); setUsername(val); }}
+            onUserChange={(val: string) => { SetNick(val, "default"); setUsername(val); }}
             updateAvailable={!!updateAsset}
             onUpdate={handleUpdate}
           />
@@ -146,7 +146,7 @@ const App: React.FC = () => {
         />
       </main>
 
-      {showDelete && <DeleteConfirmationModal onConfirm={() => { DeleteGame(); setShowDelete(false); }} onCancel={() => setShowDelete(false)} />}
+      {showDelete && <DeleteConfirmationModal onConfirm={() => { DeleteGame("default"); setShowDelete(false); }} onCancel={() => setShowDelete(false)} />}
       {error && <ErrorModal error={error} onClose={() => setError(null)} />}
     </div>
   );

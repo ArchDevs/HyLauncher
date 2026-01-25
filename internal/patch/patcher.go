@@ -7,29 +7,31 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"time"
 
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/platform"
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/download"
+	"HyLauncher/pkg/model"
 )
 
-func ApplyPWR(ctx context.Context, pwrFile, branch string, reporter *progress.Reporter) error {
-	gameLatest := filepath.Join(env.GetDefaultAppDir(), branch, "package", "game", "latest")
-	stagingDir := filepath.Join(gameLatest, "staging-temp")
+func ApplyPWR(ctx context.Context, pwrFile string, request model.InstanceModel, reporter *progress.Reporter) error {
+	gameDir := env.GetGameDir(request.Branch, request.BuildVersion)
+	stagingDir := filepath.Join(gameDir, ".staging-temp")
+
+	_ = os.MkdirAll(filepath.Dir(gameDir), 0755)
 	_ = os.MkdirAll(stagingDir, 0755)
 
-	butlerPath := filepath.Join(env.GetDefaultAppDir(), "tools", "butler", "butler")
-	if runtime.GOOS == "windows" {
-		butlerPath += ".exe"
+	butlerPath, err := GetButlerExec()
+	if err != nil {
+		fmt.Println("Can not get butler: %w", err)
 	}
 
 	cmd := exec.CommandContext(ctx, butlerPath,
 		"apply",
 		"--staging-dir", stagingDir,
 		pwrFile,
-		gameLatest,
+		gameDir,
 	)
 
 	platform.HideConsoleWindow(cmd)
@@ -47,24 +49,15 @@ func ApplyPWR(ctx context.Context, pwrFile, branch string, reporter *progress.Re
 		_ = cmd.Process.Release()
 	}
 
-	if runtime.GOOS == "windows" {
-		for i := 0; i < 5; i++ {
-			if err := os.Rename(stagingDir, gameLatest); err == nil {
-				break
-			}
-			time.Sleep(2 * time.Second)
-		}
-	} else {
-		_ = os.Rename(stagingDir, gameLatest)
-	}
+	// Clean up staging directory
+	_ = os.RemoveAll(stagingDir)
 
 	reporter.Report(progress.StagePatch, 100, "Game patched!")
 	return nil
 }
 
-func DownloadPWR(ctx context.Context, branch string, prevVer int, targetVer int, reporter *progress.Reporter) (string, error) {
-
-	cacheDir := filepath.Join(env.GetDefaultAppDir(), "cache")
+func DownloadPWR(ctx context.Context, branch string, targetVer int, reporter *progress.Reporter) (string, error) {
+	cacheDir := env.GetCacheDir()
 	_ = os.MkdirAll(cacheDir, 0755)
 
 	osName := runtime.GOOS
@@ -81,8 +74,8 @@ func DownloadPWR(ctx context.Context, branch string, prevVer int, targetVer int,
 		return dest, nil
 	}
 
-	url := fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/%d/%s",
-		osName, arch, branch, prevVer, fileName)
+	url := fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/0/%s",
+		osName, arch, branch, fileName)
 
 	reporter.Report(progress.StagePWR, 0, "Downloading PWR file...")
 

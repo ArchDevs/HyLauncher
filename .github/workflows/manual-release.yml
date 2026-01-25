@@ -52,21 +52,13 @@ jobs:
             libwebkit2gtk-4.1-dev \
             nsis
 
-      - name: Set pkg-config path for WebKitGTK 4.1
-        run: |
-          export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH"
-          
-          # Create a symlink for webkit2gtk-4.0 to point to 4.1
-          sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc \
-                      /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc
-
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Build Linux launcher
         run: |
           echo "Building HyLauncher for Linux amd64..."
-          wails build -platform linux/amd64
+          wails build -tags webkit2_41 -platform linux/amd64
           cp build/bin/HyLauncher release/HyLauncher-linux-x64
           chmod +x release/HyLauncher-linux-x64
 

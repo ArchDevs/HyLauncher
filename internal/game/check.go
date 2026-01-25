@@ -8,14 +8,8 @@ import (
 	"path/filepath"
 )
 
-func CheckInstalled(branch string) error {
-	base := filepath.Join(
-		env.GetDefaultAppDir(),
-		branch,
-		"package",
-		"game",
-		"latest",
-	)
+func CheckInstalled(branch string, buildVersion int) error {
+	base := filepath.Join(env.GetGameDir(branch, buildVersion))
 
 	if !fileutil.FileExistsNative(filepath.Join(base, "Client", "HytaleClient")) {
 		return fmt.Errorf("client binary missing")

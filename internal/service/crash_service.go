@@ -1,4 +1,4 @@
-package diagnostics
+package service
 
 import (
 	"encoding/json"
@@ -43,7 +43,7 @@ type LogEntry struct {
 	Details   string            `json:"details,omitempty"`
 }
 
-func NewReporter(rootDir, appVersion string) (*Reporter, error) {
+func NewCrashReporter(rootDir, appVersion string) (*Reporter, error) {
 	r := &Reporter{
 		rootDir:    rootDir,
 		appVersion: appVersion,
@@ -148,7 +148,7 @@ func (r *Reporter) saveCrashReport(err *hyerrors.Error) {
 			GoVersion:    runtime.Version(),
 			NumGoroutine: runtime.NumGoroutine(),
 		},
-		Logs: r.readRecentLogs(50),
+		Logs: r.readRecentLogs(),
 	}
 
 	data, marshalErr := json.MarshalIndent(report, "", "  ")
@@ -168,7 +168,7 @@ func (r *Reporter) saveCrashReport(err *hyerrors.Error) {
 	}
 }
 
-func (r *Reporter) readRecentLogs(maxLines int) []LogEntry {
+func (r *Reporter) readRecentLogs() []LogEntry {
 	logPath := filepath.Join(r.logsDir(), "errors.log")
 	data, err := os.ReadFile(logPath)
 	if err != nil {

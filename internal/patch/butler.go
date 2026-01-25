@@ -25,7 +25,7 @@ func EnsureButler(ctx context.Context, reporter *progress.Reporter) error {
 	arch := env.GetArch()
 	basePath := env.GetDefaultAppDir()
 
-	toolsDir := filepath.Join(basePath, "tools", "butler")
+	toolsDir := filepath.Join(basePath, "shared", "butler")
 	zipPath := filepath.Join(toolsDir, "butler.zip")
 	tempZipPath := zipPath + ".tmp"
 
@@ -71,7 +71,7 @@ func ReinstallButler(toolsDir, zipPath, tempZipPath, osName, arch string, report
 }
 
 func VerifyButler() error {
-	butlerDir := filepath.Join(env.GetDefaultAppDir(), "tools", "butler")
+	butlerDir := filepath.Join(env.GetDefaultAppDir(), "shared", "butler")
 
 	butlerPath := filepath.Join(butlerDir, "butler")
 	if runtime.GOOS == "windows" {
@@ -140,7 +140,7 @@ func GetButlerExec() (string, error) {
 
 	butlerPath := filepath.Join(
 		env.GetDefaultAppDir(),
-		"tools",
+		"shared",
 		"butler",
 		"butler",
 	)

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 )
 
 func GetOS() string {
@@ -48,19 +49,65 @@ func GetCacheDir() string {
 	return filepath.Join(GetDefaultAppDir(), "cache")
 }
 
-func CreateFolders(branch string) error {
+func GetInstancesDir() string {
+	return filepath.Join(GetDefaultAppDir(), "instances")
+}
+
+func GetServersDir() string {
+	return filepath.Join(GetDefaultAppDir(), "servers")
+}
+
+func GetInstanceDir(instance string) string {
+	return filepath.Join(GetInstancesDir(), instance)
+}
+
+// Deprecated, for backward co
+func GetInstance(instance string) string {
+	return GetInstanceDir(instance)
+}
+
+func GetInstanceUserDataDir(instance string) string {
+	return filepath.Join(GetInstanceDir(instance), "UserData")
+}
+
+func GetJREDir() string {
+	return filepath.Join(GetDefaultAppDir(), "shared", "jre")
+}
+
+func GetSharedGamesDir() string {
+	return filepath.Join(GetDefaultAppDir(), "shared", "games")
+}
+
+func GetGameDir(branch string, version int) string {
+	return filepath.Join(GetSharedGamesDir(), branch, strconv.Itoa(version))
+}
+
+func GetGameClientPath(branch string, version int) string {
+	gameDir := GetGameDir(branch, version)
+	if runtime.GOOS == "darwin" {
+		return filepath.Join(gameDir, "Client", "Hytale.app", "Contents", "MacOS", "HytaleClient")
+	} else if runtime.GOOS == "windows" {
+		return filepath.Join(gameDir, "Client", "HytaleClient.exe")
+	}
+	return filepath.Join(gameDir, "Client", "HytaleClient")
+}
+
+func CreateFolders(instance string) error {
 	basePath := GetDefaultAppDir()
-	packagePath := filepath.Join(basePath, branch, "package") // Package folder
 
 	paths := []string{
-		basePath,                                   // Main folder
-		filepath.Join(basePath, "UserData"),        // UserData
-		filepath.Join(basePath, "cache"),           // Cache Folder
-		filepath.Join(basePath, "logs"),            // Logs Folder
-		filepath.Join(basePath, "tools", "butler"), // Butler
-		filepath.Join(packagePath, "jre"),          // JRE Folder
-		filepath.Join(packagePath, "game"),
-		filepath.Join(packagePath, "game", "latest"),
+		basePath,                                       // Main folder
+		filepath.Join(basePath, "cache"),               // Cache Folder
+		filepath.Join(basePath, "instances"),           // Game instances folder
+		filepath.Join(basePath, "instances", instance), // Specific instance
+		GetInstanceUserDataDir(instance),               // Instance UserData
+		filepath.Join(basePath, "servers"),             // Servers folder
+		filepath.Join(basePath, "logs"),                // Logs Folder
+		filepath.Join(basePath, "crashes"),             // Crashes Folder
+		filepath.Join(basePath, "shared"),              // Shared folder
+		filepath.Join(basePath, "shared", "jre"),       // Shared JRE folder
+		filepath.Join(basePath, "shared", "butler"),    // Butler
+		filepath.Join(basePath, "shared", "games"),     // Shared games folder
 	}
 
 	for _, p := range paths {

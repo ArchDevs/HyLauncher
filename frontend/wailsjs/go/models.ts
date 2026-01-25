@@ -1,4 +1,70 @@
-export namespace diagnostics {
+export namespace hyerrors {
+	
+	export class Frame {
+	    function: string;
+	    file: string;
+	    line: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Frame(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.function = source["function"];
+	        this.file = source["file"];
+	        this.line = source["line"];
+	    }
+	}
+	export class Error {
+	    id: string;
+	    category: string;
+	    severity: number;
+	    message: string;
+	    details?: string;
+	    // Go type: time
+	    timestamp: any;
+	    stack?: Frame[];
+	    context?: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new Error(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.category = source["category"];
+	        this.severity = source["severity"];
+	        this.message = source["message"];
+	        this.details = source["details"];
+	        this.timestamp = this.convertValues(source["timestamp"], null);
+	        this.stack = this.convertValues(source["stack"], Frame);
+	        this.context = source["context"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace service {
 	
 	export class LogEntry {
 	    // Go type: time
@@ -101,72 +167,6 @@ export namespace diagnostics {
 		}
 	}
 	
-
-}
-
-export namespace hyerrors {
-	
-	export class Frame {
-	    function: string;
-	    file: string;
-	    line: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new Frame(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.function = source["function"];
-	        this.file = source["file"];
-	        this.line = source["line"];
-	    }
-	}
-	export class Error {
-	    id: string;
-	    category: string;
-	    severity: number;
-	    message: string;
-	    details?: string;
-	    // Go type: time
-	    timestamp: any;
-	    stack?: Frame[];
-	    context?: Record<string, any>;
-	
-	    static createFrom(source: any = {}) {
-	        return new Error(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.category = source["category"];
-	        this.severity = source["severity"];
-	        this.message = source["message"];
-	        this.details = source["details"];
-	        this.timestamp = this.convertValues(source["timestamp"], null);
-	        this.stack = this.convertValues(source["stack"], Frame);
-	        this.context = source["context"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
 
 }
 
