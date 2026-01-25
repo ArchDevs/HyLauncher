@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
@@ -11,6 +12,7 @@ import (
 	"HyLauncher/pkg/hyerrors"
 	"HyLauncher/pkg/model"
 
+	"github.com/hugolgst/rich-go/client"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -38,6 +40,11 @@ func (a *App) Startup(ctx context.Context) {
 	hyerrors.RegisterHandlerFunc(func(err *hyerrors.Error) {
 		runtime.EventsEmit(ctx, "error", err)
 	})
+
+	err := client.Login("1465005878276128888")
+	if err != nil {
+		panic(err)
+	}
 
 	launcherCfg, err := config.LoadLauncher()
 	if err != nil {
@@ -80,6 +87,7 @@ func (a *App) Startup(ctx context.Context) {
 
 	fmt.Printf("Application starting: v%s, branch=%s\n", AppVersion, a.instance.Branch)
 
+	go a.discordRPC()
 	go env.CreateFolders(a.instance.InstanceID)
 	go a.checkUpdateSilently()
 	go env.CleanupLauncher(a.instance)
@@ -133,4 +141,30 @@ func (a *App) GetCrashReports() ([]service.CrashReport, error) {
 		return nil, fmt.Errorf("diagnostics not initialized")
 	}
 	return a.crashSvc.GetCrashReports()
+}
+
+func (a *App) discordRPC() {
+	now := time.Now()
+
+	err := client.SetActivity(client.Activity{
+		State:   "Idle",
+		Details: "The best Hytale launcher",
+		Timestamps: &client.Timestamps{
+			Start: &now,
+		},
+		Buttons: []*client.Button{
+			&client.Button{
+				Label: "GitHub",
+				Url:   "https://github.com/ArchDevs/HyLauncher",
+			},
+			&client.Button{
+				Label: "Website",
+				Url:   "https://hylauncher.fun",
+			},
+		},
+	})
+
+	if err != nil {
+		fmt.Println("Error occured, %w", err)
+	}
 }
