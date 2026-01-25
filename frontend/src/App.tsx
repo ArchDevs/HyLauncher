@@ -1,14 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import BackgroundImage from './components/BackgroundImage';
-import Titlebar from './components/Titlebar';
-import { ProfileSection } from './components/ProfileCard';
-import { UpdateOverlay } from './components/UpdateOverlay';
-import { ControlSection } from './components/ControlSection';
-import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
-import { ErrorModal } from './components/ErrorModal';
+import React, { useState, useEffect } from "react";
+import BackgroundImage from "./components/BackgroundImage";
+import Titlebar from "./components/Titlebar";
+import { ProfileSection } from "./components/ProfileCard";
+import { UpdateOverlay } from "./components/UpdateOverlay";
+import { ControlSection } from "./components/ControlSection";
+import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
+import { ErrorModal } from "./components/ErrorModal";
 
-import { DownloadAndLaunch, OpenFolder, GetNick, SetNick, DeleteGame, Update, GetLocalGameVersion, GetLauncherVersion } from '../wailsjs/go/app/App';
-import { EventsOn } from '../wailsjs/runtime/runtime';
+import {
+  DownloadAndLaunch,
+  OpenFolder,
+  GetNick,
+  SetNick,
+  DeleteGame,
+  Update,
+  GetLocalGameVersion,
+  GetLauncherVersion,
+} from "../wailsjs/go/app/App";
+import { EventsOn } from "../wailsjs/runtime/runtime";
+import BannersHome from "./components/BannersHome";
 
 // TODO FULL REFACTOR + Redesign
 
@@ -20,12 +30,12 @@ const App: React.FC = () => {
   const [progress, setProgress] = useState<number>(0);
   const [status, setStatus] = useState<string>("Ready to play");
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  
+
   const [currentFile, setCurrentFile] = useState<string>("");
   const [downloadSpeed, setDownloadSpeed] = useState<string>("");
   const [downloaded, setDownloaded] = useState<number>(0);
   const [total, setTotal] = useState<number>(0);
-  
+
   const [updateAsset, setUpdateAsset] = useState<any>(null);
   const [isUpdatingLauncher, setIsUpdatingLauncher] = useState<boolean>(false);
   const [updateStats, setUpdateStats] = useState({ d: 0, t: 0 });
@@ -39,18 +49,21 @@ const App: React.FC = () => {
     GetLocalGameVersion("default").then((curr: number) => setCurrent(curr));
     GetLauncherVersion().then((version: string) => setLauncherVersion(version));
 
-    const offUpdateAvailable = EventsOn('update:available', (asset: any) => {
-      console.log('Update available event received:', asset);
+    const offUpdateAvailable = EventsOn("update:available", (asset: any) => {
+      console.log("Update available event received:", asset);
       setUpdateAsset(asset);
     });
 
-    const offUpdateProgress = EventsOn('update:progress', (d: number, t: number) => {
-      const percentage = t > 0 ? (d / t) * 100 : 0;
-      setProgress(percentage);
-      setUpdateStats({ d, t });
-    });
+    const offUpdateProgress = EventsOn(
+      "update:progress",
+      (d: number, t: number) => {
+        const percentage = t > 0 ? (d / t) * 100 : 0;
+        setProgress(percentage);
+        setUpdateStats({ d, t });
+      },
+    );
 
-    const offProgress = EventsOn('progress-update', (data: any) => {
+    const offProgress = EventsOn("progress-update", (data: any) => {
       setProgress(data.progress ?? 0);
       setStatus(data.message ?? "");
       setCurrentFile(data.currentFile ?? "");
@@ -58,14 +71,14 @@ const App: React.FC = () => {
       setDownloaded(data.downloaded ?? 0);
       setTotal(data.total ?? 0);
 
-      if (data.stage === 'launch') {
+      if (data.stage === "launch") {
         setIsDownloading(false);
         setProgress(0);
         setStatus("Ready to play");
         setDownloadSpeed("");
       }
 
-      if (data.stage === 'idle') {
+      if (data.stage === "idle") {
         setIsDownloading(false);
         setProgress(0);
         setStatus("Ready to play");
@@ -83,23 +96,22 @@ const App: React.FC = () => {
     };
   }, []);
 
-
   const handleUpdate = async () => {
-    console.log('Update button clicked, starting update...');
+    console.log("Update button clicked, starting update...");
     setIsUpdatingLauncher(true);
     setProgress(0);
     setUpdateStats({ d: 0, t: 0 });
-    
+
     try {
       await Update();
-      console.log('Update call completed');
+      console.log("Update call completed");
     } catch (err) {
-      console.error('Update failed:', err);
+      console.error("Update failed:", err);
       setError({
-        type: 'UPDATE_ERROR',
-        message: 'Failed to update launcher',
+        type: "UPDATE_ERROR",
+        message: "Failed to update launcher",
         technical: err instanceof Error ? err.message : String(err),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       setIsUpdatingLauncher(false);
     }
@@ -110,27 +122,38 @@ const App: React.FC = () => {
       <BackgroundImage />
       <Titlebar />
 
-      {isUpdatingLauncher && <UpdateOverlay progress={progress} downloaded={updateStats.d} total={updateStats.t} />}
+      {isUpdatingLauncher && (
+        <UpdateOverlay
+          progress={progress}
+          downloaded={updateStats.d}
+          total={updateStats.t}
+        />
+      )}
 
       <main className="relative z-10 h-full p-10 flex flex-col justify-between pt-[60px]">
         <div className="flex justify-between items-start">
-          <ProfileSection 
+          <ProfileSection
             username={username}
             currentVersion={current}
             isEditing={isEditing}
             onEditToggle={(val: boolean) => setIsEditing(val)}
-            onUserChange={(val: string) => { SetNick(val, "default"); setUsername(val); }}
+            onUserChange={(val: string) => {
+              SetNick(val, "default");
+              setUsername(val);
+            }}
             updateAvailable={!!updateAsset}
             onUpdate={handleUpdate}
           />
 
-          <div className="w-[532px] h-[120px] bg-[#090909]/[0.55] backdrop-blur-xl rounded-[14px] border border-[#FFA845]/[0.10] p-4">
-            <div>{launcherVersion}</div>
-          </div>
+          <BannersHome />
         </div>
+        <div className="text-[#FFFFFF]/[0.25]">{launcherVersion}</div>
 
-        <ControlSection 
-          onPlay={() => { setIsDownloading(true); DownloadAndLaunch(username); }}
+        <ControlSection
+          onPlay={() => {
+            setIsDownloading(true);
+            DownloadAndLaunch(username);
+          }}
           isDownloading={isDownloading}
           progress={progress}
           status={status}
@@ -141,12 +164,20 @@ const App: React.FC = () => {
           actions={{
             openFolder: OpenFolder,
             showDiagnostics: () => setShowDiag(true),
-            showDelete: () => setShowDelete(true)
+            showDelete: () => setShowDelete(true),
           }}
         />
       </main>
 
-      {showDelete && <DeleteConfirmationModal onConfirm={() => { DeleteGame("default"); setShowDelete(false); }} onCancel={() => setShowDelete(false)} />}
+      {showDelete && (
+        <DeleteConfirmationModal
+          onConfirm={() => {
+            DeleteGame("default");
+            setShowDelete(false);
+          }}
+          onCancel={() => setShowDelete(false)}
+        />
+      )}
       {error && <ErrorModal error={error} onClose={() => setError(null)} />}
     </div>
   );

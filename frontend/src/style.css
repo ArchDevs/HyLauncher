@@ -1,24 +1,67 @@
 @import "tailwindcss";
+@font-face {
+  font-family: "Mazzard";
+  src: url("./assets/fonts/Mazzard/MazzardH-Regular.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Mazzard";
+  src: url("./assets/fonts/Mazzard/MazzardL-Regular.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Mazzard";
+  src: url("./assets/fonts/Mazzard/MazzardM-Regular.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 /* Ensure the app is perfectly contained for frameless windows */
-html, body, #app {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    background-color: transparent; /* Let the React container handle the BG */
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: transparent; /* Let the React container handle the BG */
 }
 
 body {
-    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto",
-    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+  font-family:
+    "Mazzard",
+    "Unbounded",
+    "Segoe UI",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Roboto",
+    "Oxygen",
+    "Ubuntu",
+    "Cantarell",
+    "Fira Sans",
+    "Droid Sans",
+    "Helvetica Neue",
     sans-serif;
 }
 
 @keyframes glow {
-  0%, 100% { opacity: 0.8; filter: drop-shadow(0 0 5px #fff); }
-  50% { opacity: 1; filter: drop-shadow(0 0 12px #fff); }
+  0%,
+  100% {
+    opacity: 0.8;
+    filter: drop-shadow(0 0 5px #fff);
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 12px #fff);
+  }
 }
 
 .progress-glow {
@@ -27,6 +70,6 @@ body {
 
 /* Fix for Webkit (Linux/macOS) to prevent text selection while dragging */
 [style*="--wails-draggable:drag"] {
-    user-select: none;
-    -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
