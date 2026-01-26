@@ -99,12 +99,16 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 		return err
 	}
 
-	if err := a.gameSvc.EnsureInstalled(a.ctx, a.instance, a.progress); err != nil {
+	installedVersion, err := a.gameSvc.EnsureInstalled(a.ctx, a.instance, a.progress)
+	if err != nil {
 		appErr := hyerrors.WrapGame(err, "failed to install game").
 			WithContext("branch", a.instance.Branch)
 		hyerrors.Report(appErr)
 		return appErr
 	}
+
+	// Update the instance with the installed version for launch
+	a.instance.BuildVersion = installedVersion
 
 	if err := a.gameSvc.Launch(playerName, a.instance); err != nil {
 		appErr := hyerrors.GameCritical("failed to launch game").

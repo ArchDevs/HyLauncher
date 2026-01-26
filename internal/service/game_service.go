@@ -53,7 +53,7 @@ func (s *GameService) VerifyGame(request model.InstanceModel) error {
 	return nil
 }
 
-func (s *GameService) EnsureInstalled(ctx context.Context, request model.InstanceModel, reporter *progress.Reporter) error {
+func (s *GameService) EnsureInstalled(ctx context.Context, request model.InstanceModel, reporter *progress.Reporter) (int, error) {
 	s.installMutex.Lock()
 	defer s.installMutex.Unlock()
 
@@ -62,20 +62,20 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 	}
 
 	if s.VerifyGame(request) == nil {
-		return nil
+		return request.BuildVersion, nil
 	}
 
 	latestVersion, err := s.fetchLatestVersion(ctx, request.Branch)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	if err := java.EnsureJRE(ctx, request.Branch, reporter); err != nil {
-		return fmt.Errorf("install jre: %w", err)
+		return 0, fmt.Errorf("install jre: %w", err)
 	}
 
 	if err := patch.EnsureButler(ctx, reporter); err != nil {
-		return fmt.Errorf("install butler: %w", err)
+		return 0, fmt.Errorf("install butler: %w", err)
 	}
 
 	if reporter != nil {
@@ -83,7 +83,7 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 		reporter.Report(progress.StageComplete, 0, fmt.Sprintf("Found version %d", latestVersion))
 	}
 
-	return s.Install(ctx, latestVersion, request, reporter)
+	return latestVersion, s.Install(ctx, latestVersion, request, reporter)
 }
 
 func (s *GameService) fetchLatestVersion(ctx context.Context, branch string) (int, error) {
@@ -110,10 +110,10 @@ func (s *GameService) fetchLatestVersion(ctx context.Context, branch string) (in
 }
 
 func (s *GameService) Install(ctx context.Context, latestVersion int, request model.InstanceModel, reporter *progress.Reporter) error {
-	gameDir := env.GetGameDir(request.Branch, request.BuildVersion)
-	clientPath := env.GetGameClientPath(request.Branch, request.BuildVersion)
+	gameDir := env.GetGameDir(request.Branch, latestVersion)
+	clientPath := env.GetGameClientPath(request.Branch, latestVersion)
 
-	pwrPath, err := patch.DownloadPWR(ctx, request.Branch, request.BuildVersion, reporter)
+	pwrPath, sigPath, err := patch.DownloadPWR(ctx, request.Branch, latestVersion, reporter)
 	if err != nil {
 		return fmt.Errorf("download patch: %w", err)
 	}
@@ -122,7 +122,7 @@ func (s *GameService) Install(ctx context.Context, latestVersion int, request mo
 		reporter.Report(progress.StagePatch, 0, "Applying game patch...")
 	}
 
-	if err := patch.ApplyPWR(ctx, pwrPath, request, reporter); err != nil {
+	if err := patch.ApplyPWR(ctx, pwrPath, sigPath, request.Branch, latestVersion, reporter); err != nil {
 		return fmt.Errorf("apply patch: %w", err)
 	}
 
@@ -138,7 +138,7 @@ func (s *GameService) Install(ctx context.Context, latestVersion int, request mo
 	}
 
 	config.UpdateInstance("default", func(cfg *config.InstanceConfig) error {
-		cfg.Build = request.BuildVersion
+		cfg.Build = latestVersion
 		return nil
 	})
 
