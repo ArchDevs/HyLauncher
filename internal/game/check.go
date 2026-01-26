@@ -9,9 +9,10 @@ import (
 )
 
 func CheckInstalled(branch string, buildVersion int) error {
-	base := filepath.Join(env.GetGameDir(branch, buildVersion))
+	base := env.GetGameDir(branch, buildVersion)
+	clientPath := env.GetGameClientPath(branch, buildVersion)
 
-	if !fileutil.FileExistsNative(filepath.Join(base, "Client", "HytaleClient")) {
+	if !fileutil.FileExistsNative(clientPath) {
 		return fmt.Errorf("client binary missing")
 	}
 
