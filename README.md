@@ -1,4 +1,6 @@
-# HyLauncher - Free Hytale Launcher - FOR DEMO TESTING ONLY SUPPORT THE DEVELOPERS!
+# HyLauncher - Free Hytale Launcher
+
+## For demo only. Support Hytale developers!
 
 <p align="center">
   <img src="build/appicon.png" alt="HyLauncher" width="128"/>
