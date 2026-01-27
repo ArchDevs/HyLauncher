@@ -69,4 +69,4 @@ wails build
 ## Authors
 
 - [@ArchDevs](https://www.github.com/ArchDevs) (Founder)
-- [@ronitmb](https://github.com/ronitmb) (Design & Idea & Founder)
+- [@ronitmb](https://github.com/ronitmb) (Design & Idea & Founder & Frontend)
