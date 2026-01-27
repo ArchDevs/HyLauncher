@@ -2,7 +2,7 @@ package config
 
 var launcherDefaults = LauncherConfig{
 	Nick:     "HyLauncher",
-	Version:  "0.6.6",
+	Version:  "0.6.5",
 	Instance: "default",
 }
 

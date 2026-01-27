@@ -141,13 +141,10 @@ const App: React.FC = () => {
               SetNick(val, "default");
               setUsername(val);
             }}
-            updateAvailable={!!updateAsset}
-            onUpdate={handleUpdate}
           />
 
           <BannersHome />
         </div>
-        <div className="text-[#FFFFFF]/[0.25]">{launcherVersion}</div>
 
         <ControlSection
           onPlay={() => {
@@ -166,7 +163,13 @@ const App: React.FC = () => {
             showDiagnostics: () => setShowDiag(true),
             showDelete: () => setShowDelete(true),
           }}
+          updateAvailable={!!updateAsset}
+          onUpdate={handleUpdate}
         />
+
+        <div className="absolute right-[16px] bottom-[16px] text-[#FFFFFF]/[0.25] text-[14px] font-[Mazzard]">
+          {launcherVersion}v
+        </div>
       </main>
 
       {showDelete && (

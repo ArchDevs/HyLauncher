@@ -1,6 +1,13 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { FolderOpen, Activity, Settings, Trash } from "lucide-react";
+import {
+  FolderOpen,
+  Activity,
+  Settings,
+  Trash,
+  ArrowUpCircle,
+  RefreshCcw,
+} from "lucide-react";
 
 interface ControlSectionProps {
   onPlay: () => void;
@@ -16,6 +23,8 @@ interface ControlSectionProps {
     showDiagnostics: () => void;
     showDelete: () => void;
   };
+  updateAvailable: boolean;
+  onUpdate: () => void;
 }
 
 export const ControlSection: React.FC<ControlSectionProps> = ({
@@ -28,6 +37,8 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
   total,
   currentFile,
   actions,
+  updateAvailable,
+  onUpdate,
 }) => {
   // Your original formatting helper
   const formatBytes = (bytes: number) => {
@@ -39,8 +50,23 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
   };
 
   return (
-    <div className="w-full flex items-end gap-8">
-      <div className="w-[294px] flex flex-col gap-3">
+    <div className="w-full flex items-end gap-[20px]">
+      <div className="w-[280px] flex flex-col gap-[12px]">
+        {updateAvailable && (
+          <button
+            onClick={onUpdate}
+            className="cursor-pointer hover:scale-102 w-[280px] h-[40px] bg-[#090909]/[0.55] backdrop-blur-[12] border border-[#FFA845]/[0.10] rounded-[12px] px-[12px] flex items-center justify-between"
+          >
+            <span className="text-[16px] text-[#CCD9E0]/[0.90] font-[Mazzard] tracking-[-3%]">
+              Доступно обновление
+            </span>
+            <span className="text-[#CCD9E0]/[0.90] transition-transform flex items-center justify-center">
+              <RefreshCcw size={16} />
+            </span>
+          </button>
+        )}
+
+        {/* 
         <div className="flex gap-[10px]">
           <NavBtn
             onClick={actions.openFolder}
@@ -52,12 +78,12 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
           />
           <NavBtn icon={<Settings size={20} />} />
           <NavBtn onClick={actions.showDelete} icon={<Trash size={20} />} />
-        </div>
+        </div> */}
         <motion.button
           whileTap={isDownloading ? {} : { scale: 0.98 }}
           onClick={onPlay}
           disabled={isDownloading}
-          className={`w-full h-[94px] font-unbounded bg-[#090909]/[0.55] backdrop-blur-xl text-white font-black text-4xl tracking-tighter rounded-[14px] border border-[#FFA845]/[0.10] shadow-lg disabled:opacity-50 ${
+          className={`w-[280px] h-[100px] font-[Unbounded] font-[600] text-[32px] text-[#CCD9E0]/[0.90] bg-[#090909]/[0.55] backdrop-blur-[12] rounded-[14px] border border-[#FFA845]/[0.10] shadow-lg disabled:opacity-50 hover:scale-102 ${
             isDownloading ? "cursor-not-allowed" : "cursor-pointer"
           }`}
         >
@@ -65,28 +91,28 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
         </motion.button>
       </div>
 
-      <div className="flex-1 flex flex-col gap-4 pb-1">
+      <div className="flex-1 flex flex-col gap-[6px] pb-1">
         <div className="flex justify-between items-end">
-          <div className="flex items-baseline gap-4">
-            <span className="text-[36px] font-unbounded font-[500] tracking-tighter">
+          <div className="tracking-[-3%]  flex items-baseline gap-[20px]">
+            <span className="text-[34px] text-[#CCD9E0]/[0.90] font-[Unbounded] font-[500]">
               {Math.round(progress)}%
             </span>
-            <span className="text-[11px] text-gray-400 uppercase font-bold tracking-widest opacity-70">
+            <span className="text-[16px] text-[#CCD9E0]/[0.30] font-[MazzardM-Medium]">
               {status}
             </span>
           </div>
 
           {/* Re-added speed and total size labels */}
-          <div className="text-[11px] text-gray-400 font-mono">
+          <div className="text-[14px] text-[#CCD9E0]/[0.30] font-[MazzardM-Medium]">
             {speed && total > 0
               ? `${speed} • ${formatBytes(downloaded)} / ${formatBytes(total)}`
               : currentFile || "Ready"}
           </div>
         </div>
-        <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+        <div className="h-[7px] w-full bg-[#090909]/[0.10] rounded-full overflow-hidden border border-[#FFA845]/[0.10] border-[0.5px]">
           <motion.div
             animate={{ width: `${progress}%` }}
-            className="h-full bg-white progress-glow"
+            className="h-full bg-[#CCD9E0]/[0.90] progress-glow"
           />
         </div>
       </div>

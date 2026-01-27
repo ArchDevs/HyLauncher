@@ -7,8 +7,8 @@ function BackgroundImage() {
       }}
     >
       {/* Darkening overlay so the UI stays readable */}
-      <div className="absolute inset-0 bg-black/40" />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#090909]" />
+      <div className="absolute inset-0 bg-black/50" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#090909]/[0.20]" />
     </div>
   );
 }

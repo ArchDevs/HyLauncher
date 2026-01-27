@@ -1,24 +1,23 @@
 @import "tailwindcss";
-@font-face {
-  font-family: "Mazzard";
-  src: url("./assets/fonts/Mazzard/MazzardH-Regular.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Mazzard";
-  src: url("./assets/fonts/Mazzard/MazzardL-Regular.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
 
 @font-face {
   font-family: "Mazzard";
   src: url("./assets/fonts/Mazzard/MazzardM-Regular.woff2") format("woff2");
   font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MazzardM-Medium";
+  src: url("./assets/fonts/Mazzard/MazzardM-Medium.woff2") format("woff2");
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MazzardM-Semibold";
+  src: url("./assets/fonts/Mazzard/MazzardM-SemiBold.woff2") format("woff2");
   font-style: normal;
   font-display: swap;
 }
@@ -37,6 +36,8 @@ body,
 
 body {
   font-family:
+    "MazzardM-Semibold",
+    "MazzardM-Medium",
     "Mazzard",
     "Unbounded",
     "Segoe UI",
