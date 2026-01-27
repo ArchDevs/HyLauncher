@@ -6,6 +6,7 @@ import { UpdateOverlay } from "./components/UpdateOverlay";
 import { ControlSection } from "./components/ControlSection";
 import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
 import { ErrorModal } from "./components/ErrorModal";
+import Navbar from "./components/Navbar";
 
 import {
   DownloadAndLaunch,
@@ -120,6 +121,7 @@ const App: React.FC = () => {
   return (
     <div className="relative w-screen h-screen max-w-[1280px] max-h-[720px] bg-[#090909] text-white overflow-hidden font-sans select-none rounded-[14px] border border-white/5 mx-auto">
       <BackgroundImage />
+      <Navbar />
       <Titlebar />
 
       {isUpdatingLauncher && (

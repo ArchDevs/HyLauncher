@@ -15,10 +15,9 @@ export const ProfileSection: React.FC<ProfileProps> = ({
   isEditing,
   onEditToggle,
   onUserChange,
-
 }) => {
   return (
-    <div className="w-[294px] h-[100px] bg-[#090909]/[0.55] backdrop-blur-xl rounded-[14px] border border-[#FFA845]/[0.10] p-4 flex flex-col justify-center gap-2">
+    <div className="w-[294px] h-[100px] bg-[#090909]/[0.55] backdrop-blur-xl rounded-[14px] border border-[#FFA845]/[0.10] p-4 flex flex-col justify-center gap-2 ml-[48px]">
       <div className="flex items-center justify-between">
         {isEditing ? (
           <input
@@ -39,7 +38,6 @@ export const ProfileSection: React.FC<ProfileProps> = ({
               {username}
             </span>
             <div className="flex gap-2 items-center">
-
               <Edit3
                 size={14}
                 className="text-gray-400 cursor-pointer hover:text-white"

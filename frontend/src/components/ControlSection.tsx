@@ -8,6 +8,7 @@ import {
   ArrowUpCircle,
   RefreshCcw,
 } from "lucide-react";
+import BackgroundImage from "./BackgroundImage";
 
 interface ControlSectionProps {
   onPlay: () => void;
@@ -50,8 +51,9 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
   };
 
   return (
-    <div className="w-full flex items-end gap-[20px]">
+    <div className="w-full flex items-end gap-[20px] ml-[48px]">
       <div className="w-[280px] flex flex-col gap-[12px]">
+        <div className="w-[280px] h-[120px]  bg-[#090909]/[0.55] backdrop-blur-[12] border border-[#FFA845]/[0.10] rounded-[12px]"></div>
         {updateAvailable && (
           <button
             onClick={onUpdate}
@@ -93,23 +95,23 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
 
       <div className="flex-1 flex flex-col gap-[6px] pb-1">
         <div className="flex justify-between items-end">
-          <div className="tracking-[-3%]  flex items-baseline gap-[20px]">
+          <div className="tracking-[-3%]  flex items-baseline gap-[20px] ">
             <span className="text-[34px] text-[#CCD9E0]/[0.90] font-[Unbounded] font-[500]">
               {Math.round(progress)}%
             </span>
-            <span className="text-[16px] text-[#CCD9E0]/[0.30] font-[MazzardM-Medium]">
+            <span className="text-[16px] text-[#CCD9E0]/[0.30] font-[Mazzard]">
               {status}
             </span>
           </div>
 
           {/* Re-added speed and total size labels */}
-          <div className="text-[14px] text-[#CCD9E0]/[0.30] font-[MazzardM-Medium]">
+          <div className="text-[14px] text-[#CCD9E0]/[0.30] font-[MazzardM-Medium] max-w-[200px] truncate mr-[48px]">
             {speed && total > 0
               ? `${speed} • ${formatBytes(downloaded)} / ${formatBytes(total)}`
               : currentFile || "Ready"}
           </div>
         </div>
-        <div className="h-[7px] w-full bg-[#090909]/[0.10] rounded-full overflow-hidden border border-[#FFA845]/[0.10] border-[0.5px]">
+        <div className="h-[7px] w-[852px] bg-[#090909]/[0.10] rounded-full overflow-hidden border border-[#FFA845]/[0.10] border-[0.5px]">
           <motion.div
             animate={{ width: `${progress}%` }}
             className="h-full bg-[#CCD9E0]/[0.90] progress-glow"
