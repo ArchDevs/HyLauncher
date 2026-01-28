@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronDown, SquarePen } from "lucide-react"; // Убрал Edit3, оставил SquarePen
+import { ChevronDown, SquarePen } from "lucide-react";
 
 interface ProfileProps {
   username: string;
@@ -38,10 +38,10 @@ export const ProfileSection: React.FC<ProfileProps> = ({
             <span className="text-[#CCD9E0]/[0.90] font-[MazzardM-Medium] font-[16px] flex items-center justify-between">
               {username}
             </span>
-            <SquarePen // Используем SquarePen вместо Edit3
+            <SquarePen
               size={14}
               className="text-[#CCD9E0]/[0.90] cursor-pointer w-[16px] h-[16px]"
-              onClick={() => onEditToggle(true)} // Вызываем функцию onEditToggle
+              onClick={() => onEditToggle(true)}
             />
           </>
         )}
