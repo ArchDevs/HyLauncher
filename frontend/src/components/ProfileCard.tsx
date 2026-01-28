@@ -1,5 +1,5 @@
 import React from "react";
-import { Edit3, ChevronDown, ArrowUpCircle } from "lucide-react";
+import { ChevronDown, SquarePen } from "lucide-react"; // Убрал Edit3, оставил SquarePen
 
 interface ProfileProps {
   username: string;
@@ -17,12 +17,13 @@ export const ProfileSection: React.FC<ProfileProps> = ({
   onUserChange,
 }) => {
   return (
-    <div className="w-[294px] h-[100px] bg-[#090909]/[0.55] backdrop-blur-xl rounded-[14px] border border-[#FFA845]/[0.10] p-4 flex flex-col justify-center gap-2 ml-[48px]">
-      <div className="flex items-center justify-between">
+    <div className="ml-[48px]">
+      {/* Ник сверху */}
+      <div className="w-[280px] h-[48px] bg-[#090909]/[0.55] backdrop-blur-xl rounded-[14px] border border-[#7C7C7C]/[0.10] p-4 flex items-center justify-between mb-2">
         {isEditing ? (
           <input
             autoFocus
-            className="w-full bg-[#090909]/[0.55] border border-[#FFA845]/[0.10] rounded px-2 py-1 text-sm text-gray-200 outline-none"
+            className="text-[#CCD9E0]/[0.90] font-[MazzardM-Medium] font-[16px] outline-none tracking-[-3%]"
             defaultValue={username}
             onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
               onEditToggle(false);
@@ -34,24 +35,24 @@ export const ProfileSection: React.FC<ProfileProps> = ({
           />
         ) : (
           <>
-            <span className="text-sm font-medium text-gray-200">
+            <span className="text-[#CCD9E0]/[0.90] font-[MazzardM-Medium] font-[16px] flex items-center justify-between">
               {username}
             </span>
-            <div className="flex gap-2 items-center">
-              <Edit3
-                size={14}
-                className="text-gray-400 cursor-pointer hover:text-white"
-                onClick={() => onEditToggle(true)}
-              />
-            </div>
+            <SquarePen // Используем SquarePen вместо Edit3
+              size={14}
+              className="text-[#CCD9E0]/[0.90] cursor-pointer w-[16px] h-[16px]"
+              onClick={() => onEditToggle(true)} // Вызываем функцию onEditToggle
+            />
           </>
         )}
       </div>
-      <div className="flex items-center justify-between bg-[#090909]/[0.55] backdrop-blur-md rounded-lg px-3 py-2 border border-white/5 cursor-pointer hover:bg-white/5">
-        <span className="text-xs text-gray-300">
+
+      {/* Выбор версии снизу - отдельный блок */}
+      <div className="w-[280px] h-[48px] bg-[#090909]/[0.55] backdrop-blur-[12px] rounded-[14px] border border-[#7C7C7C]/[0.10] p-4 flex items-center justify-between">
+        <span className="text-[#CCD9E0]/[0.90]">
           {currentVersion || "Not installed"}
         </span>
-        <ChevronDown size={14} className="text-gray-400" />
+        <ChevronDown size={14} className="text-[#CCD9E0]/[0.90]" />
       </div>
     </div>
   );

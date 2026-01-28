@@ -53,7 +53,7 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
   return (
     <div className="w-full flex items-end gap-[20px] ml-[48px]">
       <div className="w-[280px] flex flex-col gap-[12px]">
-        <div className="w-[280px] h-[120px]  bg-[#090909]/[0.55] backdrop-blur-[12] border border-[#FFA845]/[0.10] rounded-[12px]"></div>
+        <div className="w-[280px] h-[120px]  bg-[#090909]/[0.55] backdrop-blur-[12] border border-[#FFA845]/[0.10] rounded-[14px]"></div>
         {updateAvailable && (
           <button
             onClick={onUpdate}
