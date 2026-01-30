@@ -1,8 +1,13 @@
 // src/components/Navbar.tsx
 import React from "react";
-import { Gamepad2, Globe } from "lucide-react";
+import { pages } from "../config/pages";
 
-function Navbar() {
+interface NavbarProps {
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+}
+
+function Navbar({ activeTab, onTabChange }: NavbarProps) {
   return (
     <div
       className="
@@ -14,17 +19,34 @@ function Navbar() {
         border border-[#7C7C7C]/[0.10]
         p-[16px]
         flex flex-col
+        pointer-events-auto
+        z-50
       "
     >
       {/* TOP ICONS */}
       <div className="flex flex-col items-center gap-6">
-        <button className="text-[#FFFFFF]/[0.90]">
-          <Gamepad2 size={18} />
-        </button>
-
-        <button className="text-[#FFFFFF]/[0.50]">
-          <Globe size={18} />
-        </button>
+        {pages.map((page) => {
+          const Icon = page.icon;
+          const isActive = activeTab === page.id;
+          return (
+            <button
+              key={page.id}
+              onClick={() => {
+                console.log("Navbar click:", page.id);
+                onTabChange(page.id);
+              }}
+              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+              className={`transition-all cursor-pointer pointer-events-auto ${
+                isActive
+                  ? "text-[#FFFFFF]/[0.90]"
+                  : "text-[#FFFFFF]/[0.50] hover:text-[#FFFFFF]/[0.70]"
+              }`}
+              title={page.name}
+            >
+              <Icon size={18} />
+            </button>
+          );
+        })}
       </div>
     </div>
   );

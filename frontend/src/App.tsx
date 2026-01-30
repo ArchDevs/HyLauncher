@@ -1,11 +1,19 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import BackgroundImage from "./components/BackgroundImage";
 import Titlebar from "./components/Titlebar";
 import Navbar from "./components/Navbar";
-import HomePage from "./pages/Home";
 import { BrowserOpenURL } from "../wailsjs/runtime/runtime";
+import { AnimatePresence, motion } from "framer-motion";
+import { getDefaultPage, getPageById } from "./config/pages";
 
 const App: React.FC = () => {
+  const [activeTab, setActiveTab] = useState(getDefaultPage().id);
+  
+  // Debug: Log when activeTab changes
+  useEffect(() => {
+    console.log("Active tab changed to:", activeTab);
+  }, [activeTab]);
+
   const openExternal = () => {
     try {
       BrowserOpenURL("https://github.com/ArchDevs/HyLauncher");
@@ -21,7 +29,7 @@ const App: React.FC = () => {
         <BackgroundImage />
       </div>
 
-      <Navbar />
+      <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
       <Titlebar />
 
       <button
@@ -49,7 +57,28 @@ const App: React.FC = () => {
       </button>
 
       {/* Page Content */}
-      <HomePage />
+      <AnimatePresence mode="wait">
+        {(() => {
+          const page = getPageById(activeTab);
+          if (!page) {
+            console.error("Page not found for id:", activeTab);
+            return null;
+          }
+          const PageComponent = page.component;
+          return (
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="h-full w-full"
+            >
+              <PageComponent />
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
     </div>
   );
 };
