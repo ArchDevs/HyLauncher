@@ -1,60 +1,161 @@
-import { useState, useEffect } from 'react';
-import { EventsOn } from '../../wailsjs/runtime/runtime';
-import { GetNick, GetLocalGameVersion, SetNick, DownloadAndLaunch } from '../../wailsjs/go/app/App';
+import { useState, useEffect, useCallback } from "react";
+import {
+  DownloadAndLaunch,
+  GetNick,
+  SetNick as SetNickBackend,
+  GetLocalGameVersion,
+  GetLauncherVersion,
+  Update,
+} from "../../wailsjs/go/app/App";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 export const useLauncher = () => {
-  const [username, setUsername] = useState("HyLauncher");
-  const [isLoadingNick, setIsLoadingNick] = useState(true);
-  const [current, setCurrent] = useState(0);
-  const [latest, setLatest] = useState("");
-  const [statusMessage, setStatusMessage] = useState("Ready to play");
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  const [downloadDetails, setDownloadDetails] = useState({ speed: '', currentFile: '', downloaded: 0, total: 0 });
-  const [currentError, setCurrentError] = useState<any | null>(null);
+  // Game
+  const [username, setUsername] = useState<string>("HyLauncher");
+  const [currentVersion, setCurrentVersion] = useState<number>(0);
+  const [launcherVersion, setLauncherVersion] = useState<string>("0.0.0");
+  const [isEditingUsername, setIsEditingUsername] = useState<boolean>(false);
+
+  // Progress
+  const [progress, setProgress] = useState<number>(0);
+  const [status, setStatus] = useState<string>("Ready to play");
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+
+  // --- Download Details ---
+  const [downloadDetails, setDownloadDetails] = useState({
+    currentFile: "",
+    speed: "",
+    downloaded: 0,
+    total: 0,
+  });
+
+  // Launcher update
+  const [updateAsset, setUpdateAsset] = useState<any>(null);
+  const [isUpdatingLauncher, setIsUpdatingLauncher] = useState<boolean>(false);
+  const [updateStats, setUpdateStats] = useState({ d: 0, t: 0 });
+
+  // UI
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
+  const [error, setError] = useState<any>(null);
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        const nick = await GetNick();
-        if (nick?.trim()) setUsername(nick.trim());
-        const curr = await GetLocalGameVersion("default")
-        setCurrent(curr);
-      } catch (err) {
-        setStatusMessage("Warning: Connection issue");
-      } finally {
-        setIsLoadingNick(false);
-      }
-    };
-    init();
+    // Initial data fetch
+    GetNick().then((n: string) => n && setUsername(n));
+    GetLocalGameVersion("default").then((curr: number) =>
+      setCurrentVersion(curr),
+    );
+    GetLauncherVersion().then((version: string) => setLauncherVersion(version));
 
-    return EventsOn('progress-update', (data: any) => {
-      setDownloadProgress(data.progress);
-      setStatusMessage(data.message);
-      setDownloadDetails({ 
-        speed: data.speed, 
-        currentFile: data.currentFile, 
-        downloaded: data.downloaded, 
-        total: data.total 
+    // Listen for launcher updates
+    const offUpdateAvailable = EventsOn("update:available", (asset: any) => {
+      setUpdateAsset(asset);
+    });
+
+    const offUpdateProgress = EventsOn(
+      "update:progress",
+      (d: number, t: number) => {
+        const percentage = t > 0 ? (d / t) * 100 : 0;
+        setProgress(percentage);
+        setUpdateStats({ d, t });
+      },
+    );
+
+    // Listen for game download progress
+    const offProgress = EventsOn("progress-update", (data: any) => {
+      setProgress(data.progress ?? 0);
+      setStatus(data.message ?? "");
+      setDownloadDetails({
+        currentFile: data.currentFile ?? "",
+        speed: data.speed ?? "",
+        downloaded: data.downloaded ?? 0,
+        total: data.total ?? 0,
       });
-      if (data.progress >= 100 && data.stage === 'launch') {
-        setTimeout(() => { setIsDownloading(false); setDownloadProgress(0); setStatusMessage("Ready to play"); }, 2000);
+
+      if (data.stage === "launch" || data.stage === "idle") {
+        setIsDownloading(false);
+        setProgress(0);
+        setStatus("Ready to play");
+        setDownloadDetails({
+          currentFile: "",
+          speed: "",
+          downloaded: 0,
+          total: 0,
+        });
       }
     });
+
+    return () => {
+      offUpdateAvailable();
+      offUpdateProgress();
+      offProgress();
+    };
   }, []);
 
-  const handlePlay = async () => {
-    if (!username.trim() || username.length > 16) {
-      setCurrentError({ type: 'VALIDATION', message: 'Invalid Nickname', technical: 'Length check failed', timestamp: new Date().toISOString() });
+  const handlePlay = useCallback(async () => {
+    if (!username.trim()) {
+      setError({ type: "VALIDATION", message: "Username cannot be empty" });
       return;
     }
     setIsDownloading(true);
-    try { await DownloadAndLaunch(username); } catch (err) { setIsDownloading(false); }
+    try {
+      await DownloadAndLaunch(username);
+    } catch (err) {
+      setIsDownloading(false);
+      setError({
+        type: "LAUNCH_ERROR",
+        message: "Failed to start game",
+        technical: String(err),
+      });
+    }
+  }, [username]);
+
+  const handleUpdateLauncher = async () => {
+    setIsUpdatingLauncher(true);
+    setProgress(0);
+    setUpdateStats({ d: 0, t: 0 });
+    try {
+      await Update();
+    } catch (err) {
+      setError({
+        type: "UPDATE_ERROR",
+        message: "Failed to update launcher",
+        technical: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      });
+      setIsUpdatingLauncher(false);
+    }
   };
 
-  return { 
-    username, setUsername, isLoadingNick, current, setCurrent, 
-    statusMessage, setStatusMessage, isDownloading, setIsDownloading,
-    downloadProgress, downloadDetails, currentError, setCurrentError, handlePlay 
+  const setNick = (val: string) => {
+    SetNickBackend(val, "default");
+    setUsername(val);
+  };
+
+  return {
+    // State
+    username,
+    currentVersion,
+    launcherVersion,
+    isEditingUsername,
+    setIsEditingUsername,
+    progress,
+    status,
+    isDownloading,
+    downloadDetails,
+    updateAsset,
+    isUpdatingLauncher,
+    updateStats,
+    showDeleteModal,
+    setShowDeleteModal,
+    showDiagnostics,
+    setShowDiagnostics,
+    error,
+    setError,
+
+    // Actions
+    handlePlay,
+    handleUpdateLauncher,
+    setNick,
   };
 };
