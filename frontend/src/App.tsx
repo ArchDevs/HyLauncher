@@ -7,6 +7,7 @@ import { ControlSection } from "./components/ControlSection";
 import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
 import { ErrorModal } from "./components/ErrorModal";
 import Navbar from "./components/Navbar";
+import BannersHome from "./components/BannersHome";
 
 import {
   DownloadAndLaunch,
@@ -18,8 +19,8 @@ import {
   GetLocalGameVersion,
   GetLauncherVersion,
 } from "../wailsjs/go/app/App";
-import { EventsOn } from "../wailsjs/runtime/runtime";
-import BannersHome from "./components/BannersHome";
+
+import { EventsOn, BrowserOpenURL } from "../wailsjs/runtime/runtime";
 
 // TODO FULL REFACTOR + Redesign
 
@@ -118,9 +119,45 @@ const App: React.FC = () => {
     }
   };
 
+  const openExternal = () => {
+    try {
+      BrowserOpenURL("https://github.com/ArchDevs/HyLauncher");
+    } catch {
+      window.open("https://github.com/ArchDevs/HyLauncher/", "_blank");
+    }
+  };
+
   return (
     <div className="relative w-screen h-screen max-w-[1280px] max-h-[720px] bg-[#090909] text-white overflow-hidden font-sans select-none rounded-[14px] border border-white/5 mx-auto">
-      <BackgroundImage />
+      {/* ВАЖНО: фон не должен перехватывать клики */}
+      <div className="absolute inset-0 pointer-events-none">
+        <BackgroundImage />
+      </div>
+
+      <button
+        type="button"
+        onClick={openExternal}
+        style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+        className="
+    absolute left-[20px] top-[60px]
+    w-[48px] h-[48px]
+    bg-[#090909]/55 backdrop-blur-[12px]
+    rounded-[14px] border border-[#7C7C7C]/[0.10]
+    tracking-[-3%] cursor-pointer
+    flex items-center justify-center
+    active:scale-95
+    transition-all duration-150
+    z-[9999] pointer-events-auto
+  "
+      >
+        <img
+          src="src/assets/images/logo.png"
+          alt="Logo"
+          className="w-[40px] h-[40px] pointer-events-none"
+          draggable={false}
+        />
+      </button>
+
       <Navbar />
       <Titlebar />
 
@@ -183,6 +220,7 @@ const App: React.FC = () => {
           onCancel={() => setShowDelete(false)}
         />
       )}
+
       {error && <ErrorModal error={error} onClose={() => setError(null)} />}
     </div>
   );
