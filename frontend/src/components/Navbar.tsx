@@ -24,7 +24,7 @@ function Navbar({ activeTab, onTabChange }: NavbarProps) {
       "
     >
       {/* TOP ICONS */}
-      <div className="flex flex-col items-center gap-6">
+      <div className="flex flex-col items-center gap-[16px]">
         {pages.map((page) => {
           const Icon = page.icon;
           const isActive = activeTab === page.id;

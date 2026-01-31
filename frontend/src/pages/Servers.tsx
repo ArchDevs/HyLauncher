@@ -1,8 +1,5 @@
 function ServersPage() {
-  return (
-    <div>
-    </div>
-  );
+  return <div></div>;
 }
 
 export default ServersPage;

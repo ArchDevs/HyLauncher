@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from "react";
-import BackgroundImage from "./components/BackgroundImage";
 import Titlebar from "./components/Titlebar";
 import Navbar from "./components/Navbar";
 import { BrowserOpenURL } from "../wailsjs/runtime/runtime";
 import { AnimatePresence, motion } from "framer-motion";
 import { getDefaultPage, getPageById } from "./config/pages";
 
+const bgTransition = {
+  duration: 0.45,
+  ease: [0.16, 1, 0.3, 1], // macOS-like easing
+};
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(getDefaultPage().id);
-  
-  // Debug: Log when activeTab changes
+
   useEffect(() => {
     console.log("Active tab changed to:", activeTab);
   }, [activeTab]);
@@ -22,11 +25,33 @@ const App: React.FC = () => {
     }
   };
 
+  const page = getPageById(activeTab);
+  const Background = page?.background;
+
   return (
     <div className="relative w-screen h-screen max-w-[1280px] max-h-[720px] bg-[#090909] text-white overflow-hidden font-sans select-none rounded-[14px] border border-white/5 mx-auto">
       {/* Background doesn't intercept clicks */}
       <div className="absolute inset-0 pointer-events-none">
-        <BackgroundImage />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            className="absolute inset-0"
+            initial={{ opacity: 0, scale: 1.035, filter: "blur(14px)" }}
+            animate={{ opacity: 1, scale: 1.0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, scale: 1.02, filter: "blur(10px)" }}
+            transition={bgTransition}
+          >
+            {/* Сам фон страницы */}
+            {Background ? <Background /> : null}
+
+            {/* “macOS” читаемость: мягкая виньетка + верхний/нижний градиент */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/35" />
+            <div className="absolute inset-0 [box-shadow:inset_0_0_120px_rgba(0,0,0,0.35)]" />
+
+            {/* Grain / noise (очень тонкий) */}
+            <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay noise-layer" />
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
@@ -59,19 +84,19 @@ const App: React.FC = () => {
       {/* Page Content */}
       <AnimatePresence mode="wait">
         {(() => {
-          const page = getPageById(activeTab);
           if (!page) {
             console.error("Page not found for id:", activeTab);
             return null;
           }
           const PageComponent = page.component;
+
           return (
             <motion.div
               key={activeTab}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               className="h-full w-full"
             >
               <PageComponent />

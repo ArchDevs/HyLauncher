@@ -1,16 +1,19 @@
-import { ComponentType } from "react";
-import { LucideIcon } from "lucide-react";
-import { Gamepad2, Globe } from "lucide-react";
+import type React from "react";
+import { Gamepad2, Globe, Globe2, Home, Server } from "lucide-react";
+
 import HomePage from "../pages/Home";
 import ServersPage from "../pages/Servers";
 
-export interface PageConfig {
+import BackgroundImage from "../components/BackgroundImage";
+import BackgroundServers from "../components/BackgroundServers";
+
+export type PageConfig = {
   id: string;
   name: string;
-  icon: LucideIcon;
-  component: ComponentType;
-  path: string; // For potential future URL routing
-}
+  icon: React.ComponentType<{ size?: number | string }>; // ✅ фикс для Lucide
+  component: React.ComponentType;
+  background?: React.ComponentType;
+};
 
 export const pages: PageConfig[] = [
   {
@@ -18,24 +21,17 @@ export const pages: PageConfig[] = [
     name: "Home",
     icon: Gamepad2,
     component: HomePage,
-    path: "/",
+    background: BackgroundImage,
   },
   {
     id: "servers",
     name: "Servers",
     icon: Globe,
     component: ServersPage,
-    path: "/servers",
+    background: BackgroundServers,
   },
 ];
 
-// Helper function to get a page by ID
-export const getPageById = (id: string): PageConfig | undefined => {
-  return pages.find((page) => page.id === id);
-};
+export const getDefaultPage = () => pages[0];
 
-// Helper function to get the default page
-export const getDefaultPage = (): PageConfig => {
-  return pages[0];
-};
-
+export const getPageById = (id: string) => pages.find((p) => p.id === id);
