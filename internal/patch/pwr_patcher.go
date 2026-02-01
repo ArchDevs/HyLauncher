@@ -42,7 +42,9 @@ func ApplyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	reporter.Report(progress.StagePatch, 60, "Applying game patch...")
+	if reporter != nil {
+		reporter.Report(progress.StagePatch, 60, "Applying game patch...")
+	}
 
 	if err := cmd.Run(); err != nil {
 		// Clean up staging on failure
@@ -58,7 +60,9 @@ func ApplyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 	// Clean up staging directory
 	_ = os.RemoveAll(stagingDir)
 
-	reporter.Report(progress.StagePatch, 100, "Game patched!")
+	if reporter != nil {
+		reporter.Report(progress.StagePatch, 80, "Game patched!")
+	}
 	return nil
 }
 
@@ -90,7 +94,7 @@ func DownloadPWR(ctx context.Context, branch string, targetVer int, reporter *pr
 	pwrURL := fmt.Sprintf("%s/%s", baseURL, pwrFileName)
 	scaler := progress.NewScaler(reporter, progress.StagePWR, 0, 70)
 
-	if err := download.DownloadWithReporter(pwrDest, pwrURL, pwrFileName, reporter, progress.StagePWR, scaler); err != nil {
+	if err := download.DownloadWithReporter(ctx, pwrDest, pwrURL, pwrFileName, reporter, progress.StagePWR, scaler); err != nil {
 		_ = os.Remove(pwrDest + ".tmp")
 		return "", "", err
 	}
@@ -100,7 +104,7 @@ func DownloadPWR(ctx context.Context, branch string, targetVer int, reporter *pr
 	sigURL := fmt.Sprintf("%s/%s", baseURL, sigFileName)
 	sigScaler := progress.NewScaler(reporter, progress.StagePWR, 70, 100)
 
-	if err := download.DownloadWithReporter(sigDest, sigURL, sigFileName, reporter, progress.StagePWR, sigScaler); err != nil {
+	if err := download.DownloadWithReporter(ctx, sigDest, sigURL, sigFileName, reporter, progress.StagePWR, sigScaler); err != nil {
 		_ = os.Remove(sigDest + ".tmp")
 		return "", "", err
 	}

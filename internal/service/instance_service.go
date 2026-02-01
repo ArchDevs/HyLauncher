@@ -22,7 +22,7 @@ func NewInstanceService() *InstanceService {
 func (s *InstanceService) CreateInstance(request model.InstanceModel) (*model.InstanceModel, error) {
 	instanceID := makeInstanceSlug(request.InstanceName)
 
-	instanceDir := filepath.Join(env.GetInstance(instanceID))
+	instanceDir := env.GetInstanceDir(request.InstanceID)
 
 	_ = os.MkdirAll(instanceDir, 0755)
 

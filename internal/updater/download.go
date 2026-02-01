@@ -25,7 +25,7 @@ func DownloadTemp(
 
 	scaler := progress.NewScaler(reporter, progress.StageUpdate, 0, 100)
 
-	if err := download.DownloadWithReporter(tmpPath, url, "launcher", reporter, progress.StageUpdate, scaler); err != nil {
+	if err := download.DownloadWithReporter(ctx, tmpPath, url, "launcher", reporter, progress.StageUpdate, scaler); err != nil {
 		_ = os.Remove(tmpPath)
 		return "", err
 	}

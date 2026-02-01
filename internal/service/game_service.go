@@ -24,28 +24,41 @@ type GameService struct {
 	reporter *progress.Reporter
 
 	installMutex sync.Mutex
+
+	authSvc *AuthService
+
+	authDomain string
 }
 
-func NewGameService(ctx context.Context, reporter *progress.Reporter) *GameService {
-	return &GameService{ctx: ctx, reporter: reporter}
+func NewGameService(ctx context.Context, reporter *progress.Reporter, svc *AuthService) *GameService {
+	return &GameService{
+		ctx:        ctx,
+		reporter:   reporter,
+		authSvc:    svc,
+		authDomain: "sanasol.ws",
+	}
 }
 
-func (s *GameService) VerifyGame(request model.InstanceModel) error {
+func (s *GameService) SetAuthDomain(domain string) {
+	s.authDomain = domain
+}
+
+func (s *GameService) EnsureGame(request model.InstanceModel) error {
 	s.reporter.Report(progress.StageVerify, 0, "Starting verifying game installation...")
 
-	if err := java.VerifyJRE(request.Branch); err != nil {
+	if err := java.EnsureJRE(s.ctx, request.Branch, s.reporter); err != nil {
 		return fmt.Errorf("verify jre: %w", err)
 	}
 
 	s.reporter.Report(progress.StageVerify, 30, "JRE is installed...")
 
-	if err := patch.VerifyButler(); err != nil {
+	if err := patch.EnsureButler(s.ctx, s.reporter); err != nil {
 		return fmt.Errorf("verify butler: %w", err)
 	}
 
 	s.reporter.Report(progress.StageVerify, 65, "Butler is installed...")
 
-	if err := game.CheckInstalled(request.Branch, request.BuildVersion); err != nil {
+	if err := game.CheckInstalled(s.ctx, request.Branch, request.BuildVersion); err != nil {
 		return fmt.Errorf("verify game: %w", err)
 	}
 
@@ -61,8 +74,11 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 		reporter.Report(progress.StageVerify, 0, "Checking for game updates")
 	}
 
-	if s.VerifyGame(request) == nil {
+	if err := s.EnsureGame(request); err == nil {
 		return request.BuildVersion, nil
+	} else {
+		fmt.Println("[EnsureInstalled] verify failed:", err)
+		reporter.Report(progress.StageVerify, 0, fmt.Sprintf("Verification failed: %v", err))
 	}
 
 	latestVersion, err := s.fetchLatestVersion(ctx, request.Branch)
@@ -70,20 +86,15 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 		return 0, err
 	}
 
-	if err := java.EnsureJRE(ctx, request.Branch, reporter); err != nil {
-		return 0, fmt.Errorf("install jre: %w", err)
-	}
-
-	if err := patch.EnsureButler(ctx, reporter); err != nil {
-		return 0, fmt.Errorf("install butler: %w", err)
-	}
-
 	if reporter != nil {
 		reporter.Report(progress.StageVerify, 100, "Checking complete")
 		reporter.Report(progress.StageComplete, 0, fmt.Sprintf("Found version %d", latestVersion))
 	}
 
-	return latestVersion, s.Install(ctx, latestVersion, request, reporter)
+	if err := s.Install(ctx, latestVersion, request, reporter); err != nil {
+		return 0, err
+	}
+	return latestVersion, nil
 }
 
 func (s *GameService) fetchLatestVersion(ctx context.Context, branch string) (int, error) {
@@ -111,7 +122,6 @@ func (s *GameService) fetchLatestVersion(ctx context.Context, branch string) (in
 
 func (s *GameService) Install(ctx context.Context, latestVersion int, request model.InstanceModel, reporter *progress.Reporter) error {
 	gameDir := env.GetGameDir(request.Branch, latestVersion)
-	clientPath := env.GetGameClientPath(request.Branch, latestVersion)
 
 	pwrPath, sigPath, err := patch.DownloadPWR(ctx, request.Branch, latestVersion, reporter)
 	if err != nil {
@@ -126,6 +136,8 @@ func (s *GameService) Install(ctx context.Context, latestVersion int, request mo
 		return fmt.Errorf("apply patch: %w", err)
 	}
 
+	clientPath := env.GetGameClientPath(request.Branch, latestVersion)
+
 	if runtime.GOOS == "darwin" {
 		appPath := filepath.Join(gameDir, "Client", "Hytale.app")
 		if !fileutil.FileExists(appPath) {
@@ -137,22 +149,29 @@ func (s *GameService) Install(ctx context.Context, latestVersion int, request mo
 		}
 	}
 
-	config.UpdateInstance("default", func(cfg *config.InstanceConfig) error {
+	if err := config.UpdateInstance("default", func(cfg *config.InstanceConfig) error {
 		cfg.Build = latestVersion
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("update instance: %w", err)
+	}
 
-	if runtime.GOOS == "windows" {
+	if reporter != nil {
+		reporter.Report(progress.StagePatch, 0, "Applying custom authentication patch...")
+	}
+
+	patchRequest := model.InstanceModel{
+		InstanceID:   request.InstanceID,
+		BuildVersion: latestVersion,
+		Branch:       request.Branch,
+	}
+
+	if err := patch.EnsureGamePatched(ctx, patchRequest, s.authDomain, reporter); err != nil {
+		fmt.Printf("Warning: Failed to apply custom auth patch: %v\n", err)
+		fmt.Println("Game will work with official Hytale servers only")
+	} else {
 		if reporter != nil {
-			reporter.Report(progress.StageOnlineFix, 0, "Applying online fix...")
-		}
-
-		if err := game.ApplyOnlineFixWindows(ctx, gameDir, reporter); err != nil {
-			return fmt.Errorf("apply online fix: %w", err)
-		}
-
-		if reporter != nil {
-			reporter.Report(progress.StageOnlineFix, 100, "Online fix applied")
+			reporter.Report(progress.StagePatch, 100, "Custom authentication configured")
 		}
 	}
 
@@ -164,6 +183,11 @@ func (s *GameService) Install(ctx context.Context, latestVersion int, request mo
 }
 
 func (s *GameService) Launch(playerName string, request model.InstanceModel) error {
+	gameSession, err := s.authSvc.FetchGameSession(playerName)
+	if err != nil {
+		return err
+	}
+
 	if s.reporter != nil {
 		s.reporter.Reset()
 		s.reporter.Report(progress.StageLaunch, 0, "Launching game...")
@@ -181,8 +205,8 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel) err
 		}
 	}
 
-	if err := game.EnsureServerAndClientFix(context.Background(), request, nil); err != nil {
-		return fmt.Errorf("apply game fixes: %w", err)
+	if err := patch.EnsureGamePatched(context.Background(), request, s.authDomain, nil); err != nil {
+		fmt.Printf("Warning: Failed to ensure game patch: %v\n", err)
 	}
 
 	clientPath := env.GetGameClientPath(request.Branch, request.BuildVersion)
@@ -201,15 +225,15 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel) err
 	userDataDir, _ = filepath.Abs(userDataDir)
 	gameDir, _ = filepath.Abs(gameDir)
 
-	playerUUID := game.OfflineUUID(playerName).String()
-
 	cmd := exec.Command(clientPath,
 		"--app-dir", gameDir,
 		"--user-dir", userDataDir,
 		"--java-exec", javaBin,
-		"--auth-mode", "offline",
-		"--uuid", playerUUID,
-		"--name", playerName,
+		"--auth-mode", "authenticated",
+		"--uuid", gameSession.UUID,
+		"--name", gameSession.Username,
+		"--identity-token", gameSession.IdentityToken,
+		"--session-token", gameSession.SessionToken,
 	)
 
 	cmd.Stdout = os.Stdout

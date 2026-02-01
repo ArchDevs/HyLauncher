@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"time"
 
 	"HyLauncher/internal/config"
@@ -16,8 +17,6 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-var AppVersion string = config.LauncherDefault().Version
-
 type App struct {
 	ctx         context.Context
 	launcherCfg *config.LauncherConfig
@@ -27,6 +26,7 @@ type App struct {
 
 	crashSvc *service.Reporter
 	gameSvc  *service.GameService
+	authSvc  *service.AuthService
 }
 
 func NewApp() *App {
@@ -38,54 +38,51 @@ func (a *App) Startup(ctx context.Context) {
 	a.progress = progress.New(ctx)
 
 	hyerrors.RegisterHandlerFunc(func(err *hyerrors.Error) {
-		runtime.EventsEmit(ctx, "error", err)
+		runtime.EventsEmit(a.ctx, "error", err)
 	})
 
-	err := client.Login("1465005878276128888")
-	if err != nil {
-		panic(err)
+	if err := client.Login("1465005878276128888"); err != nil {
+		fmt.Printf("failed to initialize Discord RPC: %v\n", err)
 	}
 
 	launcherCfg, err := config.LoadLauncher()
 	if err != nil {
-		panic(err) // launcher config is critical
+		panic(fmt.Errorf("failed to load launcher config: %w", err))
 	}
 	a.launcherCfg = launcherCfg
 
 	instanceName := launcherCfg.Instance
 	instanceCfg, err := config.LoadInstance(instanceName)
 	if err != nil {
-		panic(err)
-	}
-	a.instanceCfg = instanceCfg
-
-	instance, err := config.LoadInstance(instanceName)
-	if err != nil {
-		hyerrors.WrapConfig(err, "failed to get instance").
-			WithContext("default_instance", "default")
-		config.UpdateInstance(instanceName, func(cfg *config.InstanceConfig) error {
+		hyerrors.WrapConfig(err, "failed to load instance").
+			WithContext("instance", instanceName)
+		_ = config.UpdateInstance(instanceName, func(cfg *config.InstanceConfig) error {
 			cfg.ID = instanceName
 			return nil
 		})
+		panic(fmt.Errorf("failed to load instance config %q: %w", instanceName, err))
 	}
+	a.instanceCfg = instanceCfg
+
+	a.instance.Branch = instanceCfg.Branch
+	a.instance.BuildVersion = instanceCfg.Build
+	a.instance.InstanceID = instanceCfg.ID
+	a.instance.InstanceName = instanceCfg.Name
 
 	crashReporter, err := service.NewCrashReporter(
 		env.GetDefaultAppDir(),
-		AppVersion,
+		a.launcherCfg.Version,
 	)
 	if err != nil {
 		fmt.Printf("failed to initialize diagnostics: %v\n", err)
+	} else {
+		a.crashSvc = crashReporter
 	}
 
-	a.instance.Branch = a.instanceCfg.Branch
-	a.instance.BuildVersion = instance.Build
-	a.instance.InstanceID = instance.ID
-	a.instance.InstanceName = instance.Name
+	a.authSvc = service.NewAuthService(a.ctx)
+	a.gameSvc = service.NewGameService(a.ctx, a.progress, a.authSvc)
 
-	a.crashSvc = crashReporter
-	a.gameSvc = service.NewGameService(ctx, a.progress)
-
-	fmt.Printf("Application starting: v%s, branch=%s\n", AppVersion, a.instance.Branch)
+	fmt.Printf("Application starting: v%s, branch=%s\n", a.launcherCfg.Version, a.instance.Branch)
 
 	go a.discordRPC()
 	go env.CreateFolders(a.instance.InstanceID)
@@ -123,28 +120,16 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 }
 
 func (a *App) validatePlayerName(name string) error {
-	if len(name) == 0 {
-		return hyerrors.Validation("please enter a nickname")
+	// 3–16 characters long, consisting only of letters, numbers, and underscores
+	re := regexp.MustCompile("^[A-Za-z0-9_]{3,16}$")
+
+	if !re.MatchString(name) {
+		return hyerrors.Validation("nickname should be 3-16 characters long, consisting only of letters, numbers, and underscores").
+			WithContext("length", len(name)).
+			WithContext("name", name)
 	}
-	if len(name) > 16 {
-		return hyerrors.Validation("nickname too long (max 16 characters)").
-			WithContext("length", len(name))
-	}
+
 	return nil
-}
-
-func (a *App) GetLogs() (string, error) {
-	if a.crashSvc == nil {
-		return "", fmt.Errorf("diagnostics not initialized")
-	}
-	return a.crashSvc.GetLogs()
-}
-
-func (a *App) GetCrashReports() ([]service.CrashReport, error) {
-	if a.crashSvc == nil {
-		return nil, fmt.Errorf("diagnostics not initialized")
-	}
-	return a.crashSvc.GetCrashReports()
 }
 
 func (a *App) discordRPC() {
@@ -157,11 +142,11 @@ func (a *App) discordRPC() {
 			Start: &now,
 		},
 		Buttons: []*client.Button{
-			&client.Button{
+			{
 				Label: "GitHub",
 				Url:   "https://github.com/ArchDevs/HyLauncher",
 			},
-			&client.Button{
+			{
 				Label: "Website",
 				Url:   "https://hylauncher.fun",
 			},
@@ -169,6 +154,6 @@ func (a *App) discordRPC() {
 	})
 
 	if err != nil {
-		fmt.Println("Error occured, %w", err)
+		fmt.Printf("failed to set Discord activity: %v\n", err)
 	}
 }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"HyLauncher/internal/env"
+	"HyLauncher/internal/service"
 	"HyLauncher/pkg/hyerrors"
 	"fmt"
 	"os"
@@ -81,4 +82,18 @@ func (a *App) DeleteGame(instance string) error {
 	}
 
 	return nil
+}
+
+func (a *App) GetLogs() (string, error) {
+	if a.crashSvc == nil {
+		return "", hyerrors.Internal("diagnostics not initialized")
+	}
+	return a.crashSvc.GetLogs()
+}
+
+func (a *App) GetCrashReports() ([]service.CrashReport, error) {
+	if a.crashSvc == nil {
+		return nil, hyerrors.Internal("diagnostics not initialized")
+	}
+	return a.crashSvc.GetCrashReports()
 }
