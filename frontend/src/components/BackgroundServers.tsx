@@ -1,9 +1,11 @@
+import bgServersImage from "../assets/images/bg-servers.png";
+
 function BackgroundServers() {
   return (
     <div
       className="absolute inset-0 bg-cover bg-center z-0 scale-105"
       style={{
-        backgroundImage: `url("src/assets/images/bg-servers.png")`,
+        backgroundImage: `url(${bgServersImage})`,
       }}
     >
       <div className="absolute inset-0 bg-black/50" />

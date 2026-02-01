@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from '../i18n';
 
 interface DeleteConfirmationModalProps {
   onConfirm: () => void;
@@ -10,6 +11,8 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
   onConfirm,
   onCancel,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <AnimatePresence>
       <motion.div
@@ -25,12 +28,12 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
           transition={{ type: "spring", damping: 20, stiffness: 300 }}
           className="bg-[#0f0f0f] border border-[#FFA845]/20 rounded-2xl p-8 max-w-md w-full shadow-2xl"
         >
-          <h2 className="text-2xl font-bold text-white mb-4">Вы уверены?</h2>
+          <h2 className="text-2xl font-bold text-white mb-4">{t.modals.delete.title}</h2>
 
           <p className="text-gray-300 mb-8 leading-relaxed">
-            Вы точно хотите удалить игру?<br />
+            {t.modals.delete.message}<br />
             <span className="text-red-400 font-medium">
-              Это действие удалит все файлы игры без возможности восстановления!
+              {t.modals.delete.warning}
             </span>
           </p>
 
@@ -39,13 +42,13 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
               onClick={onCancel}
               className="px-6 py-3 bg-[#1a1a1a] hover:bg-[#222] text-gray-300 rounded-lg transition-colors border border-white/10"
             >
-              Отмена
+              {t.modals.delete.cancelButton}
             </button>
             <button
               onClick={onConfirm}
               className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors shadow-lg shadow-red-900/30"
             >
-              Удалить всё
+              {t.modals.delete.confirmButton}
             </button>
           </div>
         </motion.div>

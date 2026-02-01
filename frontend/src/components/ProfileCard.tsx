@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, SquarePen, Check, Menu } from "lucide-react";
+import { useTranslation } from "../i18n";
 
 type ReleaseType = "Pre-Release" | "Release";
 
@@ -11,8 +12,6 @@ interface ProfileProps {
   onUserChange: (val: string) => void;
 }
 
-const OPTIONS: ReleaseType[] = ["Pre-Release", "Release"];
-
 export const ProfileSection: React.FC<ProfileProps> = ({
   username,
   currentVersion,
@@ -20,12 +19,19 @@ export const ProfileSection: React.FC<ProfileProps> = ({
   onEditToggle,
   onUserChange,
 }) => {
+  const { t } = useTranslation();
+  
   // openRelease — для меню Pre-Release
   // openVersion — для анимации стрелки у vNo (и будущего меню, если захочешь)
   const [openRelease, setOpenRelease] = useState(false);
   const [openVersion, setOpenVersion] = useState(false);
 
   const [releaseType, setReleaseType] = useState<ReleaseType>("Pre-Release");
+
+  const OPTIONS: ReleaseType[] = [
+    t.profile.releaseType.preRelease as ReleaseType,
+    t.profile.releaseType.release as ReleaseType,
+  ];
 
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -148,7 +154,7 @@ export const ProfileSection: React.FC<ProfileProps> = ({
         >
           {/* текст строго 16px слева */}
           <span className={`${baseText} whitespace-nowrap`}>
-            {currentVersion ? `v${currentVersion}` : "vNo"}
+            {currentVersion ? `v${currentVersion}` : `${t.profile.noVersion}`}
           </span>
 
           {/* стрелка работает (крутится) */}

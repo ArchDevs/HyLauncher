@@ -1,6 +1,7 @@
 // src/components/Navbar.tsx
 import React from "react";
-import { pages } from "../config/pages";
+import { getPages } from "../config/pages";
+import { useTranslation } from "../i18n";
 
 interface NavbarProps {
   activeTab: string;
@@ -8,6 +9,9 @@ interface NavbarProps {
 }
 
 function Navbar({ activeTab, onTabChange }: NavbarProps) {
+  const { t } = useTranslation();
+  const pages = getPages(t);
+
   return (
     <div
       className="

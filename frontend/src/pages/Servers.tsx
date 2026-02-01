@@ -1,4 +1,8 @@
+import { useTranslation } from "../i18n";
+
 function ServersPage() {
+  const { t } = useTranslation();
+
   return (
     <div className="relative h-full w-full">
       {/* Title */}
@@ -15,7 +19,7 @@ function ServersPage() {
           font-[Unbounded]
         "
       >
-        Servers
+        {t.pages.servers}
       </div>
     </div>
   );

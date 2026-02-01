@@ -9,6 +9,7 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import BackgroundImage from "./BackgroundImage";
+import { useTranslation } from "../i18n";
 
 interface ControlSectionProps {
   onPlay: () => void;
@@ -41,6 +42,8 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
   updateAvailable,
   onUpdate,
 }) => {
+  const { t } = useTranslation();
+
   // Your original formatting helper
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return "0 B";
@@ -60,7 +63,7 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
             className="cursor-pointer hover:scale-102 w-[280px] h-[40px] bg-[#090909]/[0.55] backdrop-blur-[12] border border-[#FFA845]/[0.10] rounded-[12px] px-[12px] flex items-center justify-between"
           >
             <span className="text-[16px] text-[#CCD9E0]/[0.90] font-[Mazzard] tracking-[-3%]">
-              Доступно обновление
+              {t.control.updateAvailable}
             </span>
             <span className="text-[#CCD9E0]/[0.90] transition-transform flex items-center justify-center">
               <RefreshCcw size={16} />
@@ -82,14 +85,24 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
           <NavBtn onClick={actions.showDelete} icon={<Trash size={20} />} />
         </div> */}
         <motion.button
+          style={{
+            willChange: "transform",
+            transform: "translateZ(0)",
+            backfaceVisibility: "hidden",
+          }}
           whileTap={isDownloading ? {} : { scale: 0.98 }}
           onClick={onPlay}
           disabled={isDownloading}
+          transition={{
+            type: "spring",
+            stiffness: 400,
+            damping: 25,
+          }}
           className={`w-[280px] h-[100px] font-[Unbounded] font-[600] text-[32px] text-[#CCD9E0]/[0.90] bg-[#090909]/[0.55] backdrop-blur-[12] rounded-[14px] border border-[#FFA845]/[0.10] shadow-lg disabled:opacity-50 hover:scale-102 ${
             isDownloading ? "cursor-not-allowed" : "cursor-pointer"
           }`}
         >
-          {isDownloading ? "INSTALL..." : "PLAY"}
+          {isDownloading ? t.common.install : t.common.play}
         </motion.button>
       </div>
 
@@ -108,12 +121,22 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
           <div className="text-[14px] text-[#CCD9E0]/[0.30] font-[MazzardM-Medium] max-w-[200px] truncate mr-[48px]">
             {speed && total > 0
               ? `${speed} • ${formatBytes(downloaded)} / ${formatBytes(total)}`
-              : currentFile || "Ready"}
+              : currentFile || t.common.ready}
           </div>
         </div>
         <div className="h-[7px] w-[852px] bg-[#090909]/[0.10] rounded-full overflow-hidden border border-[#FFA845]/[0.10] border-[0.5px]">
           <motion.div
+            style={{
+              willChange: "width",
+              transform: "translateZ(0)",
+              backfaceVisibility: "hidden",
+            }}
             animate={{ width: `${progress}%` }}
+            transition={{
+              type: "tween",
+              ease: "linear",
+              duration: 0.1,
+            }}
             className="h-full bg-[#CCD9E0]/[0.90] progress-glow"
           />
         </div>

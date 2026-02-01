@@ -67,10 +67,50 @@ body {
 
 .progress-glow {
   animation: glow 2s infinite ease-in-out;
+  will-change: opacity, filter;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* GPU acceleration for animated elements */
+[data-framer-component],
+.motion-div {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize backdrop-blur for WebKit */
+.backdrop-blur-\[12\],
+.backdrop-blur-\[12px\] {
+  will-change: filter;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+}
+
+/* Optimize hover transitions */
+.hover\:scale-102 {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 /* Fix for Webkit (Linux/macOS) to prevent text selection while dragging */
 [style*="--wails-draggable:drag"] {
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* Force GPU acceleration for common animated properties */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optimize transforms */
+[class*="scale-"],
+[class*="translate-"],
+[class*="rotate-"] {
+  will-change: transform;
+  transform: translateZ(0);
 }

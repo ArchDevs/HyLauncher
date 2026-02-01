@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
 import Titlebar from "./components/Titlebar";
 import Navbar from "./components/Navbar";
+import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { BrowserOpenURL } from "../wailsjs/runtime/runtime";
 import { AnimatePresence, motion, cubicBezier } from "framer-motion";
 import { getDefaultPage, getPageById } from "./config/pages";
+import logoImage from "./assets/images/logo.png";
+import { useTranslation } from "./i18n";
 
 const bgTransition = {
   duration: 0.45, // macOS-speed
@@ -11,7 +14,8 @@ const bgTransition = {
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState(getDefaultPage().id);
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState(getDefaultPage(t).id);
 
   useEffect(() => {
     console.log("Active tab changed to:", activeTab);
@@ -25,7 +29,7 @@ const App: React.FC = () => {
     }
   };
 
-  const page = getPageById(activeTab);
+  const page = getPageById(activeTab, t);
   const Background = page?.background;
 
   return (
@@ -36,22 +40,28 @@ const App: React.FC = () => {
           <motion.div
             key={activeTab}
             className="absolute inset-0"
+            style={{
+              willChange: "opacity, transform, filter",
+              transform: "translateZ(0)",
+              backfaceVisibility: "hidden",
+              perspective: "1000px",
+            }}
             initial={{
               opacity: 0,
-              scale: 1.035,
-              filter: "blur(14px)",
+              scale: 1.02,
             }}
             animate={{
               opacity: 1,
               scale: 1,
-              filter: "blur(0px)",
             }}
             exit={{
               opacity: 0,
-              scale: 1.02,
-              filter: "blur(10px)",
+              scale: 1.01,
             }}
-            transition={bgTransition}
+            transition={{
+              ...bgTransition,
+              filter: { duration: 0 },
+            }}
           >
             {/* Page background */}
             {Background ? <Background /> : null}
@@ -85,12 +95,17 @@ const App: React.FC = () => {
         "
       >
         <img
-          src="src/assets/images/logo.png"
+          src={logoImage}
           alt="Logo"
           className="w-[40px] h-[40px] pointer-events-none"
           draggable={false}
         />
       </button>
+
+      {/* Language Switcher */}
+      <div className="absolute left-[20px] top-[116px] z-[9999] pointer-events-none">
+        <LanguageSwitcher />
+      </div>
 
       {/* PAGE CONTENT */}
       <AnimatePresence mode="wait">
@@ -105,6 +120,11 @@ const App: React.FC = () => {
           return (
             <motion.div
               key={activeTab}
+              style={{
+                willChange: "opacity, transform",
+                transform: "translateZ(0)",
+                backfaceVisibility: "hidden",
+              }}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}

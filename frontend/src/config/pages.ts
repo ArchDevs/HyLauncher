@@ -6,32 +6,50 @@ import ServersPage from "../pages/Servers";
 
 import BackgroundImage from "../components/BackgroundImage";
 import BackgroundServers from "../components/BackgroundServers";
+import type { Translations } from "../i18n/types";
 
-export type PageConfig = {
+export type PageConfigBase = {
   id: string;
-  name: string;
-  icon: React.ComponentType<{ size?: number | string }>; // ✅ фикс для Lucide
+  nameKey: keyof Translations["pages"];
+  icon: React.ComponentType<{ size?: number | string }>;
   component: React.ComponentType;
   background?: React.ComponentType;
 };
 
-export const pages: PageConfig[] = [
+export type PageConfig = PageConfigBase & {
+  name: string;
+};
+
+// Base pages config - no translations here, logic separated
+const basePages: PageConfigBase[] = [
   {
     id: "home",
-    name: "Home",
+    nameKey: "home",
     icon: Gamepad2,
     component: HomePage,
     background: BackgroundImage,
   },
   {
     id: "servers",
-    name: "Servers",
+    nameKey: "servers",
     icon: Globe,
     component: ServersPage,
     background: BackgroundServers,
   },
 ];
 
-export const getDefaultPage = () => pages[0];
+/**
+ * Get pages with translated names
+ * This function bridges the gap between config and translations
+ */
+export const getPages = (t: Translations): PageConfig[] => {
+  return basePages.map((page) => ({
+    ...page,
+    name: t.pages[page.nameKey],
+  }));
+};
 
-export const getPageById = (id: string) => pages.find((p) => p.id === id);
+export const getDefaultPage = (t: Translations) => getPages(t)[0];
+
+export const getPageById = (id: string, t: Translations) =>
+  getPages(t).find((p) => p.id === id);

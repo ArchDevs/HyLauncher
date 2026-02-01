@@ -8,8 +8,11 @@ import {
   Update,
 } from "../../wailsjs/go/app/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
+import { useTranslation } from "../i18n";
 
 export const useLauncher = () => {
+  const { t } = useTranslation();
+
   // Game
   const [username, setUsername] = useState<string>("HyLauncher");
   const [currentVersion, setCurrentVersion] = useState<number>(0);
@@ -18,7 +21,7 @@ export const useLauncher = () => {
 
   // Progress
   const [progress, setProgress] = useState<number>(0);
-  const [status, setStatus] = useState<string>("Ready to play");
+  const [status, setStatus] = useState<string>(t.control.status.readyToPlay);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
   // --- Download Details ---
@@ -75,7 +78,7 @@ export const useLauncher = () => {
       if (data.stage === "launch" || data.stage === "idle") {
         setIsDownloading(false);
         setProgress(0);
-        setStatus("Ready to play");
+        setStatus(t.control.status.readyToPlay);
         setDownloadDetails({
           currentFile: "",
           speed: "",

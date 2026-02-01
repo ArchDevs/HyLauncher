@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { DownloadCloud } from 'lucide-react';
+import { useTranslation } from '../i18n';
 
 interface UpdateOverlayProps {
   progress: number;
@@ -9,6 +10,7 @@ interface UpdateOverlayProps {
 }
 
 export const UpdateOverlay: React.FC<UpdateOverlayProps> = ({ progress, downloaded, total }) => {
+  const { t } = useTranslation();
   const toMB = (bytes: number) => (bytes / 1024 / 1024).toFixed(1);
 
   return (
@@ -18,9 +20,9 @@ export const UpdateOverlay: React.FC<UpdateOverlayProps> = ({ progress, download
       className="absolute inset-0 z-[100] bg-[#090909]/95 backdrop-blur-2xl flex flex-col items-center justify-center p-20 text-center"
     >
       <DownloadCloud size={80} className="text-[#FFA845] mb-8 animate-bounce" />
-      <h1 className="text-5xl font-black mb-4 tracking-tighter italic text-white">UPDATING LAUNCHER</h1>
+      <h1 className="text-5xl font-black mb-4 tracking-tighter italic text-white">{t.modals.update.title}</h1>
       <p className="text-gray-400 mb-12 max-w-md text-lg font-medium">
-        Downloading the latest version. HyLauncher will restart automatically once finished.
+        {t.modals.update.message}
       </p>
       
       <div className="w-full max-w-2xl">

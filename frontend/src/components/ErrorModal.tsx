@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, Copy, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { useTranslation } from '../i18n';
 
 interface AppError {
   type: string;
@@ -16,6 +17,7 @@ interface ErrorModalProps {
 }
 
 export const ErrorModal: React.FC<ErrorModalProps> = ({ error, onClose }) => {
+  const { t } = useTranslation();
   const [showTechnical, setShowTechnical] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -51,15 +53,15 @@ ${error.stack ? `Stack:\n${error.stack}` : ''}
   const getSuggestion = (type: string) => {
     switch (type) {
       case 'NETWORK':
-        return 'Check your internet connection and try again.';
+        return t.modals.error.suggestions.network;
       case 'FILESYSTEM':
-        return 'Make sure you have enough disk space and the launcher has proper permissions.';
+        return t.modals.error.suggestions.filesystem;
       case 'VALIDATION':
-        return 'Please check your input and try again.';
+        return t.modals.error.suggestions.validation;
       case 'GAME':
-        return 'Try restarting the launcher or reinstalling the game.';
+        return t.modals.error.suggestions.game;
       default:
-        return 'Please report this issue if it persists.';
+        return t.modals.error.suggestions.default;
     }
   };
 
@@ -95,7 +97,7 @@ ${error.stack ? `Stack:\n${error.stack}` : ''}
                 <AlertCircle size={24} style={{ color: getErrorColor(error.type) }} />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Error Occurred</h3>
+                <h3 className="text-lg font-bold text-white">{t.modals.error.title}</h3>
                 <p className="text-xs text-gray-400 mt-1">{error.type}</p>
               </div>
             </div>
@@ -127,7 +129,7 @@ ${error.stack ? `Stack:\n${error.stack}` : ''}
                 onClick={() => setShowTechnical(!showTechnical)}
                 className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-lg border border-white/5 transition-colors"
               >
-                <span className="text-xs font-medium text-gray-300">Technical Details</span>
+                <span className="text-xs font-medium text-gray-300">{t.modals.error.technicalDetails}</span>
                 {showTechnical ? (
                   <ChevronUp size={16} className="text-gray-400" />
                 ) : (
@@ -150,7 +152,7 @@ ${error.stack ? `Stack:\n${error.stack}` : ''}
                       {error.stack && (
                         <details className="mt-2">
                           <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-400">
-                            Stack trace
+                            {t.modals.error.stackTrace}
                           </summary>
                           <pre className="text-xs text-gray-500 font-mono mt-2 whitespace-pre-wrap">
                             {error.stack}
@@ -173,7 +175,7 @@ ${error.stack ? `Stack:\n${error.stack}` : ''}
           >
             <Copy size={14} className="text-gray-400" />
             <span className="text-xs font-medium text-gray-300">
-              {copied ? 'Copied!' : 'Copy Details'}
+              {copied ? t.common.copied : t.common.copy}
             </span>
           </button>
           <button
@@ -184,7 +186,7 @@ ${error.stack ? `Stack:\n${error.stack}` : ''}
               borderColor: getErrorColor(error.type) + '40',
             }}
           >
-            <span className="text-xs font-medium text-white">Close</span>
+            <span className="text-xs font-medium text-white">{t.common.close}</span>
           </button>
         </div>
       </motion.div>
