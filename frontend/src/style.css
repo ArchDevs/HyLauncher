@@ -80,12 +80,62 @@ body {
   perspective: 1000px;
 }
 
-/* Optimize backdrop-blur for WebKit */
+/* Windows WebKit compatibility - Backdrop blur fallbacks */
+@supports not (backdrop-filter: blur(1px)) {
+  /* When backdrop-filter is not supported, use more opaque backgrounds */
+  [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  
+  /* Increase background opacity for better visibility without blur */
+  [class*="backdrop-blur"][class*="bg-[#090909]/55"],
+  [class*="backdrop-blur"][class*="bg-[#090909]/[0.55]"] {
+    background-color: rgba(9, 9, 9, 0.88) !important;
+  }
+  
+  [class*="backdrop-blur"][class*="bg-[#090909]/[0.75]"] {
+    background-color: rgba(9, 9, 9, 0.92) !important;
+  }
+  
+  [class*="backdrop-blur"][class*="bg-[#090909]/95"],
+  [class*="backdrop-blur"][class*="bg-[#090909]/[0.95]"] {
+    background-color: rgba(9, 9, 9, 0.98) !important;
+  }
+  
+  [class*="backdrop-blur"][class*="bg-black/70"] {
+    background-color: rgba(0, 0, 0, 0.85) !important;
+  }
+  
+  [class*="backdrop-blur"][class*="bg-black/80"] {
+    background-color: rgba(0, 0, 0, 0.90) !important;
+  }
+}
+
+/* Optimize backdrop-blur for WebKit with vendor prefixes */
 .backdrop-blur-\[12\],
 .backdrop-blur-\[12px\] {
   will-change: filter;
   transform: translateZ(0);
   -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.backdrop-blur-xl {
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+
+.backdrop-blur-sm {
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.backdrop-blur-2xl {
+  -webkit-backdrop-filter: blur(40px);
+  backdrop-filter: blur(40px);
 }
 
 /* Optimize hover transitions */
@@ -113,4 +163,36 @@ body {
 [class*="rotate-"] {
   will-change: transform;
   transform: translateZ(0);
+}
+
+/* Windows-specific rendering fixes */
+/* Ensure small elements render properly */
+button,
+[role="button"],
+a[role="button"] {
+  min-height: 1px;
+  min-width: 1px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fix for small icons and SVG elements on Windows */
+svg {
+  shape-rendering: geometricPrecision;
+  text-rendering: geometricPrecision;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Ensure borders render correctly on Windows */
+[class*="border"] {
+  border-style: solid;
+}
+
+/* Fix for small text rendering */
+[class*="text-\[14px\]"],
+[class*="text-\[16px\]"],
+[class*="text-xs"],
+[class*="text-sm"] {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }

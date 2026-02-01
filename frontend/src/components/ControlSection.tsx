@@ -56,11 +56,11 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
   return (
     <div className="w-full flex items-end gap-[20px] ml-[48px]">
       <div className="w-[280px] flex flex-col gap-[12px]">
-        <div className="w-[280px] h-[120px]  bg-[#090909]/[0.55] backdrop-blur-[12] border border-[#FFA845]/[0.10] rounded-[14px]"></div>
+        <div className="w-[280px] h-[120px]  bg-[#090909]/[0.55] backdrop-blur-[12px] border border-[#FFA845]/[0.10] rounded-[14px]"></div>
         {updateAvailable && (
           <button
             onClick={onUpdate}
-            className="cursor-pointer hover:scale-102 w-[280px] h-[40px] bg-[#090909]/[0.55] backdrop-blur-[12] border border-[#FFA845]/[0.10] rounded-[12px] px-[12px] flex items-center justify-between"
+            className="cursor-pointer hover:scale-102 w-[280px] h-[40px] bg-[#090909]/[0.55] backdrop-blur-[12px] border border-[#FFA845]/[0.10] rounded-[12px] px-[12px] flex items-center justify-between"
           >
             <span className="text-[16px] text-[#CCD9E0]/[0.90] font-[Mazzard] tracking-[-3%]">
               {t.control.updateAvailable}
@@ -98,7 +98,7 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
             stiffness: 400,
             damping: 25,
           }}
-          className={`w-[280px] h-[100px] font-[Unbounded] font-[600] text-[32px] text-[#CCD9E0]/[0.90] bg-[#090909]/[0.55] backdrop-blur-[12] rounded-[14px] border border-[#FFA845]/[0.10] shadow-lg disabled:opacity-50 hover:scale-102 ${
+          className={`w-[280px] h-[100px] font-[Unbounded] font-[600] text-[32px] text-[#CCD9E0]/[0.90] bg-[#090909]/[0.55] backdrop-blur-[12px] rounded-[14px] border border-[#FFA845]/[0.10] shadow-lg disabled:opacity-50 hover:scale-102 ${
             isDownloading ? "cursor-not-allowed" : "cursor-pointer"
           }`}
         >
