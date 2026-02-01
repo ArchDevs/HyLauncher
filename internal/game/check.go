@@ -4,14 +4,16 @@ import (
 	"HyLauncher/internal/env"
 	"HyLauncher/pkg/archive"
 	"HyLauncher/pkg/fileutil"
+	"context"
 	"fmt"
 	"path/filepath"
 )
 
-func CheckInstalled(branch string, buildVersion int) error {
-	base := filepath.Join(env.GetGameDir(branch, buildVersion))
+func CheckInstalled(ctx context.Context, branch string, buildVersion int) error {
+	base := env.GetGameDir(branch, buildVersion)
+	clientPath := env.GetGameClientPath(branch, buildVersion)
 
-	if !fileutil.FileExistsNative(filepath.Join(base, "Client", "HytaleClient")) {
+	if !fileutil.FileExists(clientPath) {
 		return fmt.Errorf("client binary missing")
 	}
 

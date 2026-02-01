@@ -1,5 +1,7 @@
 # HyLauncher - Free Hytale Launcher
 
+## For demo only. Support Hytale developers!
+
 <p align="center">
   <img src="build/appicon.png" alt="HyLauncher" width="128"/>
 </p>
@@ -38,7 +40,7 @@
 ## Билд
 
 Зависимости
-- Golang 1.23+
+- Golang 1.24+
 - NodeJS 22+
 
 ### Linux make
@@ -63,6 +65,11 @@ wails build
 
 У нас используется лицензия [GPL 3.0](https://choosealicense.com/licenses/gpl-3.0/).<br>
 `Permissions of this strong copyleft license are conditioned on making available complete source code of licensed works and modifications, which include larger works using a licensed work, under the same license. Copyright and license notices must be preserved. Contributors provide an express grant of patent rights.` via [choosealicense.com](https://choosealicense.com/licenses)
+
+---
+
+## Credits
+- [Hytale-F2P](https://github.com/amiayweb/Hytale-F2P) Online fix method by game patching
 
 ---
 

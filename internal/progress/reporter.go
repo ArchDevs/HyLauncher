@@ -6,7 +6,6 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// Stage represents a progress stage
 type Stage string
 
 const (
@@ -33,12 +32,10 @@ type Data struct {
 	Total       int64   `json:"total"`
 }
 
-// Reporter handles all progress reporting to the frontend
 type Reporter struct {
 	ctx context.Context
 }
 
-// New creates a new progress reporter
 func New(ctx context.Context) *Reporter {
 	return &Reporter{ctx: ctx}
 }

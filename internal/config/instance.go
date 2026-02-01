@@ -6,7 +6,7 @@ import (
 )
 
 func instancePath(instanceID string) string {
-	return filepath.Join(env.GetInstance(instanceID), "config.toml")
+	return filepath.Join(env.GetInstanceDir(instanceID), "config.toml")
 }
 
 func LoadInstance(instanceID string) (*InstanceConfig, error) {
@@ -16,7 +16,6 @@ func LoadInstance(instanceID string) (*InstanceConfig, error) {
 func SaveInstance(instanceID string, cfg *InstanceConfig) error {
 	return save(instancePath(instanceID), cfg)
 }
-
 
 func UpdateInstance(id string, update func(*InstanceConfig) error) error {
 	cfg, err := LoadInstance(id)

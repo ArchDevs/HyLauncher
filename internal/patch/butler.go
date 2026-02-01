@@ -35,7 +35,7 @@ func EnsureButler(ctx context.Context, reporter *progress.Reporter) error {
 	err := VerifyButler()
 	if err != nil {
 		if errors.Is(err, ErrButlerBroken) || errors.Is(err, ErrButlerNotFound) {
-			if reinstallErr := ReinstallButler(toolsDir, zipPath, tempZipPath, osName, arch, reporter); reinstallErr != nil {
+			if reinstallErr := ReinstallButler(ctx, toolsDir, zipPath, tempZipPath, osName, arch, reporter); reinstallErr != nil {
 				return reinstallErr
 			}
 		} else {
@@ -47,7 +47,7 @@ func EnsureButler(ctx context.Context, reporter *progress.Reporter) error {
 	return nil
 }
 
-func ReinstallButler(toolsDir, zipPath, tempZipPath, osName, arch string, reporter *progress.Reporter) error {
+func ReinstallButler(ctx context.Context, toolsDir, zipPath, tempZipPath, osName, arch string, reporter *progress.Reporter) error {
 	if err := os.RemoveAll(toolsDir); err != nil {
 		fmt.Println("Warning: cannot delete butler folder")
 		return err
@@ -60,7 +60,7 @@ func ReinstallButler(toolsDir, zipPath, tempZipPath, osName, arch string, report
 		return err
 	}
 
-	err := DownloadButler(toolsDir, zipPath, tempZipPath, osName, arch, reporter)
+	err := DownloadButler(ctx, toolsDir, zipPath, tempZipPath, osName, arch, reporter)
 	if err != nil {
 		fmt.Println("Warning: cannot download Butler")
 		return err
@@ -92,7 +92,7 @@ func VerifyButler() error {
 	return nil
 }
 
-func DownloadButler(toolsDir, zipPath, tempZipPath, osName, arch string, reporter *progress.Reporter) error {
+func DownloadButler(ctx context.Context, toolsDir, zipPath, tempZipPath, osName, arch string, reporter *progress.Reporter) error {
 	if osName == "darwin" {
 		arch = "amd64"
 	}
@@ -102,7 +102,7 @@ func DownloadButler(toolsDir, zipPath, tempZipPath, osName, arch string, reporte
 
 	scaler := progress.NewScaler(reporter, progress.StageButler, 0, 70)
 
-	if err := download.DownloadWithReporter(tempZipPath, url, "butler.zip", reporter, progress.StageButler, scaler); err != nil {
+	if err := download.DownloadWithReporter(ctx, tempZipPath, url, "butler.zip", reporter, progress.StageButler, scaler); err != nil {
 		_ = os.Remove(tempZipPath)
 		return err
 	}

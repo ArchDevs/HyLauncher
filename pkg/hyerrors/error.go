@@ -18,6 +18,7 @@ const (
 type Category string
 
 const (
+	CategoryInternal   Category = "internal"
 	CategoryGame       Category = "game"
 	CategoryJava       Category = "java"
 	CategoryNetwork    Category = "network"

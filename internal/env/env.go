@@ -61,11 +61,6 @@ func GetInstanceDir(instance string) string {
 	return filepath.Join(GetInstancesDir(), instance)
 }
 
-// Deprecated, for backward co
-func GetInstance(instance string) string {
-	return GetInstanceDir(instance)
-}
-
 func GetInstanceUserDataDir(instance string) string {
 	return filepath.Join(GetInstanceDir(instance), "UserData")
 }
@@ -82,14 +77,50 @@ func GetGameDir(branch string, version int) string {
 	return filepath.Join(GetSharedGamesDir(), branch, strconv.Itoa(version))
 }
 
-func GetGameClientPath(branch string, version int) string {
+func GetServerPath(branch string, version int) string {
 	gameDir := GetGameDir(branch, version)
-	if runtime.GOOS == "darwin" {
-		return filepath.Join(gameDir, "Client", "Hytale.app", "Contents", "MacOS", "HytaleClient")
-	} else if runtime.GOOS == "windows" {
-		return filepath.Join(gameDir, "Client", "HytaleClient.exe")
+
+	possible := []string{
+		filepath.Join(gameDir, "Server", "HytaleServer.jar"),
+		filepath.Join(gameDir, "Server", "server.jar"),
 	}
-	return filepath.Join(gameDir, "Client", "HytaleClient")
+
+	for _, p := range possible {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+
+	return ""
+}
+
+func GetGameClientPath(branch string, version int) string {
+	var possible []string
+	gameDir := GetGameDir(branch, version)
+
+	switch runtime.GOOS {
+	case "darwin":
+		possible = []string{
+			filepath.Join(gameDir, "Client", "Hytale.app", "Contents", "MacOS", "HytaleClient"),
+			filepath.Join(gameDir, "Client", "HytaleClient"),
+		}
+	case "windows":
+		possible = []string{
+			filepath.Join(gameDir, "Client", "HytaleClient.exe"),
+		}
+	default:
+		possible = []string{
+			filepath.Join(gameDir, "Client", "HytaleClient"),
+		}
+	}
+
+	for _, p := range possible {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+
+	return ""
 }
 
 func CreateFolders(instance string) error {

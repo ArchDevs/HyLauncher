@@ -88,7 +88,7 @@ func EnsureJRE(ctx context.Context, branch string, reporter *progress.Reporter) 
 	arch := env.GetArch()
 	cacheDir := env.GetCacheDir()
 
-	if err := downloadAndInstallJRE(manifest, jreDir, cacheDir, osName, arch, reporter); err != nil {
+	if err := downloadAndInstallJRE(ctx, manifest, jreDir, cacheDir, osName, arch, reporter); err != nil {
 		_ = os.RemoveAll(jreDir)
 		return err
 	}
@@ -99,7 +99,7 @@ func EnsureJRE(ctx context.Context, branch string, reporter *progress.Reporter) 
 	return nil
 }
 
-func downloadAndInstallJRE(manifest *JREJSON, jreDir, cacheDir, osName, arch string, reporter *progress.Reporter) error {
+func downloadAndInstallJRE(ctx context.Context, manifest *JREJSON, jreDir, cacheDir, osName, arch string, reporter *progress.Reporter) error {
 	osData, ok := manifest.DownloadURL[osName]
 	if !ok {
 		return fmt.Errorf("no JRE for OS: %s", osName)
@@ -118,7 +118,7 @@ func downloadAndInstallJRE(manifest *JREJSON, jreDir, cacheDir, osName, arch str
 
 	if _, err := os.Stat(cacheFile); os.IsNotExist(err) {
 		scaler := progress.NewScaler(reporter, progress.StageJRE, 0, 90)
-		if err := download.DownloadWithReporter(cacheFile, platform.URL, fileName, reporter, progress.StageJRE, scaler); err != nil {
+		if err := download.DownloadWithReporter(ctx, cacheFile, platform.URL, fileName, reporter, progress.StageJRE, scaler); err != nil {
 			_ = os.Remove(cacheFile)
 			return err
 		}

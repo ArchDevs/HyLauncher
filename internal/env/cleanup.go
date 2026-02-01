@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 )
 
 func CleanupLauncher(request model.InstanceModel) error {
@@ -15,7 +14,7 @@ func CleanupLauncher(request model.InstanceModel) error {
 		fmt.Println("Warning: failed to clean cache:", err)
 	}
 
-	gameLatest := filepath.Join(GetInstance(request.InstanceID), request.Branch, strconv.Itoa(request.BuildVersion))
+	gameLatest := GetGameDir(request.Branch, request.BuildVersion)
 	if err := cleanIncompleteGame(gameLatest); err != nil {
 		fmt.Println("Warning: failed to clean game directory:", err)
 	}

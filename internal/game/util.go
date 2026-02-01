@@ -17,9 +17,7 @@ func OfflineUUID(nick string) uuid.UUID {
 // Wayland
 func SetSDLVideoDriver(cmd *exec.Cmd) {
 	if runtime.GOOS == "linux" && isWayland() {
-		env := os.Environ()
-		env = append(env, "SDL_VIDEODRIVER=wayland")
-		cmd.Env = env
+		withEnv(cmd, "SDL_VIDEODRIVER=wayland")
 	}
 }
 
@@ -30,3 +28,27 @@ func isWayland() bool {
 	return waylandDisplay != "" || sessionType == "wayland"
 }
 
+func withEnv(cmd *exec.Cmd, kv ...string) {
+	baseEnv := os.Environ()
+	if len(cmd.Env) > 0 {
+		baseEnv = cmd.Env
+	}
+
+	envMap := make(map[string]string, len(baseEnv)+len(kv))
+	for _, e := range baseEnv {
+		if k, v, ok := strings.Cut(e, "="); ok {
+			envMap[k] = v
+		}
+	}
+
+	for _, e := range kv {
+		if k, v, ok := strings.Cut(e, "="); ok {
+			envMap[k] = v
+		}
+	}
+
+	cmd.Env = cmd.Env[:0]
+	for k, v := range envMap {
+		cmd.Env = append(cmd.Env, k+"="+v)
+	}
+}

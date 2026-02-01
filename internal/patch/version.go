@@ -71,7 +71,7 @@ func ClearVersionCache() {
 }
 
 func checkVersion(branch string) VersionCheckResult {
-	client := createRobustClient()
+	client := createClient()
 
 	baseVersion := findBaseVersion(client, branch)
 	if baseVersion == 0 {
@@ -84,7 +84,7 @@ func checkVersion(branch string) VersionCheckResult {
 	return VersionCheckResult{LatestVersion: latestVersion}
 }
 
-func createRobustClient() *http.Client {
+func createClient() *http.Client {
 	return &http.Client{
 		Timeout: 10 * time.Second,
 		Transport: &http.Transport{

@@ -93,7 +93,7 @@ func DownloadLatestReleaseAsset(
 		reporter.Report(stage, 0, fmt.Sprintf("Downloading %s from release %s...", assetName, release.TagName))
 	}
 
-	if err := DownloadWithReporter(destPath, downloadURL, assetName, reporter, stage, scaler); err != nil {
+	if err := DownloadWithReporter(ctx, destPath, downloadURL, assetName, reporter, stage, scaler); err != nil {
 		// Clean up partial download on error
 		_ = os.Remove(destPath)
 		return fmt.Errorf("failed to download %s: %w", assetName, err)

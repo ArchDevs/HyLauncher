@@ -1,5 +1,9 @@
 package hyerrors
 
+func Internal(message string) *Error {
+	return New(CategoryValidation, SeverityCritical, message)
+}
+
 func Game(message string) *Error {
 	return New(CategoryGame, SeverityError, message)
 }

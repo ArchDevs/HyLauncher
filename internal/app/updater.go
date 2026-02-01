@@ -19,7 +19,7 @@ import (
 func (a *App) CheckUpdate() (*updater.Asset, error) {
 	fmt.Println("Checking for launcher updates...")
 
-	asset, newVersion, err := updater.CheckUpdate(a.ctx, AppVersion)
+	asset, newVersion, err := updater.CheckUpdate(a.ctx, a.launcherCfg.Version)
 	if err != nil {
 		fmt.Printf("Update check failed: %v\n", err)
 		// Don't report - this is expected when offline
@@ -38,10 +38,10 @@ func (a *App) CheckUpdate() (*updater.Asset, error) {
 func (a *App) Update() error {
 	fmt.Println("Starting launcher update process...")
 
-	asset, newVersion, err := updater.CheckUpdate(a.ctx, AppVersion)
+	asset, newVersion, err := updater.CheckUpdate(a.ctx, a.launcherCfg.Version)
 	if err != nil {
 		appErr := hyerrors.WrapNetwork(err, "failed to check for updates").
-			WithContext("current_version", AppVersion)
+			WithContext("current_version", a.launcherCfg.Version)
 		hyerrors.Report(appErr)
 		return appErr
 	}
@@ -130,7 +130,7 @@ func (a *App) checkUpdateSilently() {
 	}
 	fmt.Println("Running silent update check...")
 
-	asset, newVersion, err := updater.CheckUpdate(a.ctx, AppVersion)
+	asset, newVersion, err := updater.CheckUpdate(a.ctx, a.launcherCfg.Version)
 	if err != nil {
 		fmt.Printf("Silent update check failed (this is normal if offline): %v\n", err)
 		return
