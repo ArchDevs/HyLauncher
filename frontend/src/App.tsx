@@ -2,12 +2,12 @@ import React, { useState, useEffect } from "react";
 import Titlebar from "./components/Titlebar";
 import Navbar from "./components/Navbar";
 import { BrowserOpenURL } from "../wailsjs/runtime/runtime";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, cubicBezier } from "framer-motion";
 import { getDefaultPage, getPageById } from "./config/pages";
 
 const bgTransition = {
-  duration: 0.45,
-  ease: [0.16, 1, 0.3, 1], // macOS-like easing
+  duration: 0.45, // macOS-speed
+  ease: cubicBezier(0.16, 1, 0.3, 1),
 };
 
 const App: React.FC = () => {
@@ -30,25 +30,35 @@ const App: React.FC = () => {
 
   return (
     <div className="relative w-screen h-screen max-w-[1280px] max-h-[720px] bg-[#090909] text-white overflow-hidden font-sans select-none rounded-[14px] border border-white/5 mx-auto">
-      {/* Background doesn't intercept clicks */}
+      {/* BACKGROUND */}
       <div className="absolute inset-0 pointer-events-none">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
             className="absolute inset-0"
-            initial={{ opacity: 0, scale: 1.035, filter: "blur(14px)" }}
-            animate={{ opacity: 1, scale: 1.0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, scale: 1.02, filter: "blur(10px)" }}
+            initial={{
+              opacity: 0,
+              scale: 1.035,
+              filter: "blur(14px)",
+            }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              filter: "blur(0px)",
+            }}
+            exit={{
+              opacity: 0,
+              scale: 1.02,
+              filter: "blur(10px)",
+            }}
             transition={bgTransition}
           >
-            {/* Сам фон страницы */}
+            {/* Page background */}
             {Background ? <Background /> : null}
 
-            {/* “macOS” читаемость: мягкая виньетка + верхний/нижний градиент */}
+            {/* macOS-style overlays */}
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/35" />
             <div className="absolute inset-0 [box-shadow:inset_0_0_120px_rgba(0,0,0,0.35)]" />
-
-            {/* Grain / noise (очень тонкий) */}
             <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay noise-layer" />
           </motion.div>
         </AnimatePresence>
@@ -57,6 +67,7 @@ const App: React.FC = () => {
       <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
       <Titlebar />
 
+      {/* GitHub button */}
       <button
         type="button"
         onClick={openExternal}
@@ -66,7 +77,7 @@ const App: React.FC = () => {
           w-[48px] h-[48px]
           bg-[#090909]/55 backdrop-blur-[12px]
           rounded-[14px] border border-[#7C7C7C]/[0.10]
-          tracking-[-3%] cursor-pointer
+          cursor-pointer
           flex items-center justify-center
           active:scale-95
           transition-all duration-150
@@ -81,13 +92,14 @@ const App: React.FC = () => {
         />
       </button>
 
-      {/* Page Content */}
+      {/* PAGE CONTENT */}
       <AnimatePresence mode="wait">
         {(() => {
           if (!page) {
             console.error("Page not found for id:", activeTab);
             return null;
           }
+
           const PageComponent = page.component;
 
           return (
@@ -96,7 +108,10 @@ const App: React.FC = () => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              transition={{
+                duration: 0.25,
+                ease: cubicBezier(0.16, 1, 0.3, 1),
+              }}
               className="h-full w-full"
             >
               <PageComponent />
