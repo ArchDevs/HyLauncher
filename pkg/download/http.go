@@ -13,7 +13,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"HyLauncher/internal/progress"
@@ -412,30 +411,6 @@ func renameWithRetry(oldPath, newPath string) error {
 	}
 
 	return fmt.Errorf("rename failed after %d attempts", maxAttempts)
-}
-
-func checkDiskSpace(destPath string, requiredBytes int64) error {
-	if requiredBytes <= 0 {
-		return nil
-	}
-
-	dir := filepath.Dir(destPath)
-
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(dir, &stat); err != nil {
-		// Not critical, just warn
-		return fmt.Errorf("unable to check disk space: %w", err)
-	}
-
-	// Available space in bytes
-	availableBytes := int64(stat.Bavail) * int64(stat.Bsize)
-
-	if availableBytes < requiredBytes {
-		return fmt.Errorf("insufficient disk space: need %s, have %s",
-			formatBytes(requiredBytes), formatBytes(availableBytes))
-	}
-
-	return nil
 }
 
 func reportWarning(reporter *progress.Reporter, scaler *progress.Scaler, stage progress.Stage, msg string) {
