@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 func VerifySHA256(filePath, expected string) error {
@@ -38,7 +39,7 @@ func FileExists(filePath string) bool {
 }
 
 func FileExistsNative(filePath string) bool {
-	if env.GetOS() == "windows" {
+	if env.GetOS() == "windows" && !strings.HasSuffix(strings.ToLower(filePath), ".exe") {
 		filePath += ".exe"
 	}
 	_, err := os.Stat(filePath)
