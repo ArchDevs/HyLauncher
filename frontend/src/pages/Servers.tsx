@@ -1,7 +1,7 @@
-import BannerCard from "../components/BannerCard";
-import BannerCardnull from "../components/BannerCardnull";
-import BannersHome from "../components/BannersHome";
+import Banner from "../components/Banner";
 import { useTranslation } from "../i18n";
+import hynexusBigImage from "../assets/images/Hynexusbig.png";
+import banner1V2Image from "../assets/images/banner1-v2.png";
 
 function ServersPage() {
   const { t } = useTranslation();
@@ -24,9 +24,45 @@ function ServersPage() {
       >
         {t.pages.servers}
       </div>
-      <div className="flex gap-x-[22px] left-[88px] top-[100px]">
-        <BannerCard /> {/* первый */}
-        <BannerCardnull /> {/* второй */}
+      <div className="absolute left-[88px] top-[100px] flex flex-wrap gap-x-[22px] gap-y-[22px]">
+        <Banner
+          variant="large"
+          backgroundImage={hynexusBigImage}
+          iconImage={banner1V2Image}
+          title="HyNexus"
+          description="HyNexus — это Hytale, каким он должен быть. Экономика, Кланы, PVP, PVE, ждем тебя! Сейчас!"
+        />
+        <Banner
+          variant="small"
+          text="По поводу рекламы пишите нашему боту @hylauncher_bot"
+        />
+        <Banner
+          variant="small"
+          text="По поводу рекламы пишите нашему боту @hylauncher_bot"
+        />
+        <Banner
+          variant="small"
+          text="По поводу рекламы пишите нашему боту @hylauncher_bot"
+        />
+        <Banner
+          variant="small"
+          text="По поводу рекламы пишите нашему боту @hylauncher_bot"
+        />
+        <Banner
+          variant="small"
+          text="По поводу рекламы пишите нашему боту @hylauncher_bot"
+        />
+        <Banner
+          variant="large"
+          backgroundImage={hynexusBigImage}
+          iconImage={banner1V2Image}
+          title="HyNexus"
+          description="HyNexus — это Hytale, каким он должен быть. Экономика, Кланы, PVP, PVE, ждем тебя! Сейчас!"
+        />
+        <Banner
+          variant="small"
+          text="По поводу рекламы пишите нашему боту @hylauncher_bot"
+        />
       </div>
     </div>
   );
