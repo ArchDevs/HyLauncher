@@ -75,7 +75,7 @@ export const useLauncher = () => {
         total: data.total ?? 0,
       });
 
-      if (data.stage === "launch" || data.stage === "idle") {
+      if (data.stage === "idle") {
         setIsDownloading(false);
         setProgress(0);
         setStatus(t.control.status.readyToPlay);
