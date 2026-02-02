@@ -7,6 +7,7 @@ import { AnimatePresence, motion, cubicBezier } from "framer-motion";
 import { getDefaultPage, getPageById } from "./config/pages";
 import logoImage from "./assets/images/logo.png";
 import { useTranslation } from "./i18n";
+import { useLauncher } from "./hooks/useLauncher";
 
 const bgTransition = {
   duration: 0.45, // macOS-speed
@@ -76,6 +77,11 @@ const App: React.FC = () => {
 
       <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
       <Titlebar />
+      
+      {/* Launcher version */}
+      <div className="absolute right-[16px] bottom-[16px] text-[#FFFFFF]/[0.25] text-[14px] font-[Mazzard]">
+        v{useLauncher().launcherVersion}
+      </div>
 
       {/* GitHub button */}
       <button
