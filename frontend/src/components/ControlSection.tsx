@@ -124,7 +124,7 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
               : currentFile || t.common.ready}
           </div>
         </div>
-        <div className="h-[7px] w-[852px] bg-[#090909]/[0.10] rounded-full overflow-hidden border border-[#FFA845]/[0.10] border-[0.5px]">
+        <div className="h-[7px] w-[852px] bg-[#090909]/[0.10] rounded-full overflow-hidden border border-[#FFA845]/[0.10] border-[0.2px]">
           <motion.div
             style={{
               willChange: "width",

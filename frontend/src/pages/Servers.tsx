@@ -1,3 +1,6 @@
+import BannerCard from "../components/BannerCard";
+import BannerCardnull from "../components/BannerCardnull";
+import BannersHome from "../components/BannersHome";
 import { useTranslation } from "../i18n";
 
 function ServersPage() {
@@ -20,6 +23,10 @@ function ServersPage() {
         "
       >
         {t.pages.servers}
+      </div>
+      <div className="flex gap-x-[22px] left-[88px] top-[100px]">
+        <BannerCard /> {/* первый */}
+        <BannerCardnull /> {/* второй */}
       </div>
     </div>
   );
