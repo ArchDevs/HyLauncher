@@ -188,10 +188,7 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel) err
 		return err
 	}
 
-	if s.reporter != nil {
-		s.reporter.Reset()
-		s.reporter.Report(progress.StageLaunch, 0, "Launching game...")
-	}
+	s.reporter.Report(progress.StageLaunch, 0, "Launching game...")
 
 	// Game files are in shared directory
 	gameDir := env.GetGameDir(request.Branch, request.BuildVersion)
@@ -205,9 +202,13 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel) err
 		}
 	}
 
-	if err := patch.EnsureGamePatched(context.Background(), request, s.authDomain, nil); err != nil {
+	s.reporter.Report(progress.StageLaunch, 30, "Ensuring game patch...")
+
+	if err := patch.EnsureGamePatched(s.ctx, request, s.authDomain, nil); err != nil {
 		fmt.Printf("Warning: Failed to ensure game patch: %v\n", err)
 	}
+
+	s.reporter.Report(progress.StageLaunch, 60, "Looking for files...")
 
 	clientPath := env.GetGameClientPath(request.Branch, request.BuildVersion)
 	javaBin, err := java.GetJavaExec(request.Branch)
@@ -224,6 +225,8 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel) err
 	javaBin, _ = filepath.Abs(javaBin)
 	userDataDir, _ = filepath.Abs(userDataDir)
 	gameDir, _ = filepath.Abs(gameDir)
+
+	s.reporter.Report(progress.StageLaunch, 80, "Launching...")
 
 	cmd := exec.Command(clientPath,
 		"--app-dir", gameDir,
@@ -246,6 +249,9 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel) err
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start game process: %w", err)
 	}
+
+	s.reporter.Report(progress.StageLaunch, 100, "Game launched!")
+	s.reporter.Reset()
 
 	return nil
 }

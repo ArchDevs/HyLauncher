@@ -37,7 +37,7 @@ export const useLauncher = () => {
         downloaded: data.downloaded, 
         total: data.total 
       });
-      if (data.progress >= 100 && data.stage === 'launch') {
+      if (data.progress >= 100) {
         setTimeout(() => { setIsDownloading(false); setDownloadProgress(0); setStatusMessage("Ready to play"); }, 2000);
       }
     });

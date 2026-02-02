@@ -58,13 +58,6 @@ const App: React.FC = () => {
       setDownloaded(data.downloaded ?? 0);
       setTotal(data.total ?? 0);
 
-      if (data.stage === 'launch') {
-        setIsDownloading(false);
-        setProgress(0);
-        setStatus("Ready to play");
-        setDownloadSpeed("");
-      }
-
       if (data.stage === 'idle') {
         setIsDownloading(false);
         setProgress(0);
