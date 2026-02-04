@@ -5,13 +5,16 @@ import { useTranslation } from "../i18n";
 import telegramIcon from "../assets/images/telegram.svg";
 import discordIcon from "../assets/images/discord.svg";
 import { BrowserOpenURL } from "../../wailsjs/runtime/runtime";
+import { OpenFolder } from "../../wailsjs/go/app/App";
+import { Activity, Bolt, FolderOpen } from "lucide-react";
 
 interface NavbarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  onDiagnosticsClick?: () => void;
 }
 
-function Navbar({ activeTab, onTabChange }: NavbarProps) {
+function Navbar({ activeTab, onTabChange, onDiagnosticsClick }: NavbarProps) {
   const { t } = useTranslation();
   const pages = getPages(t);
 
@@ -35,7 +38,7 @@ function Navbar({ activeTab, onTabChange }: NavbarProps) {
     <div
       className="
         absolute left-[20px] top-1/2 -translate-y-1/2
-        w-[48px] h-[306px]
+        w-[48px] h-[320px]
         bg-[#090909]/[0.55]
         backdrop-blur-[12px]
         rounded-[14px]
@@ -97,6 +100,37 @@ function Navbar({ activeTab, onTabChange }: NavbarProps) {
           className="w-[48px] h-[1px] bg-[#D9D9D9]/[0.10]"
           style={{ marginLeft: 0, marginRight: 0 }}
         />
+        {/* Diagnostics icon */}
+        <button
+          type="button"
+          onClick={onDiagnosticsClick}
+          disabled={!onDiagnosticsClick}
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+          className={`transition-all cursor-pointer pointer-events-auto text-white ${
+            onDiagnosticsClick ? "opacity-30" : "opacity-60 hover:opacity-90"
+          }`}
+          title="Диагностика"
+        >
+          <Activity size={18} />
+        </button>
+        <button
+          type="button"
+          onClick={OpenFolder}
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+          className="transition-all cursor-pointer pointer-events-auto text-white opacity-60 hover:opacity-90"
+          title="Папка игры"
+        >
+          <FolderOpen size={18} />
+        </button>
+        <button
+          type="button"
+          onClick={OpenFolder}
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+          className="transition-all cursor-pointer pointer-events-auto text-white opacity-60 hover:opacity-90"
+          title="Настройки"
+        >
+          <Bolt size={18} />
+        </button>
       </div>
     </div>
   );
