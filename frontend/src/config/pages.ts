@@ -1,8 +1,9 @@
 import type React from "react";
-import { Gamepad2, Globe, Globe2, Home, Server } from "lucide-react";
+import { Boxes, Gamepad2, Globe, Globe2, Home, Server } from "lucide-react";
 
 import HomePage from "../pages/Home";
 import ServersPage from "../pages/Servers";
+import ModsPage from "../pages/Mods";
 
 import BackgroundImage from "../components/BackgroundImage";
 import BackgroundServers from "../components/BackgroundServers";
@@ -34,6 +35,13 @@ const basePages: PageConfigBase[] = [
     nameKey: "servers",
     icon: Globe,
     component: ServersPage,
+    background: BackgroundServers,
+  },
+  {
+    id: "mods",
+    nameKey: "mods",
+    icon: Boxes,
+    component: ModsPage,
     background: BackgroundServers,
   },
 ];

@@ -53,11 +53,12 @@ function ServersPage() {
           text="По поводу рекламы пишите нашему боту @hylauncher_bot"
         />
         <Banner
-          variant="large"
-          backgroundImage={hynexusBigImage}
-          iconImage={banner1V2Image}
-          title="HyNexus"
-          description="HyNexus — это Hytale, каким он должен быть. Экономика, Кланы, PVP, PVE, ждем тебя! Сейчас!"
+          variant="small"
+          text="По поводу рекламы пишите нашему боту @hylauncher_bot"
+        />
+        <Banner
+          variant="small"
+          text="По поводу рекламы пишите нашему боту @hylauncher_bot"
         />
         <Banner
           variant="small"

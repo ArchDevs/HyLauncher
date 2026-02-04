@@ -19,6 +19,7 @@ export const en: Translations = {
   pages: {
     home: "Home",
     servers: "Servers",
+    mods: "Mods",
   },
   profile: {
     username: "Username",
@@ -39,7 +40,8 @@ export const en: Translations = {
     delete: {
       title: "Are you sure?",
       message: "Do you really want to delete the game?",
-      warning: "This action will delete all game files without the possibility of recovery!",
+      warning:
+        "This action will delete all game files without the possibility of recovery!",
       confirmButton: "Delete all",
       cancelButton: "Cancel",
     },
@@ -49,7 +51,8 @@ export const en: Translations = {
       stackTrace: "Stack trace",
       suggestions: {
         network: "Check your internet connection and try again.",
-        filesystem: "Make sure you have enough disk space and the launcher has proper permissions.",
+        filesystem:
+          "Make sure you have enough disk space and the launcher has proper permissions.",
         validation: "Please check your input and try again.",
         game: "Try restarting the launcher or reinstalling the game.",
         default: "Please report this issue if it persists.",
@@ -57,7 +60,8 @@ export const en: Translations = {
     },
     update: {
       title: "UPDATING LAUNCHER",
-      message: "Downloading the latest version. HyLauncher will restart automatically once finished.",
+      message:
+        "Downloading the latest version. HyLauncher will restart automatically once finished.",
     },
   },
   banners: {
@@ -66,4 +70,3 @@ export const en: Translations = {
     },
   },
 };
-

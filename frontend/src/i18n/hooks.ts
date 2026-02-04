@@ -4,8 +4,9 @@
  * Keeps translation logic separate from UI components
  */
 
+import type React from "react";
 import { useI18n } from "./context";
-import type { SupportedLanguage } from "./types";
+import type { SupportedLanguage, Translations } from "./types";
 
 /**
  * Main translation hook
@@ -31,4 +32,10 @@ export const useSetLanguage = () => {
   const { setLanguage } = useI18n();
   return setLanguage;
 };
-
+export type PageConfigBase = {
+  id: string;
+  nameKey: keyof Translations["pages"];
+  icon: React.ComponentType<{ size?: number | string }>;
+  component: React.ComponentType;
+  background?: React.ComponentType;
+};

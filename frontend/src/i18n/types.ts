@@ -24,6 +24,7 @@ export interface Translations {
   pages: {
     home: string;
     servers: string;
+    mods: string;
   };
   profile: {
     username: string;
@@ -77,4 +78,3 @@ export interface I18nContextValue {
   setLanguage: (lang: SupportedLanguage) => void;
   t: Translations;
 }
-

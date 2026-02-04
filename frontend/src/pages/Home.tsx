@@ -72,10 +72,6 @@ function HomePage() {
           updateAvailable={!!updateAsset}
           onUpdate={handleUpdateLauncher}
         />
-
-        <div className="absolute right-[16px] bottom-[16px] text-[#FFFFFF]/[0.25] text-[14px] font-[Mazzard]">
-          v{launcherVersion}
-        </div>
       </main>
 
       {showDeleteModal && (

@@ -2,6 +2,7 @@
 import React from "react";
 import { getPages } from "../config/pages";
 import { useTranslation } from "../i18n";
+import telegramIcon from "../assets/images/telegram.png";
 
 interface NavbarProps {
   activeTab: string;
@@ -40,10 +41,8 @@ function Navbar({ activeTab, onTabChange }: NavbarProps) {
                 onTabChange(page.id);
               }}
               style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-              className={`transition-all cursor-pointer pointer-events-auto ${
-                isActive
-                  ? "text-[#FFFFFF]/[0.90]"
-                  : "text-[#FFFFFF]/[0.50] hover:text-[#FFFFFF]/[0.70]"
+              className={`transition-all cursor-pointer pointer-events-auto text-white ${
+                isActive ? "opacity-90" : "opacity-50 hover:opacity-70"
               }`}
               title={page.name}
             >
@@ -51,6 +50,22 @@ function Navbar({ activeTab, onTabChange }: NavbarProps) {
             </button>
           );
         })}
+        {/* Divider */}
+        <div
+          className="w-[48px] h-[1px] bg-[#D9D9D9]/[0.10]"
+          style={{ marginLeft: 0, marginRight: 0 }}
+        />
+        {/* Telegram icon */}
+        <a
+          href="https://t.me/hylauncher"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+          className="transition-all cursor-pointer pointer-events-auto opacity-60 hover:opacity-90"
+          title="HyLauncher Telegram"
+        >
+          <img src={telegramIcon} alt="Telegram"/>
+        </a>
       </div>
     </div>
   );
