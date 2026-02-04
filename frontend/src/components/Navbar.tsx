@@ -2,7 +2,9 @@
 import React from "react";
 import { getPages } from "../config/pages";
 import { useTranslation } from "../i18n";
-import telegramIcon from "../assets/images/telegram.png";
+import telegramIcon from "../assets/images/telegram.svg";
+import discordIcon from "../assets/images/discord.svg";
+import { BrowserOpenURL } from "../../wailsjs/runtime/runtime";
 
 interface NavbarProps {
   activeTab: string;
@@ -12,6 +14,22 @@ interface NavbarProps {
 function Navbar({ activeTab, onTabChange }: NavbarProps) {
   const { t } = useTranslation();
   const pages = getPages(t);
+
+  const openTelegram = () => {
+    try {
+      BrowserOpenURL("https://t.me/hylauncher");
+    } catch {
+      window.open("https://t.me/hylauncher", "_blank");
+    }
+  };
+
+  const openDiscord = () => {
+    try {
+      BrowserOpenURL("https://dsc.gg/hylauncher");
+    } catch {
+      window.open("https://dsc.gg/hylauncher", "_blank");
+    }
+  };
 
   return (
     <div
@@ -56,16 +74,29 @@ function Navbar({ activeTab, onTabChange }: NavbarProps) {
           style={{ marginLeft: 0, marginRight: 0 }}
         />
         {/* Telegram icon */}
-        <a
-          href="https://t.me/hylauncher"
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={openTelegram}
           style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-          className="transition-all cursor-pointer pointer-events-auto opacity-60 hover:opacity-90"
-          title="HyLauncher Telegram"
+          className="transition-all w-[18px] h-[18px] cursor-pointer pointer-events-auto opacity-60 hover:opacity-90"
+          title="Telegram"
         >
-          <img src={telegramIcon} alt="Telegram"/>
-        </a>
+          <img src={telegramIcon} alt="Telegram" />
+        </button>
+        {/* Discord icon */}
+        <button
+          type="button"
+          onClick={openDiscord}
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+          className="transition-all w-[18px] h-[18px] cursor-pointer pointer-events-auto opacity-60 hover:opacity-90"
+          title="Discord"
+        >
+          <img src={discordIcon} alt="Discord" />
+        </button>
+        <div
+          className="w-[48px] h-[1px] bg-[#D9D9D9]/[0.10]"
+          style={{ marginLeft: 0, marginRight: 0 }}
+        />
       </div>
     </div>
   );
