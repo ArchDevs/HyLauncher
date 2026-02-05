@@ -315,10 +315,3 @@ func cacheKey(branch string) string {
 func versionCacheKey(branch string, version int) string {
 	return fmt.Sprintf("%s-%d", cacheKey(branch), version)
 }
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
