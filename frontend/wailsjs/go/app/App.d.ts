@@ -9,6 +9,8 @@ export function DeleteGame(arg1:string):Promise<void>;
 
 export function DownloadAndLaunch(arg1:string):Promise<void>;
 
+export function GetAvailableGameVersions():Promise<Array<number>>;
+
 export function GetCrashReports():Promise<Array<service.CrashReport>>;
 
 export function GetLauncherVersion():Promise<string>;

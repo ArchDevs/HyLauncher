@@ -4,6 +4,8 @@ import {
   GetNick,
   SetNick as SetNickBackend,
   GetLocalGameVersion,
+  SetLocalGameVersion,
+  GetAvailableGameVersions,
   GetLauncherVersion,
   Update,
 } from "../../wailsjs/go/app/App";
@@ -16,6 +18,7 @@ export const useLauncher = () => {
   // Game
   const [username, setUsername] = useState<string>("HyLauncher");
   const [currentVersion, setCurrentVersion] = useState<number>(0);
+  const [availableVersions, setAvailableVersions] = useState<number[]>([]);
   const [launcherVersion, setLauncherVersion] = useState<string>("0.0.0");
   const [isEditingUsername, setIsEditingUsername] = useState<boolean>(false);
 
@@ -48,6 +51,16 @@ export const useLauncher = () => {
     GetLocalGameVersion("default").then((curr: number) =>
       setCurrentVersion(curr),
     );
+    GetAvailableGameVersions()
+      .then((versions: number[]) => {
+        // Sort descending so latest is first
+        const sorted = [...versions].sort((a, b) => b - a);
+        setAvailableVersions(sorted);
+      })
+      .catch(() => {
+        // Non-fatal: just keep empty list; UI can handle gracefully
+        setAvailableVersions([]);
+      });
     GetLauncherVersion().then((version: string) => setLauncherVersion(version));
 
     // Listen for launcher updates
@@ -135,10 +148,24 @@ export const useLauncher = () => {
     setUsername(val);
   };
 
+  const setLocalGameVersion = async (version: number) => {
+    try {
+      await SetLocalGameVersion(version, "default");
+      setCurrentVersion(version);
+    } catch (err) {
+      setError({
+        type: "VERSION_ERROR",
+        message: "Failed to set game version",
+        technical: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
+
   return {
     // State
     username,
     currentVersion,
+    availableVersions,
     launcherVersion,
     isEditingUsername,
     setIsEditingUsername,
@@ -160,5 +187,6 @@ export const useLauncher = () => {
     handlePlay,
     handleUpdateLauncher,
     setNick,
+    setLocalGameVersion,
   };
 };

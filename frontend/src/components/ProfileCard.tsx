@@ -7,17 +7,21 @@ type ReleaseType = "Pre-Release" | "Release";
 interface ProfileProps {
   username: string;
   currentVersion: number;
+  availableVersions: number[];
   isEditing: boolean;
   onEditToggle: (val: boolean) => void;
   onUserChange: (val: string) => void;
+  onVersionChange: (val: number) => void;
 }
 
 export const ProfileSection: React.FC<ProfileProps> = ({
   username,
   currentVersion,
+  availableVersions,
   isEditing,
   onEditToggle,
   onUserChange,
+  onVersionChange,
 }) => {
   const { t } = useTranslation();
   
@@ -76,11 +80,14 @@ export const ProfileSection: React.FC<ProfileProps> = ({
   };
 
   const toggleVersion = () => {
-    setOpenVersion((v) => {
-      const next = !v;
-      if (next) setOpenRelease(false);
-      return next;
-    });
+    // Only open version menu if we actually have versions
+    if (availableVersions.length > 0) {
+      setOpenVersion((v) => {
+        const next = !v;
+        if (next) setOpenRelease(false);
+        return next;
+      });
+    }
   };
 
   return (
@@ -224,6 +231,45 @@ export const ProfileSection: React.FC<ProfileProps> = ({
               >
                 <span>{opt}</span>
                 {opt === releaseType && <Check size={18} />}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Dropdown for Versions */}
+        {openVersion && availableVersions.length > 0 && (
+          <div
+            role="menu"
+            className="
+              absolute left-[132px] top-[56px]
+              w-[148px]
+              bg-[#090909]/[0.75] backdrop-blur-[12px]
+              rounded-[20px]
+              border border-[#7C7C7C]/[0.10]
+              overflow-hidden
+              z-50
+            "
+          >
+            {availableVersions.map((version, idx) => (
+              <button
+                key={version}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onVersionChange(version);
+                  setOpenVersion(false);
+                }}
+                className={`
+                  w-full h-[40px] px-[18px]
+                  flex items-center justify-between
+                  text-[#CCD9E0]/[0.90] text-[16px] font-[Mazzard]
+                  hover:bg-white/[0.05]
+                  cursor-pointer transition
+                  ${idx !== availableVersions.length - 1 ? "border-b border-white/10" : ""}
+                `}
+              >
+                <span>{`v${version}`}</span>
+                {version === currentVersion && <Check size={16} />}
               </button>
             ))}
           </div>

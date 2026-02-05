@@ -179,6 +179,29 @@ func versionExists(client *http.Client, branch string, version int) bool {
 	return err == nil && resp.StatusCode == http.StatusOK
 }
 
+// ListAvailableVersions returns all available game versions for the given branch.
+// It reuses the same discovery strategy as FindLatestVersion, but then walks
+// from the discovered base version up to the latest, checking which versions exist.
+func ListAvailableVersions(branch string) ([]int, error) {
+	client := createClient()
+
+	baseVersion := findBaseVersion(client, branch)
+	if baseVersion == 0 {
+		return nil, fmt.Errorf("cannot reach game servers or no patches available for %s/%s (check firewall/network)", runtime.GOOS, runtime.GOARCH)
+	}
+
+	latestVersion := findLatestVersion(client, branch, baseVersion)
+
+	versions := make([]int, 0, latestVersion-baseVersion+1)
+	for v := baseVersion; v <= latestVersion; v++ {
+		if versionExists(client, branch, v) {
+			versions = append(versions, v)
+		}
+	}
+
+	return versions, nil
+}
+
 func VerifyVersionExists(branch string, version int) error {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
