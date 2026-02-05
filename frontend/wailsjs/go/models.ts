@@ -1,3 +1,22 @@
+export namespace app {
+	
+	export class AllBranchVersions {
+	    release: number[];
+	    preRelease: number[];
+	
+	    static createFrom(source: any = {}) {
+	        return new AllBranchVersions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.release = source["release"];
+	        this.preRelease = source["preRelease"];
+	    }
+	}
+
+}
+
 export namespace hyerrors {
 	
 	export class Frame {

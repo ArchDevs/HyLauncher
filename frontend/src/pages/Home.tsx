@@ -12,7 +12,9 @@ function HomePage() {
   const {
     username,
     currentVersion,
+    selectedBranch,
     availableVersions,
+    isLoadingVersions,
     launcherVersion,
     isEditingUsername,
     setIsEditingUsername,
@@ -32,6 +34,7 @@ function HomePage() {
     handleUpdateLauncher,
     setNick,
     setLocalGameVersion,
+    handleBranchChange,      // ADDED
   } = useLauncher();
 
   return (
@@ -49,13 +52,15 @@ function HomePage() {
           <ProfileSection
             username={username}
             currentVersion={currentVersion}
+            selectedBranch={selectedBranch}
             availableVersions={availableVersions}
+            isLoadingVersions={isLoadingVersions}
             isEditing={isEditingUsername}
             onEditToggle={setIsEditingUsername}
             onUserChange={setNick}
             onVersionChange={setLocalGameVersion}
+            onBranchChange={handleBranchChange}
           />
-
           <BannersHome />
         </div>
 

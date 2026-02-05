@@ -29,6 +29,7 @@ export const en: Translations = {
       preRelease: "Pre-Release",
       release: "Release",
     },
+    loading: "Loading",
   },
   control: {
     status: {

@@ -1,50 +1,80 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, SquarePen, Check, Menu } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ChevronDown, SquarePen, Check, Menu, Loader2 } from "lucide-react";
 import { useTranslation } from "../i18n";
 
-type ReleaseType = "Pre-Release" | "Release";
+type ReleaseType = "pre-release" | "release";
 
 interface ProfileProps {
   username: string;
   currentVersion: number;
+  selectedBranch: ReleaseType;
   availableVersions: number[];
+  isLoadingVersions?: boolean;
   isEditing: boolean;
   onEditToggle: (val: boolean) => void;
   onUserChange: (val: string) => void;
   onVersionChange: (val: number) => void;
+  onBranchChange: (branch: ReleaseType) => void;
 }
 
 export const ProfileSection: React.FC<ProfileProps> = ({
   username,
   currentVersion,
+  selectedBranch,
   availableVersions,
+  isLoadingVersions = false,
   isEditing,
   onEditToggle,
   onUserChange,
   onVersionChange,
+  onBranchChange,
 }) => {
   const { t } = useTranslation();
   
-  // openRelease — для меню Pre-Release
-  // openVersion — для анимации стрелки у vNo (и будущего меню, если захочешь)
   const [openRelease, setOpenRelease] = useState(false);
   const [openVersion, setOpenVersion] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
 
-  const [releaseType, setReleaseType] = useState<ReleaseType>("Pre-Release");
-
-  const OPTIONS: ReleaseType[] = [
-    t.profile.releaseType.preRelease as ReleaseType,
-    t.profile.releaseType.release as ReleaseType,
+  const OPTIONS: { value: ReleaseType; label: string }[] = [
+    { 
+      value: "pre-release", 
+      label: t.profile.releaseType.preRelease || "Pre-Release" 
+    },
+    { 
+      value: "release", 
+      label: t.profile.releaseType.release || "Release" 
+    },
   ];
 
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const pillRef = useRef<HTMLDivElement | null>(null);
+  const releaseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const versionButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const baseText = "text-[#CCD9E0]/[0.90] font-[MazzardM-Medium] text-[16px]";
   const glass =
     "bg-[#090909]/[0.55] backdrop-blur-xl border border-[#7C7C7C]/[0.10]";
   const hover = "hover:bg-white/[0.04] transition";
 
-  // close on outside click + ESC (закрываем ВСЁ синхронно)
+  // Get display label for current branch
+  const currentBranchLabel = useMemo(() => {
+    const option = OPTIONS.find(opt => opt.value === selectedBranch);
+    return option?.label || "Pre-Release";
+  }, [selectedBranch, OPTIONS]);
+
+  // Update dropdown position when opening
+  useEffect(() => {
+    if ((openRelease || openVersion) && pillRef.current) {
+      const rect = pillRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 8,
+        left: rect.left,
+      });
+    }
+  }, [openRelease, openVersion]);
+
+  // Close on outside click + ESC
   useEffect(() => {
     const closeAll = () => {
       setOpenRelease(false);
@@ -71,7 +101,6 @@ export const ProfileSection: React.FC<ProfileProps> = ({
   const menuId = useMemo(() => "release-menu", []);
 
   const toggleRelease = () => {
-    // чтобы открывалась только одна кнопка за раз
     setOpenRelease((v) => {
       const next = !v;
       if (next) setOpenVersion(false);
@@ -80,14 +109,19 @@ export const ProfileSection: React.FC<ProfileProps> = ({
   };
 
   const toggleVersion = () => {
-    // Only open version menu if we actually have versions
-    if (availableVersions.length > 0) {
+    // Only open version menu if we have versions and not loading
+    if (availableVersions.length > 0 && !isLoadingVersions) {
       setOpenVersion((v) => {
         const next = !v;
         if (next) setOpenRelease(false);
         return next;
       });
     }
+  };
+
+  const handleBranchSelect = (branch: ReleaseType) => {
+    onBranchChange(branch);
+    setOpenRelease(false);
   };
 
   return (
@@ -123,18 +157,20 @@ export const ProfileSection: React.FC<ProfileProps> = ({
 
       {/* Bottom pill */}
       <div
-        className={`relative w-[280px] h-[48px] ${glass} rounded-[14px] overflow-hidden flex`}
+        ref={pillRef}
+        className={`relative w-[280px] h-[48px] ${glass} rounded-[14px] flex`}
       >
         {/* LEFT: Release type button */}
         <button
+          ref={releaseButtonRef}
           type="button"
           aria-haspopup="menu"
           aria-expanded={openRelease}
           aria-controls={menuId}
           onClick={toggleRelease}
-          className={`relative w-[132px] h-full px-[16px] flex items-center justify-between cursor-pointer ${hover}`}
+          className={`relative w-[132px] h-full px-[16px] flex items-center justify-between cursor-pointer ${hover} rounded-l-[14px]`}
         >
-          <span className={`${baseText} truncate`}>{releaseType}</span>
+          <span className={`${baseText} truncate`}>{currentBranchLabel}</span>
           <ChevronDown
             size={16}
             className={`absolute right-[10px] text-[#CCD9E0]/[0.90] transition-transform ${
@@ -148,29 +184,40 @@ export const ProfileSection: React.FC<ProfileProps> = ({
 
         {/* MIDDLE: version button (98px) */}
         <button
+          ref={versionButtonRef}
           type="button"
           onClick={toggleVersion}
+          disabled={isLoadingVersions}
           className={`
             w-[98px] h-full
             pl-[16px] pr-[10px]
             flex items-center justify-between
-            cursor-pointer
-            ${hover}
+            ${isLoadingVersions ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}
+            ${!isLoadingVersions && hover}
             rounded-none
           `}
         >
-          {/* текст строго 16px слева */}
-          <span className={`${baseText} whitespace-nowrap`}>
-            {currentVersion ? `v${currentVersion}` : `${t.profile.noVersion}`}
-          </span>
-
-          {/* стрелка работает (крутится) */}
-          <ChevronDown
-            size={16}
-            className={`text-[#CCD9E0]/[0.90] transition-transform ${
-              openVersion ? "rotate-180" : ""
-            }`}
-          />
+          {/* Show loader while fetching versions */}
+          {isLoadingVersions ? (
+            <>
+              <span className={`${baseText} whitespace-nowrap`}>
+                {t.profile.loading || "Loading..."}
+              </span>
+              <Loader2 size={16} className="text-[#CCD9E0]/[0.90] animate-spin" />
+            </>
+          ) : (
+            <>
+              <span className={`${baseText} whitespace-nowrap`}>
+                {currentVersion ? `v${currentVersion}` : `${t.profile.noVersion || "No Version"}`}
+              </span>
+              <ChevronDown
+                size={16}
+                className={`text-[#CCD9E0]/[0.90] transition-transform ${
+                  openVersion ? "rotate-180" : ""
+                }`}
+              />
+            </>
+          )}
         </button>
 
         {/* Divider */}
@@ -184,97 +231,107 @@ export const ProfileSection: React.FC<ProfileProps> = ({
             flex items-center justify-center
             cursor-pointer
             ${hover}
-            rounded-none
+            rounded-r-[14px]
           `}
           onClick={() => {
-            // пример синхронизации: при клике закрываем остальные
             setOpenRelease(false);
             setOpenVersion(false);
-            // сюда повесь открытие меню/настроек
+            // Add menu/settings logic here
           }}
         >
           <Menu size={16} className="text-[#CCD9E0]/[0.90]" />
         </button>
-
-        {/* Dropdown (для Release) */}
-        {openRelease && (
-          <div
-            id={menuId}
-            role="menu"
-            className="
-              absolute left-0 top-[56px]
-              w-[280px]
-              bg-[#090909]/[0.75] backdrop-blur-[12px]
-              rounded-[20px]
-              border border-[#7C7C7C]/[0.10]
-              overflow-hidden
-              z-50
-            "
-          >
-            {OPTIONS.map((opt, idx) => (
-              <button
-                key={opt}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setReleaseType(opt);
-                  setOpenRelease(false);
-                }}
-                className={`
-                  w-full h-[64px] px-[18px]
-                  flex items-center justify-between
-                  text-[#CCD9E0]/[0.90] text-[20px] font-[Mazzard]
-                  hover:bg-white/[0.05]
-                  cursor-pointer transition
-                  ${idx !== OPTIONS.length - 1 ? "border-b border-white/10" : ""}
-                `}
-              >
-                <span>{opt}</span>
-                {opt === releaseType && <Check size={18} />}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Dropdown for Versions */}
-        {openVersion && availableVersions.length > 0 && (
-          <div
-            role="menu"
-            className="
-              absolute left-[132px] top-[56px]
-              w-[148px]
-              bg-[#090909]/[0.75] backdrop-blur-[12px]
-              rounded-[20px]
-              border border-[#7C7C7C]/[0.10]
-              overflow-hidden
-              z-50
-            "
-          >
-            {availableVersions.map((version, idx) => (
-              <button
-                key={version}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  onVersionChange(version);
-                  setOpenVersion(false);
-                }}
-                className={`
-                  w-full h-[40px] px-[18px]
-                  flex items-center justify-between
-                  text-[#CCD9E0]/[0.90] text-[16px] font-[Mazzard]
-                  hover:bg-white/[0.05]
-                  cursor-pointer transition
-                  ${idx !== availableVersions.length - 1 ? "border-b border-white/10" : ""}
-                `}
-              >
-                <span>{`v${version}`}</span>
-                {version === currentVersion && <Check size={16} />}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
+
+      {/* Dropdown for Release Branch - Using Portal */}
+      {openRelease && createPortal(
+        <div
+          id={menuId}
+          role="menu"
+          style={{
+            position: 'fixed',
+            top: `${dropdownPosition.top}px`,
+            left: `${dropdownPosition.left}px`,
+          }}
+          className="
+            w-[133px]
+            bg-[#090909]/[0.95] backdrop-blur-[20px]
+            rounded-[20px]
+            border border-[#7C7C7C]/[0.20]
+            overflow-hidden
+            shadow-2xl
+            z-[99999]
+          "
+        >
+          {OPTIONS.map((opt, idx) => (
+            <button
+              key={opt.value}
+              type="button"
+              role="menuitem"
+              onClick={() => handleBranchSelect(opt.value)}
+              className={`
+                w-full h-[64px] px-[18px]
+                flex items-center justify-between
+                text-[#CCD9E0]/[0.90] text-[16px] font-[Mazzard]
+                hover:bg-white/[0.08]
+                cursor-pointer transition-colors
+                ${idx !== OPTIONS.length - 1 ? "border-b border-white/10" : ""}
+              `}
+            >
+              <span>{opt.label}</span>
+              {opt.value === selectedBranch && <Check size={18} />}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+
+      {/* Dropdown for Versions - Using Portal */}
+      {openVersion && availableVersions.length > 0 && createPortal(
+        <div
+          role="menu"
+          style={{
+            position: 'fixed',
+            top: `${dropdownPosition.top}px`,
+            left: `${dropdownPosition.left + 132}px`, // Offset by width of release button
+          }}
+          className="
+            w-[98px]
+            max-h-[240px]
+            overflow-y-auto
+            bg-[#090909]/[0.95] backdrop-blur-[20px]
+            rounded-[20px]
+            border border-[#7C7C7C]/[0.20]
+            shadow-2xl
+            z-[99999]
+            scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent
+          "
+        >
+          {availableVersions.map((version, idx) => (
+            <button
+              key={version}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onVersionChange(version);
+                setOpenVersion(false);
+              }}
+              className={`
+                w-full h-[40px] px-[18px]
+                flex items-center justify-between
+                text-[#CCD9E0]/[0.90] text-[16px] font-[Mazzard]
+                hover:bg-white/[0.08]
+                cursor-pointer transition-colors
+                ${idx !== availableVersions.length - 1 ? "border-b border-white/10" : ""}
+              `}
+            >
+              <span>{`v${version}`}</span>
+              {version === currentVersion && <Check size={16} />}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

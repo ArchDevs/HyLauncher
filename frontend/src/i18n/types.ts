@@ -34,6 +34,7 @@ export interface Translations {
       preRelease: string;
       release: string;
     };
+    loading: string;
   };
   control: {
     status: {

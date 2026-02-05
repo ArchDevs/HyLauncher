@@ -14,8 +14,20 @@ export function DownloadAndLaunch(arg1) {
   return window['go']['app']['App']['DownloadAndLaunch'](arg1);
 }
 
+export function GetAllGameVersions() {
+  return window['go']['app']['App']['GetAllGameVersions']();
+}
+
+export function GetBranchVersions(arg1) {
+  return window['go']['app']['App']['GetBranchVersions'](arg1);
+}
+
 export function GetCrashReports() {
   return window['go']['app']['App']['GetCrashReports']();
+}
+
+export function GetLatestVersion(arg1) {
+  return window['go']['app']['App']['GetLatestVersion'](arg1);
 }
 
 export function GetLauncherVersion() {

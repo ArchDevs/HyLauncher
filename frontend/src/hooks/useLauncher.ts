@@ -5,12 +5,14 @@ import {
   SetNick as SetNickBackend,
   GetLocalGameVersion,
   SetLocalGameVersion,
-  GetAvailableGameVersions,
+  GetAllGameVersions,
   GetLauncherVersion,
   Update,
 } from "../../wailsjs/go/app/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { useTranslation } from "../i18n";
+
+export type ReleaseType = "release" | "pre-release";
 
 export const useLauncher = () => {
   const { t } = useTranslation();
@@ -18,9 +20,25 @@ export const useLauncher = () => {
   // Game
   const [username, setUsername] = useState<string>("HyLauncher");
   const [currentVersion, setCurrentVersion] = useState<number>(0);
-  const [availableVersions, setAvailableVersions] = useState<number[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState<ReleaseType>("release");
+  
+  // Store versions for both branches
+  const [allVersions, setAllVersions] = useState<{
+    release: number[];
+    preRelease: number[];
+  }>({
+    release: [],
+    preRelease: [],
+  });
+  
+  // Computed: current branch's available versions
+  const availableVersions = selectedBranch === "release" 
+    ? allVersions.release 
+    : allVersions.preRelease;
+
   const [launcherVersion, setLauncherVersion] = useState<string>("0.0.0");
   const [isEditingUsername, setIsEditingUsername] = useState<boolean>(false);
+  const [isLoadingVersions, setIsLoadingVersions] = useState<boolean>(true);
 
   // Progress
   const [progress, setProgress] = useState<number>(0);
@@ -45,22 +63,47 @@ export const useLauncher = () => {
   const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
   const [error, setError] = useState<any>(null);
 
+  // Fetch all versions on mount
+  useEffect(() => {
+    const fetchVersions = async () => {
+      setIsLoadingVersions(true);
+      try {
+        const versions = await GetAllGameVersions();
+        
+        // Sort both arrays descending (latest first)
+        const sortedRelease = [...(versions.release || [])].sort((a, b) => b - a);
+        const sortedPreRelease = [...(versions.preRelease || [])].sort((a, b) => b - a);
+        
+        setAllVersions({
+          release: sortedRelease,
+          preRelease: sortedPreRelease,
+        });
+      } catch (err) {
+        console.error("Failed to fetch game versions:", err);
+        setError({
+          type: "VERSION_FETCH_ERROR",
+          message: "Failed to fetch available game versions",
+          technical: err instanceof Error ? err.message : String(err),
+        });
+        // Keep empty arrays on error
+        setAllVersions({
+          release: [],
+          preRelease: [],
+        });
+      } finally {
+        setIsLoadingVersions(false);
+      }
+    };
+
+    fetchVersions();
+  }, []);
+
   useEffect(() => {
     // Initial data fetch
     GetNick().then((n: string) => n && setUsername(n));
     GetLocalGameVersion("default").then((curr: number) =>
       setCurrentVersion(curr),
     );
-    GetAvailableGameVersions()
-      .then((versions: number[]) => {
-        // Sort descending so latest is first
-        const sorted = [...versions].sort((a, b) => b - a);
-        setAvailableVersions(sorted);
-      })
-      .catch(() => {
-        // Non-fatal: just keep empty list; UI can handle gracefully
-        setAvailableVersions([]);
-      });
     GetLauncherVersion().then((version: string) => setLauncherVersion(version));
 
     // Listen for launcher updates
@@ -161,11 +204,23 @@ export const useLauncher = () => {
     }
   };
 
+  const handleBranchChange = (branch: ReleaseType) => {
+    setSelectedBranch(branch);
+    // Optionally: reset to latest version of new branch
+    // const newVersions = branch === "release" ? allVersions.release : allVersions.preRelease;
+    // if (newVersions.length > 0) {
+    //   setLocalGameVersion(newVersions[0]);
+    // }
+  };
+
   return {
     // State
     username,
     currentVersion,
+    selectedBranch,
     availableVersions,
+    allVersions,
+    isLoadingVersions,
     launcherVersion,
     isEditingUsername,
     setIsEditingUsername,
@@ -188,5 +243,6 @@ export const useLauncher = () => {
     handleUpdateLauncher,
     setNick,
     setLocalGameVersion,
+    handleBranchChange,
   };
 };
