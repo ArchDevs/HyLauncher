@@ -38,7 +38,7 @@ function Navbar({ activeTab, onTabChange, onDiagnosticsClick }: NavbarProps) {
     <div
       className="
         absolute left-[20px] top-1/2 -translate-y-1/2
-        w-[48px] h-[320px]
+        w-[48px] h-[324px]
         bg-[#090909]/[0.55]
         backdrop-blur-[12px]
         rounded-[14px]
