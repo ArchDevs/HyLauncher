@@ -11,7 +11,97 @@ on:
         required: false
 
 jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux
+            platform: linux/amd64
+            artifact: linux
+          - os: windows-latest
+            name: Windows
+            platform: windows/amd64
+            artifact: windows
+          - os: macos-latest
+            name: macOS
+            platform: darwin/universal
+            artifact: macos
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Linux dependencies
+        if: matrix.platform == 'linux/amd64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential pkg-config \
+            libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      # Build based on platform
+      - name: Build (Linux)
+        if: matrix.platform == 'linux/amd64'
+        env:
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p release
+          go build -o release/update-helper-linux ./cmd/update-helper
+          wails build -platform linux/amd64 -tags webkit2_41
+          cp build/bin/HyLauncher release/HyLauncher-linux-x64
+          chmod +x release/HyLauncher-linux-x64
+
+      - name: Build (Windows)
+        if: matrix.platform == 'windows/amd64'
+        shell: bash
+        env:
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p release
+          go build -o release/update-helper-windows.exe ./cmd/update-helper
+          wails build -platform windows/amd64
+          cp build/bin/HyLauncher.exe release/HyLauncher-windows-x64-portable.exe
+
+      - name: Build (macOS)
+        if: matrix.platform == 'darwin/universal'
+        run: |
+          mkdir -p release
+          go build -o release/update-helper-macos ./cmd/update-helper
+          chmod +x release/update-helper-macos
+          wails build -platform darwin/universal
+          cp -r build/bin/HyLauncher.app release/
+          cd release && zip -r HyLauncher-macos-universal.zip HyLauncher.app
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.artifact }}
+          path: release/*
+
   release:
+    name: Create Release
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -22,57 +112,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
-          go-version: "1.24"
+          path: artifacts
+          pattern: release-*
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - name: Build update-helper binaries
+      - name: Prepare release files
         run: |
           mkdir -p release
-          echo "Building update-helper for Linux..."
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o release/update-helper-linux ./cmd/update-helper
-          
-          echo "Building update-helper for Windows..."
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o release/update-helper-windows.exe ./cmd/update-helper
-
-      - name: Install Linux dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y \
-            build-essential \
-            pkg-config \
-            libglib2.0-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            nsis
-
-      - name: Install Wails
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
-
-      - name: Build Linux launcher
-        run: |
-          echo "Building HyLauncher for Linux amd64..."
-          wails build -tags webkit2_41 -platform linux/amd64
-          cp build/bin/HyLauncher release/HyLauncher-linux-x64
-          chmod +x release/HyLauncher-linux-x64
-
-      - name: Build Windows portable launcher
-        run: |
-          echo "Building HyLauncher portable for Windows amd64..."
-          wails build -platform windows/amd64
-          cp build/bin/HyLauncher.exe release/HyLauncher-windows-x64-portable.exe
-
-      - name: Build Windows installer
-        run: |
-          echo "Building HyLauncher NSIS installer for Windows amd64..."
-          wails build -platform windows/amd64 -nsis
-          cp build/bin/HyLauncher-amd64-installer.exe release/HyLauncher-windows-x64-setup.exe
+          cp artifacts/release-linux/* release/
+          cp artifacts/release-windows/* release/
+          cp artifacts/release-macos/* release/
 
       - name: Generate version manifest
         run: |
@@ -84,6 +135,9 @@ jobs:
           
           WINDOWS_LAUNCHER_SHA=$(sha256sum release/HyLauncher-windows-x64-portable.exe | cut -d' ' -f1)
           WINDOWS_HELPER_SHA=$(sha256sum release/update-helper-windows.exe | cut -d' ' -f1)
+          
+          MACOS_HELPER_SHA=$(sha256sum release/update-helper-macos | cut -d' ' -f1)
+          MACOS_LAUNCHER_SHA=$(sha256sum release/HyLauncher-macos-universal.zip | cut -d' ' -f1)
           
           echo "Generating version.json..."
           cat <<EOF > release/version.json
@@ -110,6 +164,18 @@ jobs:
                 "helper": {
                   "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-windows.exe",
                   "sha256": "$WINDOWS_HELPER_SHA"
+                }
+              }
+            },
+            "darwin": {
+              "universal": {
+                "launcher": {
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-macos-universal.zip",
+                  "sha256": "$MACOS_LAUNCHER_SHA"
+                },
+                "helper": {
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-macos",
+                  "sha256": "$MACOS_HELPER_SHA"
                 }
               }
             }
@@ -140,7 +206,7 @@ jobs:
             release/*
 
   cleanup:
-    name: Cleanup old artifacts
+    name: Cleanup
     needs: release
     if: success()
     runs-on: ubuntu-latest
