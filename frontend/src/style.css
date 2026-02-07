@@ -80,62 +80,77 @@ body {
   perspective: 1000px;
 }
 
-/* Windows WebKit compatibility - Backdrop blur fallbacks */
-@supports not (backdrop-filter: blur(1px)) {
-  /* When backdrop-filter is not supported, use more opaque backgrounds */
-  [class*="backdrop-blur"] {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-  
-  /* Increase background opacity for better visibility without blur */
-  [class*="backdrop-blur"][class*="bg-[#090909]/55"],
-  [class*="backdrop-blur"][class*="bg-[#090909]/[0.55]"] {
-    background-color: rgba(9, 9, 9, 0.88) !important;
-  }
-  
-  [class*="backdrop-blur"][class*="bg-[#090909]/[0.75]"] {
-    background-color: rgba(9, 9, 9, 0.92) !important;
-  }
-  
-  [class*="backdrop-blur"][class*="bg-[#090909]/95"],
-  [class*="backdrop-blur"][class*="bg-[#090909]/[0.95]"] {
-    background-color: rgba(9, 9, 9, 0.98) !important;
-  }
-  
-  [class*="backdrop-blur"][class*="bg-black/70"] {
-    background-color: rgba(0, 0, 0, 0.85) !important;
-  }
-  
-  [class*="backdrop-blur"][class*="bg-black/80"] {
-    background-color: rgba(0, 0, 0, 0.90) !important;
-  }
+/* Backdrop blur support for all platforms including WebKit */
+/* Always apply blur with vendor prefixes for maximum compatibility */
+
+/* 12px blur - Used in most UI elements */
+.backdrop-blur-\[12px\],
+[class*="backdrop-blur-\[12px\]"] {
+  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
 }
 
-/* Optimize backdrop-blur for WebKit with vendor prefixes */
-.backdrop-blur-\[12\],
-.backdrop-blur-\[12px\] {
-  will-change: filter;
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+/* 6px blur - Used in dropdowns */
+.backdrop-blur-\[6px\],
+[class*="backdrop-blur-\[6px\]"] {
+  -webkit-backdrop-filter: blur(6px) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+/* 14px blur - Used in settings overlay */
+.backdrop-blur-\[14px\],
+[class*="backdrop-blur-\[14px\]"] {
+  -webkit-backdrop-filter: blur(14px) !important;
+  backdrop-filter: blur(14px) !important;
+}
+
+/* Tailwind standard sizes */
+.backdrop-blur-sm {
+  -webkit-backdrop-filter: blur(4px) !important;
+  backdrop-filter: blur(4px) !important;
 }
 
 .backdrop-blur-xl {
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
-}
-
-.backdrop-blur-sm {
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(24px) !important;
+  backdrop-filter: blur(24px) !important;
 }
 
 .backdrop-blur-2xl {
-  -webkit-backdrop-filter: blur(40px);
-  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px) !important;
+  backdrop-filter: blur(40px) !important;
+}
+
+/* Fallback for browsers without backdrop-filter support */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  /* When backdrop-filter is not supported, use more opaque backgrounds */
+  [class*="backdrop-blur"] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  
+  /* Increase background opacity for better visibility without blur */
+  [class*="bg-\[#090909\]/55"],
+  [class*="bg-\[#090909\]/\[0\.55\]"],
+  [class*="backdrop-blur-\[12px\]"] {
+    background-color: rgba(9, 9, 9, 0.88) !important;
+  }
+  
+  [class*="bg-\[#090909\]/\[0\.75\]"] {
+    background-color: rgba(9, 9, 9, 0.92) !important;
+  }
+  
+  [class*="bg-\[#090909\]/95"],
+  [class*="bg-\[#090909\]/\[0\.95\]"] {
+    background-color: rgba(9, 9, 9, 0.98) !important;
+  }
+  
+  [class*="bg-black/70"] {
+    background-color: rgba(0, 0, 0, 0.85) !important;
+  }
+  
+  [class*="bg-black/80"] {
+    background-color: rgba(0, 0, 0, 0.90) !important;
+  }
 }
 
 /* Optimize hover transitions */
@@ -150,6 +165,21 @@ body {
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* WebKit-specific fixes for backdrop blur */
+/* Create proper stacking context for blurred elements */
+[class*="backdrop-blur"] {
+  /* Force GPU layer creation */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  
+  /* Ensure the element can be blurred */
+  isolation: isolate;
+}
+
+
 
 /* Force GPU acceleration for common animated properties */
 * {
