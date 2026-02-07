@@ -22,7 +22,7 @@ export function GetLatestVersion(arg1:string):Promise<number>;
 
 export function GetLauncherVersion():Promise<string>;
 
-export function GetLocalGameVersion(arg1:string):Promise<number>;
+export function GetLocalGameVersion(arg1:string):Promise<string>;
 
 export function GetLogs():Promise<string>;
 
@@ -32,7 +32,7 @@ export function OpenFolder():Promise<void>;
 
 export function SelectInstance(arg1:string):Promise<void>;
 
-export function SetLocalGameVersion(arg1:number,arg2:string):Promise<void>;
+export function SetLocalGameVersion(arg1:string,arg2:string):Promise<void>;
 
 export function SetNick(arg1:string,arg2:string):Promise<void>;
 
@@ -44,6 +44,6 @@ export function UpdateInstanceBranch(arg1:string):Promise<void>;
 
 export function UpdateInstanceName(arg1:string):Promise<void>;
 
-export function UpdateInstanceVersion(arg1:number):Promise<void>;
+export function UpdateInstanceVersion(arg1:string):Promise<void>;
 
 export function ValidateInstance():Promise<void>;

@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 )
 
 func GetOS() string {
@@ -73,11 +72,11 @@ func GetSharedGamesDir() string {
 	return filepath.Join(GetDefaultAppDir(), "shared", "games")
 }
 
-func GetGameDir(branch string, version int) string {
-	return filepath.Join(GetSharedGamesDir(), branch, strconv.Itoa(version))
+func GetGameDir(branch string, version string) string {
+	return filepath.Join(GetSharedGamesDir(), branch, version)
 }
 
-func GetServerPath(branch string, version int) string {
+func GetServerPath(branch string, version string) string {
 	gameDir := GetGameDir(branch, version)
 
 	possible := []string{
@@ -94,7 +93,7 @@ func GetServerPath(branch string, version int) string {
 	return ""
 }
 
-func GetGameClientPath(branch string, version int) string {
+func GetGameClientPath(branch string, version string) string {
 	var possible []string
 	gameDir := GetGameDir(branch, version)
 

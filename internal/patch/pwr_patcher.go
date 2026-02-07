@@ -14,7 +14,7 @@ import (
 	"HyLauncher/pkg/download"
 )
 
-func ApplyPWR(ctx context.Context, pwrFile string, sigFile string, branch string, version int, reporter *progress.Reporter) error {
+func ApplyPWR(ctx context.Context, pwrFile string, sigFile string, branch string, version string, reporter *progress.Reporter) error {
 	gameDir := env.GetGameDir(branch, version)
 	// Keep staging dir OUTSIDE game directory to avoid verification issues
 	stagingDir := filepath.Join(env.GetCacheDir(), "staging-temp")

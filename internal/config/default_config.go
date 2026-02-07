@@ -10,7 +10,7 @@ var instanceDefaults = InstanceConfig{
 	ID:     "default",
 	Name:   "Default",
 	Branch: "release",
-	Build:  0,
+	Build:  "0",
 }
 
 func Default[T any](v T) T {

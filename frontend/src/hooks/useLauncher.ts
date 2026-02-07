@@ -7,6 +7,8 @@ import {
   GetAllGameVersions,
   GetLauncherVersion,
   Update,
+  SetLocalGameVersion,
+  UpdateInstanceBranch,
 } from "../../wailsjs/go/app/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { useTranslation } from "../i18n";
@@ -18,22 +20,22 @@ export const useLauncher = () => {
 
   // Game
   const [username, setUsername] = useState<string>("HyLauncher");
-  const [currentVersion, setCurrentVersion] = useState<number>(0);
+  const [currentVersion, setCurrentVersion] = useState<string>("0");
   const [selectedBranch, setSelectedBranch] = useState<ReleaseType>("pre-release");
   
   // Store versions for both branches
   const [allVersions, setAllVersions] = useState<{
-    release: number[];
-    preRelease: number[];
+    release: (string | number)[];
+    preRelease: (string | number)[];
   }>({
     release: [],
     preRelease: [],
   });
   
   // Computed: current branch's available versions
-  const availableVersions = selectedBranch === "release" 
+  const availableVersions = ["auto", ...(selectedBranch === "release" 
     ? allVersions.release 
-    : allVersions.preRelease;
+    : allVersions.preRelease)];
 
   const [launcherVersion, setLauncherVersion] = useState<string>("0.0.0");
   const [isEditingUsername, setIsEditingUsername] = useState<boolean>(false);
@@ -69,7 +71,7 @@ export const useLauncher = () => {
         const info = await GetInstanceInfo();
         console.log("[useLauncher] Loaded instance info:", info);
         
-        setCurrentVersion(info.version || 0);
+        setCurrentVersion(String(info.version || "0"));
         setSelectedBranch((info.branch || "pre-release") as ReleaseType);
       } catch (err) {
         console.error("[useLauncher] Failed to load instance info:", err);
@@ -237,16 +239,39 @@ export const useLauncher = () => {
   }, []);
 
   // This is called by ProfileCard after backend confirms the change
-  const setLocalGameVersion = useCallback((version: number) => {
+  const setLocalGameVersion = useCallback(async (version: string) => {
     console.log("[useLauncher] Updating local version state:", version);
-    setCurrentVersion(version);
-  }, []);
+    try {
+      await SetLocalGameVersion(version, "default"); 
+      setCurrentVersion(version);
+    } catch (err) {
+      console.error("[useLauncher] Failed to save version:", err);
+      setError({ type: "CONFIG_ERROR", message: "Failed to save version", technical: String(err) });
+    }
+  }, [setError]);
 
   // This is called by ProfileCard after backend confirms the change
-  const handleBranchChange = useCallback((branch: ReleaseType) => {
+  const handleBranchChange = useCallback(async (branch: ReleaseType) => {
     console.log("[useLauncher] Updating local branch state:", branch);
-    setSelectedBranch(branch);
-  }, []);
+    try {
+      await UpdateInstanceBranch(branch);
+      setSelectedBranch(branch);
+      
+      // Refresh versions for the new branch
+      setIsLoadingVersions(true);
+      const versions = await GetAllGameVersions();
+      const sortedRelease = [...(versions.release || [])].sort((a: number, b: number) => b - a);
+      const sortedPreRelease = [...(versions.preRelease || [])].sort((a: number, b: number) => b - a);
+      setAllVersions({
+        release: sortedRelease,
+        preRelease: sortedPreRelease,
+      });
+      setIsLoadingVersions(false);
+    } catch (err) {
+      console.error("[useLauncher] Failed to save branch:", err);
+      setError({ type: "CONFIG_ERROR", message: "Failed to save branch", technical: String(err) });
+    }
+  }, [setError]);
 
   return {
     // State

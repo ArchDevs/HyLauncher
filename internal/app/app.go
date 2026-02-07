@@ -82,7 +82,7 @@ func (a *App) Startup(ctx context.Context) {
 	a.authSvc = service.NewAuthService(a.ctx)
 	a.gameSvc = service.NewGameService(a.ctx, a.progress, a.authSvc)
 
-	fmt.Printf("Application starting: v%s, branch=%s, build=%d\n",
+	fmt.Printf("Application starting: v%s, branch=%s, build=%s\n",
 		a.launcherCfg.Version, a.instance.Branch, a.instance.BuildVersion)
 
 	go a.discordRPC()

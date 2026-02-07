@@ -37,7 +37,7 @@ func (a *App) SelectInstance(instanceID string) error {
 	return nil
 }
 
-func (a *App) UpdateInstanceVersion(buildVersion int) error {
+func (a *App) UpdateInstanceVersion(buildVersion string) error {
 	err := config.UpdateInstance(a.instance.InstanceID, func(cfg *config.InstanceConfig) error {
 		cfg.Build = buildVersion
 		return nil
@@ -53,7 +53,7 @@ func (a *App) UpdateInstanceVersion(buildVersion int) error {
 	a.instance.BuildVersion = buildVersion
 	a.instanceCfg.Build = buildVersion
 
-	fmt.Printf("[UpdateInstanceVersion] Updated to version %d\n", buildVersion)
+	fmt.Printf("[UpdateInstanceVersion] Updated to version %s\n", buildVersion)
 	return nil
 }
 
@@ -130,7 +130,7 @@ func (a *App) SyncInstanceState() error {
 	a.instance.Branch = instanceCfg.Branch
 	a.instance.BuildVersion = instanceCfg.Build
 
-	fmt.Printf("[SyncInstanceState] Synced instance state: branch=%s, version=%d\n",
+	fmt.Printf("[SyncInstanceState] Synced instance state: branch=%s, version=%s\n",
 		a.instance.Branch, a.instance.BuildVersion)
 	return nil
 }
@@ -145,8 +145,8 @@ func (a *App) ValidateInstance() error {
 			WithContext("branch", a.instance.Branch)
 	}
 
-	if a.instance.BuildVersion < 0 {
-		return hyerrors.Validation("invalid build version").
+	if a.instance.BuildVersion == "" {
+		return hyerrors.Validation("build version is empty").
 			WithContext("version", a.instance.BuildVersion)
 	}
 

@@ -21,7 +21,7 @@ func NewInstanceService() *InstanceService {
 func (s *InstanceService) CreateInstance(request model.InstanceModel) (*model.InstanceModel, error) {
 	instanceID := makeInstanceID(request.InstanceName)
 
-	instanceDir := env.GetInstanceDir(request.InstanceID)
+	instanceDir := env.GetInstanceDir(instanceID)
 
 	_ = os.MkdirAll(instanceDir, 0755)
 
@@ -66,12 +66,8 @@ func (s *InstanceService) ListInstances() ([]model.InstanceModel, error) {
 			continue
 		}
 
-		cfgPath := filepath.Join(root, entry.Name(), "config.toml")
-		if !fileutil.FileExists(cfgPath) {
-			continue
-		}
-
-		cfg, err := config.LoadInstance(cfgPath)
+		instanceID := entry.Name()
+		cfg, err := config.LoadInstance(instanceID)
 		if err != nil {
 			continue
 		}

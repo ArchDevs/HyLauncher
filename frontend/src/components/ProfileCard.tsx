@@ -7,14 +7,14 @@ export type ReleaseType = "pre-release" | "release";
 
 interface ProfileProps {
   username: string;
-  currentVersion: number;
+  currentVersion: string | number;
   selectedBranch: ReleaseType;
-  availableVersions: number[];
+  availableVersions: (string | number)[];
   isLoadingVersions?: boolean;
   isEditing: boolean;
   onEditToggle: (val: boolean) => void;
   onUserChange: (val: string) => void;
-  onVersionChange: (val: number) => void;
+  onVersionChange: (val: any) => void;
   onBranchChange: (branch: ReleaseType) => void;
 }
 
@@ -204,7 +204,7 @@ export const ProfileSection: React.FC<ProfileProps> = ({
           ) : (
             <>
               <span className={`${baseText} whitespace-nowrap`}>
-                {currentVersion ? `v${currentVersion}` : `${t.profile.noVersion || "No Version"}`}
+                {currentVersion ? (currentVersion === "auto" ? "auto" : `v${currentVersion}`) : `${t.profile.noVersion || "No Version"}`}
               </span>
               <ChevronDown
                 size={16}
@@ -264,6 +264,10 @@ export const ProfileSection: React.FC<ProfileProps> = ({
               key={opt.value}
               type="button"
               role="menuitem"
+              onClick={() => {
+                onBranchChange(opt.value);
+                setOpenRelease(false);
+              }}
               className={`
                 w-full h-[64px] px-[18px]
                 flex items-center justify-between
@@ -307,6 +311,10 @@ export const ProfileSection: React.FC<ProfileProps> = ({
               key={version}
               type="button"
               role="menuitem"
+              onClick={() => {
+                onVersionChange(version);
+                setOpenVersion(false);
+              }}
               className={`
                 w-full h-[40px] px-[18px]
                 flex items-center justify-between
@@ -316,7 +324,7 @@ export const ProfileSection: React.FC<ProfileProps> = ({
                 ${idx !== availableVersions.length - 1 ? "border-b border-white/10" : ""}
               `}
             >
-              <span>{`v${version}`}</span>
+              <span>{version === "auto" ? "auto" : `v${version}`}</span>
               {version === currentVersion && <Check size={16} />}
             </button>
           ))}

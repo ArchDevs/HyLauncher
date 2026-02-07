@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"sync"
 
 	"HyLauncher/internal/config"
@@ -66,7 +67,7 @@ func (s *GameService) EnsureGame(request model.InstanceModel) error {
 	return nil
 }
 
-func (s *GameService) EnsureInstalled(ctx context.Context, request model.InstanceModel, reporter *progress.Reporter) (int, error) {
+func (s *GameService) EnsureInstalled(ctx context.Context, request model.InstanceModel, reporter *progress.Reporter) (string, error) {
 	s.installMutex.Lock()
 	defer s.installMutex.Unlock()
 
@@ -74,22 +75,133 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 		reporter.Report(progress.StageVerify, 0, "Checking for game updates")
 	}
 
+	if request.BuildVersion == "auto" {
+		latest, err := s.fetchLatestVersion(ctx, request.Branch)
+		if err != nil {
+			return "", fmt.Errorf("fetch latest version: %w", err)
+		}
+
+		autoDir := env.GetGameDir(request.Branch, "auto")
+		versionFile := filepath.Join(autoDir, ".version")
+		currentVer := 0
+		if data, err := os.ReadFile(versionFile); err == nil {
+			currentVer, _ = strconv.Atoi(string(data))
+		}
+
+		if currentVer == latest && game.CheckInstalled(ctx, request.Branch, "auto") == nil {
+			if reporter != nil {
+				reporter.Report(progress.StageVerify, 100, "Auto build is up to date")
+			}
+			return "auto", nil
+		}
+
+		if reporter != nil {
+			reporter.Report(progress.StageVerify, 50, fmt.Sprintf("Updating auto build to version %d", latest))
+		}
+
+		if err := s.installInternal(ctx, request.Branch, "auto", latest, reporter); err != nil {
+			return "", err
+		}
+
+		// Write .version file
+		_ = os.WriteFile(versionFile, []byte(strconv.Itoa(latest)), 0644)
+
+		return "auto", nil
+	}
+
 	if err := s.EnsureGame(request); err == nil {
 		return request.BuildVersion, nil
 	} else {
 		fmt.Println("[EnsureInstalled] verify failed:", err)
-		reporter.Report(progress.StageVerify, 0, fmt.Sprintf("Verification failed: %v", err))
+		if reporter != nil {
+			reporter.Report(progress.StageVerify, 0, fmt.Sprintf("Verification failed: %v", err))
+		}
+	}
+
+	verInt, err := strconv.Atoi(request.BuildVersion)
+	if err != nil {
+		return "", fmt.Errorf("invalid static version %q: %w", request.BuildVersion, err)
+	}
+
+	if err := s.installInternal(ctx, request.Branch, request.BuildVersion, verInt, reporter); err != nil {
+		return "", err
+	}
+
+	return request.BuildVersion, nil
+}
+
+func (s *GameService) installInternal(ctx context.Context, branch string, version string, verInt int, reporter *progress.Reporter) error {
+	gameDir := env.GetGameDir(branch, version)
+
+	pwrPath, sigPath, err := patch.DownloadPWR(ctx, branch, verInt, reporter)
+	if err != nil {
+		return fmt.Errorf("download patch: %w", err)
 	}
 
 	if reporter != nil {
-		reporter.Report(progress.StageVerify, 100, "Checking complete")
-		reporter.Report(progress.StageComplete, 0, fmt.Sprintf("Found version %d", request.BuildVersion))
+		reporter.Report(progress.StagePatch, 0, "Applying game patch...")
 	}
 
-	if err := s.Install(ctx, request, reporter); err != nil {
-		return 0, err
+	if err := patch.ApplyPWR(ctx, pwrPath, sigPath, branch, version, reporter); err != nil {
+		return fmt.Errorf("apply patch: %w", err)
 	}
-	return request.BuildVersion, nil
+
+	clientPath := env.GetGameClientPath(branch, version)
+
+	if runtime.GOOS == "darwin" {
+		appPath := filepath.Join(gameDir, "Client", "Hytale.app")
+		if !fileutil.FileExists(appPath) {
+			return fmt.Errorf("client app not found at %s", appPath)
+		}
+	} else {
+		if !fileutil.FileExists(clientPath) {
+			return fmt.Errorf("client executable not found at %s", clientPath)
+		}
+	}
+
+	if reporter != nil {
+		reporter.Report(progress.StagePatch, 0, "Applying custom authentication patch...")
+	}
+
+	patchRequest := model.InstanceModel{
+		BuildVersion: version,
+		Branch:       branch,
+	}
+
+	if err := patch.EnsureGamePatched(ctx, patchRequest, s.authDomain, reporter); err != nil {
+		fmt.Printf("Warning: Failed to apply custom auth patch: %v\n", err)
+		fmt.Println("Game will work with official Hytale servers only")
+	} else {
+		if reporter != nil {
+			reporter.Report(progress.StagePatch, 100, "Custom authentication configured")
+		}
+	}
+
+	if reporter != nil {
+		reporter.Report(progress.StageComplete, 100, "Game installed successfully")
+	}
+
+	return nil
+}
+
+func (s *GameService) Install(ctx context.Context, request model.InstanceModel, reporter *progress.Reporter) error {
+	verInt, err := strconv.Atoi(request.BuildVersion)
+	if err != nil {
+		return fmt.Errorf("invalid version for install: %w", err)
+	}
+
+	if err := s.installInternal(ctx, request.Branch, request.BuildVersion, verInt, reporter); err != nil {
+		return err
+	}
+
+	if err := config.UpdateInstance(request.InstanceID, func(cfg *config.InstanceConfig) error {
+		cfg.Build = request.BuildVersion
+		return nil
+	}); err != nil {
+		return fmt.Errorf("update instance: %w", err)
+	}
+
+	return nil
 }
 
 func (s *GameService) fetchLatestVersion(ctx context.Context, branch string) (int, error) {
@@ -113,72 +225,6 @@ func (s *GameService) fetchLatestVersion(ctx context.Context, branch string) (in
 	case <-ctx.Done():
 		return 0, ctx.Err()
 	}
-}
-
-func (s *GameService) Install(ctx context.Context, request model.InstanceModel, reporter *progress.Reporter) error {
-	gameDir := env.GetGameDir(request.Branch, request.BuildVersion)
-
-	pwrPath, sigPath, err := patch.DownloadPWR(ctx, request.Branch, request.BuildVersion, reporter)
-	if err != nil {
-		return fmt.Errorf("download patch: %w", err)
-	}
-
-	if reporter != nil {
-		reporter.Report(progress.StagePatch, 0, "Applying game patch...")
-	}
-
-	if err := patch.ApplyPWR(ctx, pwrPath, sigPath, request.Branch, request.BuildVersion, reporter); err != nil {
-		return fmt.Errorf("apply patch: %w", err)
-	}
-
-	clientPath := env.GetGameClientPath(request.Branch, request.BuildVersion)
-
-	if runtime.GOOS == "darwin" {
-		appPath := filepath.Join(gameDir, "Client", "Hytale.app")
-		if !fileutil.FileExists(appPath) {
-			return fmt.Errorf("client app not found at %s", appPath)
-		}
-	} else {
-		if !fileutil.FileExists(clientPath) {
-			return fmt.Errorf("client executable not found at %s", clientPath)
-		}
-	}
-
-	if err := config.UpdateInstance("default", func(cfg *config.InstanceConfig) error {
-		cfg.Build = request.BuildVersion
-		return nil
-	}); err != nil {
-		return fmt.Errorf("update instance: %w", err)
-	}
-
-	if reporter != nil {
-		reporter.Report(progress.StagePatch, 0, "Applying custom authentication patch...")
-	}
-
-	patchRequest := model.InstanceModel{
-		InstanceID:   request.InstanceID,
-		BuildVersion: request.BuildVersion,
-		Branch:       request.Branch,
-	}
-
-	if err := patch.EnsureGamePatched(ctx, patchRequest, s.authDomain, reporter); err != nil {
-		fmt.Printf("Warning: Failed to apply custom auth patch: %v\n", err)
-		fmt.Println("Game will work with official Hytale servers only")
-	} else {
-		if reporter != nil {
-			reporter.Report(progress.StagePatch, 100, "Custom authentication configured")
-		}
-	}
-
-	if reporter != nil {
-		reporter.Report(progress.StageComplete, 100, "Game installed successfully")
-	}
-
-	return nil
-}
-
-func (s *GameService) Update(ctx context.Context, latestVersion int, request model.InstanceModel, reporter *progress.Reporter) {
-
 }
 
 func (s *GameService) Launch(playerName string, request model.InstanceModel) error {
