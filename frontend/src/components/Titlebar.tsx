@@ -4,7 +4,7 @@ import { Quit, WindowMinimise } from "../../wailsjs/runtime/runtime";
 
 function Titlebar() {
   return (
-    <div className="absolute top-0 left-0 w-full h-[28px] z-50 flex justify-end items-center pl-4 pr-3 bg-[#090909]/[0.65] backdrop-blur-xl border-b border-white/5 [--wails-draggable:drag] font-[Mazzard] text-[12px] text-[#CCD9E0]/[0.65]">
+    <div className="absolute top-0 left-0 w-full h-[28px] z-[110] flex justify-end items-center pl-4 pr-3 bg-[#090909]/[0.65] backdrop-blur-xl border-b border-white/5 [--wails-draggable:drag] font-[Mazzard] text-[12px] text-[#CCD9E0]/[0.65]">
       <div className="absolute left-0 h-full flex items-center pl-[12px] no-drag [--wails-draggable:no-drag]">
         <span className="font-[Mazzard] text-[12px] text-[#CCD9E0]/[0.65] leading-none">
           HyLauncher | Online: 0
