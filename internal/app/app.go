@@ -82,7 +82,8 @@ func (a *App) Startup(ctx context.Context) {
 	a.authSvc = service.NewAuthService(a.ctx)
 	a.gameSvc = service.NewGameService(a.ctx, a.progress, a.authSvc)
 
-	fmt.Printf("Application starting: v%s, branch=%s\n", a.launcherCfg.Version, a.instance.Branch)
+	fmt.Printf("Application starting: v%s, branch=%s, build=%d\n",
+		a.launcherCfg.Version, a.instance.Branch, a.instance.BuildVersion)
 
 	go a.discordRPC()
 	go env.CreateFolders(a.instance.InstanceID)
@@ -96,22 +97,32 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 		return err
 	}
 
+	if err := a.SyncInstanceState(); err != nil {
+		fmt.Printf("Warning: Failed to sync instance state: %v\n", err)
+	}
+
 	installedVersion, err := a.gameSvc.EnsureInstalled(a.ctx, a.instance, a.progress)
 	if err != nil {
 		appErr := hyerrors.WrapGame(err, "failed to install game").
-			WithContext("branch", a.instance.Branch)
+			WithContext("branch", a.instance.Branch).
+			WithContext("requestedVersion", a.instance.BuildVersion)
 		hyerrors.Report(appErr)
 		return appErr
 	}
 
-	// Update the instance with the installed version for launch
-	a.instance.BuildVersion = installedVersion
+	if installedVersion != a.instance.BuildVersion {
+		a.instance.BuildVersion = installedVersion
+		if err := a.UpdateInstanceVersion(installedVersion); err != nil {
+			fmt.Printf("Warning: Failed to update instance version after install: %v\n", err)
+		}
+	}
 
 	if err := a.gameSvc.Launch(playerName, a.instance); err != nil {
 		appErr := hyerrors.GameCritical("failed to launch game").
 			WithDetails(err.Error()).
 			WithContext("player", playerName).
-			WithContext("branch", a.instance.Branch)
+			WithContext("branch", a.instance.Branch).
+			WithContext("version", a.instance.BuildVersion)
 		hyerrors.Report(appErr)
 		return appErr
 	}

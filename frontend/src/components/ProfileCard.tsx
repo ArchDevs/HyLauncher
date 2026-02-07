@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, SquarePen, Check, Menu, Loader2 } from "lucide-react";
+import { ChevronDown, SquarePen, Check, Menu, Loader2, AlertCircle } from "lucide-react";
 import { useTranslation } from "../i18n";
 
-type ReleaseType = "pre-release" | "release";
+export type ReleaseType = "pre-release" | "release";
 
 interface ProfileProps {
   username: string;
@@ -31,7 +31,7 @@ export const ProfileSection: React.FC<ProfileProps> = ({
   onBranchChange,
 }) => {
   const { t } = useTranslation();
-  
+
   const [openRelease, setOpenRelease] = useState(false);
   const [openVersion, setOpenVersion] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
@@ -119,11 +119,6 @@ export const ProfileSection: React.FC<ProfileProps> = ({
     }
   };
 
-  const handleBranchSelect = (branch: ReleaseType) => {
-    onBranchChange(branch);
-    setOpenRelease(false);
-  };
-
   return (
     <div className="ml-[48px]" ref={rootRef}>
       {/* Username */}
@@ -168,7 +163,11 @@ export const ProfileSection: React.FC<ProfileProps> = ({
           aria-expanded={openRelease}
           aria-controls={menuId}
           onClick={toggleRelease}
-          className={`relative w-[132px] h-full px-[16px] flex items-center justify-between cursor-pointer ${hover} rounded-l-[14px]`}
+          className={`
+            relative w-[132px] h-full px-[16px] 
+            flex items-center justify-between 
+            rounded-l-[14px]
+          `}
         >
           <span className={`${baseText} truncate`}>{currentBranchLabel}</span>
           <ChevronDown
@@ -187,21 +186,18 @@ export const ProfileSection: React.FC<ProfileProps> = ({
           ref={versionButtonRef}
           type="button"
           onClick={toggleVersion}
-          disabled={isLoadingVersions}
           className={`
             w-[98px] h-full
             pl-[16px] pr-[10px]
             flex items-center justify-between
-            ${isLoadingVersions ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}
-            ${!isLoadingVersions && hover}
             rounded-none
           `}
         >
-          {/* Show loader while fetching versions */}
+          {/* Show loader while fetching versions or switching */}
           {isLoadingVersions ? (
             <>
               <span className={`${baseText} whitespace-nowrap`}>
-                {t.profile.loading || "Loading..."}
+                {isLoadingVersions ? (t.profile.loading || "Loading...") : "Switching..."}
               </span>
               <Loader2 size={16} className="text-[#CCD9E0]/[0.90] animate-spin" />
             </>
@@ -268,7 +264,6 @@ export const ProfileSection: React.FC<ProfileProps> = ({
               key={opt.value}
               type="button"
               role="menuitem"
-              onClick={() => handleBranchSelect(opt.value)}
               className={`
                 w-full h-[64px] px-[18px]
                 flex items-center justify-between
@@ -312,10 +307,6 @@ export const ProfileSection: React.FC<ProfileProps> = ({
               key={version}
               type="button"
               role="menuitem"
-              onClick={() => {
-                onVersionChange(version);
-                setOpenVersion(false);
-              }}
               className={`
                 w-full h-[40px] px-[18px]
                 flex items-center justify-between

@@ -81,20 +81,15 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 		reporter.Report(progress.StageVerify, 0, fmt.Sprintf("Verification failed: %v", err))
 	}
 
-	latestVersion, err := s.fetchLatestVersion(ctx, request.Branch)
-	if err != nil {
-		return 0, err
-	}
-
 	if reporter != nil {
 		reporter.Report(progress.StageVerify, 100, "Checking complete")
-		reporter.Report(progress.StageComplete, 0, fmt.Sprintf("Found version %d", latestVersion))
+		reporter.Report(progress.StageComplete, 0, fmt.Sprintf("Found version %d", request.BuildVersion))
 	}
 
-	if err := s.Install(ctx, latestVersion, request, reporter); err != nil {
+	if err := s.Install(ctx, request, reporter); err != nil {
 		return 0, err
 	}
-	return latestVersion, nil
+	return request.BuildVersion, nil
 }
 
 func (s *GameService) fetchLatestVersion(ctx context.Context, branch string) (int, error) {
@@ -120,10 +115,10 @@ func (s *GameService) fetchLatestVersion(ctx context.Context, branch string) (in
 	}
 }
 
-func (s *GameService) Install(ctx context.Context, latestVersion int, request model.InstanceModel, reporter *progress.Reporter) error {
-	gameDir := env.GetGameDir(request.Branch, latestVersion)
+func (s *GameService) Install(ctx context.Context, request model.InstanceModel, reporter *progress.Reporter) error {
+	gameDir := env.GetGameDir(request.Branch, request.BuildVersion)
 
-	pwrPath, sigPath, err := patch.DownloadPWR(ctx, request.Branch, latestVersion, reporter)
+	pwrPath, sigPath, err := patch.DownloadPWR(ctx, request.Branch, request.BuildVersion, reporter)
 	if err != nil {
 		return fmt.Errorf("download patch: %w", err)
 	}
@@ -132,11 +127,11 @@ func (s *GameService) Install(ctx context.Context, latestVersion int, request mo
 		reporter.Report(progress.StagePatch, 0, "Applying game patch...")
 	}
 
-	if err := patch.ApplyPWR(ctx, pwrPath, sigPath, request.Branch, latestVersion, reporter); err != nil {
+	if err := patch.ApplyPWR(ctx, pwrPath, sigPath, request.Branch, request.BuildVersion, reporter); err != nil {
 		return fmt.Errorf("apply patch: %w", err)
 	}
 
-	clientPath := env.GetGameClientPath(request.Branch, latestVersion)
+	clientPath := env.GetGameClientPath(request.Branch, request.BuildVersion)
 
 	if runtime.GOOS == "darwin" {
 		appPath := filepath.Join(gameDir, "Client", "Hytale.app")
@@ -150,7 +145,7 @@ func (s *GameService) Install(ctx context.Context, latestVersion int, request mo
 	}
 
 	if err := config.UpdateInstance("default", func(cfg *config.InstanceConfig) error {
-		cfg.Build = latestVersion
+		cfg.Build = request.BuildVersion
 		return nil
 	}); err != nil {
 		return fmt.Errorf("update instance: %w", err)
@@ -162,7 +157,7 @@ func (s *GameService) Install(ctx context.Context, latestVersion int, request mo
 
 	patchRequest := model.InstanceModel{
 		InstanceID:   request.InstanceID,
-		BuildVersion: latestVersion,
+		BuildVersion: request.BuildVersion,
 		Branch:       request.Branch,
 	}
 
@@ -180,6 +175,10 @@ func (s *GameService) Install(ctx context.Context, latestVersion int, request mo
 	}
 
 	return nil
+}
+
+func (s *GameService) Update(ctx context.Context, latestVersion int, request model.InstanceModel, reporter *progress.Reporter) {
+
 }
 
 func (s *GameService) Launch(playerName string, request model.InstanceModel) error {

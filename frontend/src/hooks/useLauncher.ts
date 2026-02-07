@@ -3,8 +3,7 @@ import {
   DownloadAndLaunch,
   GetNick,
   SetNick as SetNickBackend,
-  GetLocalGameVersion,
-  SetLocalGameVersion,
+  GetInstanceInfo,
   GetAllGameVersions,
   GetLauncherVersion,
   Update,
@@ -20,7 +19,7 @@ export const useLauncher = () => {
   // Game
   const [username, setUsername] = useState<string>("HyLauncher");
   const [currentVersion, setCurrentVersion] = useState<number>(0);
-  const [selectedBranch, setSelectedBranch] = useState<ReleaseType>("release");
+  const [selectedBranch, setSelectedBranch] = useState<ReleaseType>("pre-release");
   
   // Store versions for both branches
   const [allVersions, setAllVersions] = useState<{
@@ -45,7 +44,7 @@ export const useLauncher = () => {
   const [status, setStatus] = useState<string>(t.control.status.readyToPlay);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
-  // --- Download Details ---
+  // Download Details
   const [downloadDetails, setDownloadDetails] = useState({
     currentFile: "",
     speed: "",
@@ -63,12 +62,35 @@ export const useLauncher = () => {
   const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
   const [error, setError] = useState<any>(null);
 
+  // Load initial instance info from backend
+  useEffect(() => {
+    const loadInstanceInfo = async () => {
+      try {
+        const info = await GetInstanceInfo();
+        console.log("[useLauncher] Loaded instance info:", info);
+        
+        setCurrentVersion(info.version || 0);
+        setSelectedBranch((info.branch || "pre-release") as ReleaseType);
+      } catch (err) {
+        console.error("[useLauncher] Failed to load instance info:", err);
+        setError({
+          type: "INSTANCE_LOAD_ERROR",
+          message: "Failed to load instance configuration",
+          technical: err instanceof Error ? err.message : String(err),
+        });
+      }
+    };
+
+    loadInstanceInfo();
+  }, []);
+
   // Fetch all versions on mount
   useEffect(() => {
     const fetchVersions = async () => {
       setIsLoadingVersions(true);
       try {
         const versions = await GetAllGameVersions();
+        console.log("[useLauncher] Fetched versions:", versions);
         
         // Sort both arrays descending (latest first)
         const sortedRelease = [...(versions.release || [])].sort((a, b) => b - a);
@@ -79,7 +101,7 @@ export const useLauncher = () => {
           preRelease: sortedPreRelease,
         });
       } catch (err) {
-        console.error("Failed to fetch game versions:", err);
+        console.error("[useLauncher] Failed to fetch game versions:", err);
         setError({
           type: "VERSION_FETCH_ERROR",
           message: "Failed to fetch available game versions",
@@ -99,15 +121,26 @@ export const useLauncher = () => {
   }, []);
 
   useEffect(() => {
-    // Initial data fetch
-    GetNick().then((n: string) => n && setUsername(n));
-    GetLocalGameVersion("default").then((curr: number) =>
-      setCurrentVersion(curr),
-    );
-    GetLauncherVersion().then((version: string) => setLauncherVersion(version));
+    // Load username and launcher version
+    GetNick().then((n: string) => {
+      if (n) {
+        console.log("[useLauncher] Loaded username:", n);
+        setUsername(n);
+      }
+    }).catch(err => {
+      console.error("[useLauncher] Failed to get username:", err);
+    });
+
+    GetLauncherVersion().then((version: string) => {
+      console.log("[useLauncher] Launcher version:", version);
+      setLauncherVersion(version);
+    }).catch(err => {
+      console.error("[useLauncher] Failed to get launcher version:", err);
+    });
 
     // Listen for launcher updates
     const offUpdateAvailable = EventsOn("update:available", (asset: any) => {
+      console.log("[useLauncher] Update available:", asset);
       setUpdateAsset(asset);
     });
 
@@ -149,17 +182,26 @@ export const useLauncher = () => {
       offUpdateProgress();
       offProgress();
     };
-  }, []);
+  }, [t.control.status.readyToPlay]);
 
   const handlePlay = useCallback(async () => {
     if (!username.trim()) {
       setError({ type: "VALIDATION", message: "Username cannot be empty" });
       return;
     }
+    
+    console.log("[useLauncher] Starting game with:", {
+      username,
+      version: currentVersion,
+      branch: selectedBranch,
+    });
+    
     setIsDownloading(true);
     try {
       await DownloadAndLaunch(username);
+      console.log("[useLauncher] Game launched successfully");
     } catch (err) {
+      console.error("[useLauncher] Launch failed:", err);
       setIsDownloading(false);
       setError({
         type: "LAUNCH_ERROR",
@@ -167,15 +209,17 @@ export const useLauncher = () => {
         technical: String(err),
       });
     }
-  }, [username]);
+  }, [username, currentVersion, selectedBranch]);
 
   const handleUpdateLauncher = async () => {
+    console.log("[useLauncher] Starting launcher update");
     setIsUpdatingLauncher(true);
     setProgress(0);
     setUpdateStats({ d: 0, t: 0 });
     try {
       await Update();
     } catch (err) {
+      console.error("[useLauncher] Launcher update failed:", err);
       setError({
         type: "UPDATE_ERROR",
         message: "Failed to update launcher",
@@ -186,32 +230,23 @@ export const useLauncher = () => {
     }
   };
 
-  const setNick = (val: string) => {
+  const setNick = useCallback((val: string) => {
+    console.log("[useLauncher] Setting username:", val);
     SetNickBackend(val, "default");
     setUsername(val);
-  };
+  }, []);
 
-  const setLocalGameVersion = async (version: number) => {
-    try {
-      await SetLocalGameVersion(version, "default");
-      setCurrentVersion(version);
-    } catch (err) {
-      setError({
-        type: "VERSION_ERROR",
-        message: "Failed to set game version",
-        technical: err instanceof Error ? err.message : String(err),
-      });
-    }
-  };
+  // This is called by ProfileCard after backend confirms the change
+  const setLocalGameVersion = useCallback((version: number) => {
+    console.log("[useLauncher] Updating local version state:", version);
+    setCurrentVersion(version);
+  }, []);
 
-  const handleBranchChange = (branch: ReleaseType) => {
+  // This is called by ProfileCard after backend confirms the change
+  const handleBranchChange = useCallback((branch: ReleaseType) => {
+    console.log("[useLauncher] Updating local branch state:", branch);
     setSelectedBranch(branch);
-    // Optionally: reset to latest version of new branch
-    // const newVersions = branch === "release" ? allVersions.release : allVersions.preRelease;
-    // if (newVersions.length > 0) {
-    //   setLocalGameVersion(newVersions[0]);
-    // }
-  };
+  }, []);
 
   return {
     // State

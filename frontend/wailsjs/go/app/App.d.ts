@@ -16,6 +16,8 @@ export function GetBranchVersions(arg1:string):Promise<Array<number>>;
 
 export function GetCrashReports():Promise<Array<service.CrashReport>>;
 
+export function GetInstanceInfo():Promise<Record<string, any>>;
+
 export function GetLatestVersion(arg1:string):Promise<number>;
 
 export function GetLauncherVersion():Promise<string>;
@@ -28,8 +30,20 @@ export function GetNick():Promise<string>;
 
 export function OpenFolder():Promise<void>;
 
+export function SelectInstance(arg1:string):Promise<void>;
+
 export function SetLocalGameVersion(arg1:number,arg2:string):Promise<void>;
 
 export function SetNick(arg1:string,arg2:string):Promise<void>;
 
+export function SyncInstanceState():Promise<void>;
+
 export function Update():Promise<void>;
+
+export function UpdateInstanceBranch(arg1:string):Promise<void>;
+
+export function UpdateInstanceName(arg1:string):Promise<void>;
+
+export function UpdateInstanceVersion(arg1:number):Promise<void>;
+
+export function ValidateInstance():Promise<void>;
