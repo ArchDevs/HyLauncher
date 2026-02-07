@@ -15,6 +15,7 @@ import (
 	"HyLauncher/internal/game"
 	"HyLauncher/internal/java"
 	"HyLauncher/internal/patch"
+	"HyLauncher/internal/platform"
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/fileutil"
 	"HyLauncher/pkg/model"
@@ -177,6 +178,19 @@ func (s *GameService) installInternal(ctx context.Context, branch string, versio
 		}
 	}
 
+	// Fix macOS app permissions after patching
+	if runtime.GOOS == "darwin" {
+		appPath := filepath.Join(gameDir, "Client", "Hytale.app")
+		if fileutil.FileExists(appPath) {
+			if reporter != nil {
+				reporter.Report(progress.StagePatch, 95, "Fixing macOS app permissions...")
+			}
+			if err := platform.FixMacOSApp(appPath); err != nil {
+				fmt.Printf("Warning: Failed to fix macOS app permissions: %v\n", err)
+			}
+		}
+	}
+
 	if reporter != nil {
 		reporter.Report(progress.StageComplete, 100, "Game installed successfully")
 	}
@@ -264,6 +278,15 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel) err
 	if runtime.GOOS == "darwin" {
 		_ = os.Chmod(clientPath, 0755)
 		_ = os.Chmod(javaBin, 0755)
+		
+		// Fix macOS app permissions before launch
+		appPath := filepath.Join(gameDir, "Client", "Hytale.app")
+		if fileutil.FileExists(appPath) {
+			s.reporter.Report(progress.StageLaunch, 65, "Fixing macOS app permissions...")
+			if err := platform.FixMacOSApp(appPath); err != nil {
+				fmt.Printf("Warning: Failed to fix macOS app permissions: %v\n", err)
+			}
+		}
 	}
 
 	clientPath, _ = filepath.Abs(clientPath)

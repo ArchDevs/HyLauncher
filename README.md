@@ -73,6 +73,16 @@ Since the app is not code-signed, macOS will show security warnings on first lau
 - Right-click the app → "Open" → "Open anyway"
 - Or run: `xattr -cr build/bin/HyLauncher.app` (removes quarantine attributes for testing)
 
+**Game launch issues:**
+If you get "Hytale.app is corrupted" error when launching the game:
+1. The launcher automatically tries to fix permissions - just try launching again
+2. If it still fails, manually run:
+   ```bash
+   xattr -cr ~/Library/Application\ Support/HyLauncher/shared/games/release/*/Client/Hytale.app
+   codesign --force --deep --sign - ~/Library/Application\ Support/HyLauncher/shared/games/release/*/Client/Hytale.app
+   ```
+3. Or disable Gatekeeper temporarily: `sudo spctl --master-disable` (re-enable after with `sudo spctl --master-enable`)
+
 **GitHub Actions:**
 macOS builds are handled automatically by GitHub Actions. The workflow builds universal binaries that work on both Intel and Apple Silicon Macs.
 
