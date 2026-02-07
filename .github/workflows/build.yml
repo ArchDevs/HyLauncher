@@ -1,4 +1,4 @@
-name: Wails Build Windows & Linux
+name: Wails Build Windows, Linux & macOS
 
 on:
   push:
@@ -32,6 +32,9 @@ jobs:
           - os: windows-latest
             platform: windows/amd64
             artifact_name: app-windows
+          - os: macos-latest
+            platform: darwin/universal
+            artifact_name: app-macos
 
     runs-on: ${{ matrix.os }}
 
@@ -84,6 +87,11 @@ jobs:
           CGO_ENABLED: 0
         run: |
           wails build -platform windows/amd64
+
+      - name: Build Wails app (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          wails build -platform darwin/universal
 
       - uses: actions/upload-artifact@v4
         with:

@@ -93,9 +93,6 @@ func VerifyButler() error {
 }
 
 func DownloadButler(ctx context.Context, toolsDir, zipPath, tempZipPath, osName, arch string, reporter *progress.Reporter) error {
-	if osName == "darwin" {
-		arch = "amd64"
-	}
 	url := fmt.Sprintf("https://broth.itch.zone/butler/%s-%s/LATEST/archive/default", osName, arch)
 
 	reporter.Report(progress.StageButler, 0, "Downloading butler.zip...")

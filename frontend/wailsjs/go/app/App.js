@@ -14,8 +14,32 @@ export function DownloadAndLaunch(arg1) {
   return window['go']['app']['App']['DownloadAndLaunch'](arg1);
 }
 
+export function GetAllGameVersions() {
+  return window['go']['app']['App']['GetAllGameVersions']();
+}
+
+export function GetAllNews() {
+  return window['go']['app']['App']['GetAllNews']();
+}
+
+export function GetBranchVersions(arg1) {
+  return window['go']['app']['App']['GetBranchVersions'](arg1);
+}
+
 export function GetCrashReports() {
   return window['go']['app']['App']['GetCrashReports']();
+}
+
+export function GetInstanceInfo() {
+  return window['go']['app']['App']['GetInstanceInfo']();
+}
+
+export function GetLatestNews() {
+  return window['go']['app']['App']['GetLatestNews']();
+}
+
+export function GetLatestVersion(arg1) {
+  return window['go']['app']['App']['GetLatestVersion'](arg1);
 }
 
 export function GetLauncherVersion() {
@@ -38,6 +62,10 @@ export function OpenFolder() {
   return window['go']['app']['App']['OpenFolder']();
 }
 
+export function SelectInstance(arg1) {
+  return window['go']['app']['App']['SelectInstance'](arg1);
+}
+
 export function SetLocalGameVersion(arg1, arg2) {
   return window['go']['app']['App']['SetLocalGameVersion'](arg1, arg2);
 }
@@ -46,6 +74,26 @@ export function SetNick(arg1, arg2) {
   return window['go']['app']['App']['SetNick'](arg1, arg2);
 }
 
+export function SyncInstanceState() {
+  return window['go']['app']['App']['SyncInstanceState']();
+}
+
 export function Update() {
   return window['go']['app']['App']['Update']();
+}
+
+export function UpdateInstanceBranch(arg1) {
+  return window['go']['app']['App']['UpdateInstanceBranch'](arg1);
+}
+
+export function UpdateInstanceName(arg1) {
+  return window['go']['app']['App']['UpdateInstanceName'](arg1);
+}
+
+export function UpdateInstanceVersion(arg1) {
+  return window['go']['app']['App']['UpdateInstanceVersion'](arg1);
+}
+
+export function ValidateInstance() {
+  return window['go']['app']['App']['ValidateInstance']();
 }

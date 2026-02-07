@@ -10,5 +10,5 @@ type InstanceConfig struct {
 	ID     string `toml:"id"`
 	Name   string `toml:"name"` // Instance name
 	Branch string `toml:"branch"`
-	Build  int    `toml:"build"` // Game build aka version
+	Build  string `toml:"build"` // Game build aka version
 }

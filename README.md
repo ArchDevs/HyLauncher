@@ -59,6 +59,23 @@ wails build
 ```
 Билд появится в папка `build/bin`
 
+### macOS
+
+macOS builds work on both Intel and Apple Silicon (M1/M2/M3) Macs.
+
+**Build for macOS:**
+```bash
+wails build -platform darwin/universal
+```
+
+**Running the app:**
+Since the app is not code-signed, macOS will show security warnings on first launch. To run:
+- Right-click the app → "Open" → "Open anyway"
+- Or run: `xattr -cr build/bin/HyLauncher.app` (removes quarantine attributes for testing)
+
+**GitHub Actions:**
+macOS builds are handled automatically by GitHub Actions. The workflow builds universal binaries that work on both Intel and Apple Silicon Macs.
+
 ---
 
 ## License
@@ -76,4 +93,4 @@ wails build
 ## Authors
 
 - [@ArchDevs](https://www.github.com/ArchDevs) (Founder)
-- [@ronitmb](https://github.com/ronitmb) (Design & Idea & Founder)
+- [@ronitmb](https://github.com/ronitmb) (Design & Idea & Founder & Frontend)

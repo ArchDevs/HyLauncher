@@ -44,9 +44,9 @@ func (a *App) GetLauncherVersion() string {
 	return config.LauncherDefault().Version
 }
 
-func (a *App) SetLocalGameVersion(version int, instanceID string) error {
-	if version < 0 {
-		err := hyerrors.Validation("game version cannot be negative")
+func (a *App) SetLocalGameVersion(version string, instanceID string) error {
+	if version == "" {
+		err := hyerrors.Validation("game version cannot be empty")
 		hyerrors.Report(err)
 		return err
 	}
@@ -68,13 +68,13 @@ func (a *App) SetLocalGameVersion(version int, instanceID string) error {
 	return nil
 }
 
-func (a *App) GetLocalGameVersion(instanceID string) (int, error) {
+func (a *App) GetLocalGameVersion(instanceID string) (string, error) {
 	cfg, err := config.LoadInstance(instanceID)
 	if err != nil {
 		appErr := hyerrors.WrapConfig(err, "failed to get game version").
 			WithContext("instance", instanceID)
 		hyerrors.Report(appErr)
-		return 0, appErr
+		return "", appErr
 	}
 
 	a.instanceCfg.Build = cfg.Build

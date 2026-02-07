@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-func CheckInstalled(ctx context.Context, branch string, buildVersion int) error {
+func CheckInstalled(ctx context.Context, branch string, buildVersion string) error {
 	base := env.GetGameDir(branch, buildVersion)
 	clientPath := env.GetGameClientPath(branch, buildVersion)
 

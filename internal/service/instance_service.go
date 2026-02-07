@@ -5,12 +5,11 @@ import (
 	"HyLauncher/internal/env"
 	"HyLauncher/pkg/fileutil"
 	"HyLauncher/pkg/model"
-	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
+
+	"github.com/google/uuid"
+	"github.com/gosimple/slug"
 )
 
 type InstanceService struct{}
@@ -20,9 +19,9 @@ func NewInstanceService() *InstanceService {
 }
 
 func (s *InstanceService) CreateInstance(request model.InstanceModel) (*model.InstanceModel, error) {
-	instanceID := makeInstanceSlug(request.InstanceName)
+	instanceID := makeInstanceID(request.InstanceName)
 
-	instanceDir := env.GetInstanceDir(request.InstanceID)
+	instanceDir := env.GetInstanceDir(instanceID)
 
 	_ = os.MkdirAll(instanceDir, 0755)
 
@@ -45,10 +44,51 @@ func (s *InstanceService) CreateInstance(request model.InstanceModel) (*model.In
 	}, nil
 }
 
-func (s *InstanceService) DeleteInstance() {}
+func (s *InstanceService) DeleteInstance(instanceID string) {
+	if _, err := os.Stat(env.GetInstanceDir(instanceID)); err != nil {
+		return
+	}
+	_ = os.RemoveAll(instanceID)
+}
 
-func makeInstanceSlug(name string) string {
-	base := strings.ToLower(strings.ReplaceAll(name, " ", ""))
-	rand.Seed(time.Now().UnixNano())
-	return fmt.Sprintf("%s_%d", base, rand.Intn(999999))
+func (s *InstanceService) ListInstances() ([]model.InstanceModel, error) {
+	root := env.GetInstancesDir()
+
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, err
+	}
+
+	var instances []model.InstanceModel
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		instanceID := entry.Name()
+		cfg, err := config.LoadInstance(instanceID)
+		if err != nil {
+			continue
+		}
+
+		instances = append(instances, model.InstanceModel{
+			InstanceID:   cfg.ID,
+			InstanceName: cfg.Name,
+			Branch:       cfg.Branch,
+			BuildVersion: cfg.Build,
+		})
+	}
+
+	return instances, nil
+}
+
+func makeInstanceID(name string) string {
+	base := slug.Make(name)
+	if base == "" {
+		base = "instance"
+	}
+
+	shortID := uuid.New().String()[:6]
+	return base + "-" + shortID
 }
