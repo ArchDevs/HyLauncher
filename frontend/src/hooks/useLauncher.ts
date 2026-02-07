@@ -25,8 +25,8 @@ export const useLauncher = () => {
   
   // Store versions for both branches
   const [allVersions, setAllVersions] = useState<{
-    release: (string | number)[];
-    preRelease: (string | number)[];
+    release: string[];
+    preRelease: string[];
   }>({
     release: [],
     preRelease: [],
@@ -94,9 +94,13 @@ export const useLauncher = () => {
         const versions = await GetAllGameVersions();
         console.log("[useLauncher] Fetched versions:", versions);
         
-        // Sort both arrays descending (latest first)
-        const sortedRelease = [...(versions.release || [])].sort((a, b) => b - a);
-        const sortedPreRelease = [...(versions.preRelease || [])].sort((a, b) => b - a);
+        // Convert all versions to strings for consistent comparison
+        const sortedRelease = [...(versions.release || [])]
+          .sort((a, b) => b - a)
+          .map(v => String(v));
+        const sortedPreRelease = [...(versions.preRelease || [])]
+          .sort((a, b) => b - a)
+          .map(v => String(v));
         
         setAllVersions({
           release: sortedRelease,
@@ -240,28 +244,42 @@ export const useLauncher = () => {
 
   // This is called by ProfileCard after backend confirms the change
   const setLocalGameVersion = useCallback(async (version: string) => {
-    console.log("[useLauncher] Updating local version state:", version);
+    // 1. Update local state immediately (Optimistic UI)
+    setCurrentVersion(version);
+    
     try {
+      // 2. Call backend
       await SetLocalGameVersion(version, "default"); 
-      setCurrentVersion(version);
     } catch (err) {
       console.error("[useLauncher] Failed to save version:", err);
-      setError({ type: "CONFIG_ERROR", message: "Failed to save version", technical: String(err) });
+      setError({ 
+        type: "CONFIG_ERROR", 
+        message: "Failed to save version", 
+        technical: String(err) 
+      });
     }
   }, [setError]);
 
   // This is called by ProfileCard after backend confirms the change
   const handleBranchChange = useCallback(async (branch: ReleaseType) => {
-    console.log("[useLauncher] Updating local branch state:", branch);
+    // 1. Update local state immediately
+    setSelectedBranch(branch);
+    
     try {
+      // 2. Call backend
       await UpdateInstanceBranch(branch);
-      setSelectedBranch(branch);
       
-      // Refresh versions for the new branch
+      // 3. Refresh versions for the new branch
       setIsLoadingVersions(true);
       const versions = await GetAllGameVersions();
-      const sortedRelease = [...(versions.release || [])].sort((a: number, b: number) => b - a);
-      const sortedPreRelease = [...(versions.preRelease || [])].sort((a: number, b: number) => b - a);
+      
+      const sortedRelease = [...(versions.release || [])]
+        .sort((a, b) => b - a)
+        .map(v => String(v));
+      const sortedPreRelease = [...(versions.preRelease || [])]
+        .sort((a, b) => b - a)
+        .map(v => String(v));
+        
       setAllVersions({
         release: sortedRelease,
         preRelease: sortedPreRelease,
@@ -269,7 +287,11 @@ export const useLauncher = () => {
       setIsLoadingVersions(false);
     } catch (err) {
       console.error("[useLauncher] Failed to save branch:", err);
-      setError({ type: "CONFIG_ERROR", message: "Failed to save branch", technical: String(err) });
+      setError({ 
+        type: "CONFIG_ERROR", 
+        message: "Failed to save branch", 
+        technical: String(err) 
+      });
     }
   }, [setError]);
 

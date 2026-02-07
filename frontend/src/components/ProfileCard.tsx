@@ -7,14 +7,14 @@ export type ReleaseType = "pre-release" | "release";
 
 interface ProfileProps {
   username: string;
-  currentVersion: string | number;
+  currentVersion: string;
   selectedBranch: ReleaseType;
-  availableVersions: (string | number)[];
+  availableVersions: string[];
   isLoadingVersions?: boolean;
   isEditing: boolean;
   onEditToggle: (val: boolean) => void;
   onUserChange: (val: string) => void;
-  onVersionChange: (val: any) => void;
+  onVersionChange: (val: string) => void;
   onBranchChange: (branch: ReleaseType) => void;
 }
 
@@ -83,7 +83,13 @@ export const ProfileSection: React.FC<ProfileProps> = ({
 
     const onDown = (e: MouseEvent) => {
       if (!rootRef.current) return;
-      if (!rootRef.current.contains(e.target as Node)) closeAll();
+      
+      const isClickInsideRoot = rootRef.current.contains(e.target as Node);
+      const isClickInsidePortal = (e.target as HTMLElement).closest('[role="menu"]');
+      
+      if (!isClickInsideRoot && !isClickInsidePortal) {
+        closeAll();
+      }
     };
 
     const onKey = (e: KeyboardEvent) => {
@@ -100,7 +106,8 @@ export const ProfileSection: React.FC<ProfileProps> = ({
 
   const menuId = useMemo(() => "release-menu", []);
 
-  const toggleRelease = () => {
+  const toggleRelease = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setOpenRelease((v) => {
       const next = !v;
       if (next) setOpenVersion(false);
@@ -108,7 +115,8 @@ export const ProfileSection: React.FC<ProfileProps> = ({
     });
   };
 
-  const toggleVersion = () => {
+  const toggleVersion = (e: React.MouseEvent) => {
+    e.stopPropagation();
     // Only open version menu if we have versions and not loading
     if (availableVersions.length > 0 && !isLoadingVersions) {
       setOpenVersion((v) => {
@@ -248,6 +256,8 @@ export const ProfileSection: React.FC<ProfileProps> = ({
             position: 'fixed',
             top: `${dropdownPosition.top}px`,
             left: `${dropdownPosition.left}px`,
+            zIndex: 999999,
+            pointerEvents: 'auto',
           }}
           className="
             w-[133px]
@@ -256,7 +266,6 @@ export const ProfileSection: React.FC<ProfileProps> = ({
             border border-[#7C7C7C]/[0.20]
             overflow-hidden
             shadow-2xl
-            z-[99999]
           "
         >
           {OPTIONS.map((opt, idx) => (
@@ -264,21 +273,27 @@ export const ProfileSection: React.FC<ProfileProps> = ({
               key={opt.value}
               type="button"
               role="menuitem"
-              onClick={() => {
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 onBranchChange(opt.value);
                 setOpenRelease(false);
               }}
-              className={`
+              className="
                 w-full h-[64px] px-[18px]
                 flex items-center justify-between
                 text-[#CCD9E0]/[0.90] text-[16px] font-[Mazzard]
                 hover:bg-white/[0.08]
                 cursor-pointer transition-colors
-                ${idx !== OPTIONS.length - 1 ? "border-b border-white/10" : ""}
-              `}
+                border-b border-white/10 last:border-b-0
+              "
             >
-              <span>{opt.label}</span>
-              {opt.value === selectedBranch && <Check size={18} />}
+              <span className="pointer-events-none">{opt.label}</span>
+              {opt.value === selectedBranch && <Check size={18} className="pointer-events-none" />}
             </button>
           ))}
         </div>,
@@ -292,7 +307,9 @@ export const ProfileSection: React.FC<ProfileProps> = ({
           style={{
             position: 'fixed',
             top: `${dropdownPosition.top}px`,
-            left: `${dropdownPosition.left + 132}px`, // Offset by width of release button
+            left: `${dropdownPosition.left + 132}px`,
+            zIndex: 999999,
+            pointerEvents: 'auto',
           }}
           className="
             w-[98px]
@@ -302,7 +319,6 @@ export const ProfileSection: React.FC<ProfileProps> = ({
             rounded-[20px]
             border border-[#7C7C7C]/[0.20]
             shadow-2xl
-            z-[99999]
             scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent
           "
         >
@@ -311,21 +327,27 @@ export const ProfileSection: React.FC<ProfileProps> = ({
               key={version}
               type="button"
               role="menuitem"
-              onClick={() => {
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 onVersionChange(version);
                 setOpenVersion(false);
               }}
-              className={`
+              className="
                 w-full h-[40px] px-[18px]
                 flex items-center justify-between
                 text-[#CCD9E0]/[0.90] text-[16px] font-[Mazzard]
                 hover:bg-white/[0.08]
                 cursor-pointer transition-colors
-                ${idx !== availableVersions.length - 1 ? "border-b border-white/10" : ""}
-              `}
+                border-b border-white/10 last:border-b-0
+              "
             >
-              <span>{version === "auto" ? "auto" : `v${version}`}</span>
-              {version === currentVersion && <Check size={16} />}
+              <span className="pointer-events-none">{version === "auto" ? "auto" : `v${version}`}</span>
+              {String(version) === String(currentVersion) && <Check size={16} className="pointer-events-none" />}
             </button>
           ))}
         </div>,
