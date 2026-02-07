@@ -18,6 +18,10 @@ export function GetAllGameVersions() {
   return window['go']['app']['App']['GetAllGameVersions']();
 }
 
+export function GetAllNews() {
+  return window['go']['app']['App']['GetAllNews']();
+}
+
 export function GetBranchVersions(arg1) {
   return window['go']['app']['App']['GetBranchVersions'](arg1);
 }
@@ -28,6 +32,10 @@ export function GetCrashReports() {
 
 export function GetInstanceInfo() {
   return window['go']['app']['App']['GetInstanceInfo']();
+}
+
+export function GetLatestNews() {
+  return window['go']['app']['App']['GetLatestNews']();
 }
 
 export function GetLatestVersion(arg1) {

@@ -186,6 +186,24 @@ export namespace service {
 		}
 	}
 	
+	export class NewsArticle {
+	    title: string;
+	    dest_url: string;
+	    description: string;
+	    image_url: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new NewsArticle(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.title = source["title"];
+	        this.dest_url = source["dest_url"];
+	        this.description = source["description"];
+	        this.image_url = source["image_url"];
+	    }
+	}
 
 }
 

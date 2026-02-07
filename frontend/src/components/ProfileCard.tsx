@@ -258,12 +258,13 @@ export const ProfileSection: React.FC<ProfileProps> = ({
             left: `${dropdownPosition.left}px`,
             zIndex: 999999,
             pointerEvents: 'auto',
+            cursor: 'pointer',
           }}
           className="
             w-[133px]
-            bg-[#090909]/[0.95] backdrop-blur-[20px]
-            rounded-[20px]
-            border border-[#7C7C7C]/[0.20]
+            bg-[#090909]/[0.55] backdrop-blur-[6px]
+            rounded-[14px]
+            border border-[#7C7C7C]/[0.10]
             overflow-hidden
             shadow-2xl
           "
@@ -283,17 +284,17 @@ export const ProfileSection: React.FC<ProfileProps> = ({
                 onBranchChange(opt.value);
                 setOpenRelease(false);
               }}
-              className="
-                w-full h-[64px] px-[18px]
+              className={`
+                w-full h-[48px] px-[16px]
                 flex items-center justify-between
-                text-[#CCD9E0]/[0.90] text-[16px] font-[Mazzard]
-                hover:bg-white/[0.08]
+                text-[#CCD9E0]/[0.90] text-[16px] font-[Mazzard] font-[500]
+                hover:bg-white/[0.04]
                 cursor-pointer transition-colors
-                border-b border-white/10 last:border-b-0
-              "
+                ${idx !== OPTIONS.length - 1 ? "border-b border-[#D9D9D9]/[0.10]" : ""}
+              `}
             >
-              <span className="pointer-events-none">{opt.label}</span>
-              {opt.value === selectedBranch && <Check size={18} className="pointer-events-none" />}
+              <span className="pointer-events-none tracking-[-0.03em] leading-[110%]">{opt.label}</span>
+              {opt.value === selectedBranch && <Check size={16} className="pointer-events-none text-[#CCD9E0]/[0.90]" />}
             </button>
           ))}
         </div>,
@@ -310,18 +311,37 @@ export const ProfileSection: React.FC<ProfileProps> = ({
             left: `${dropdownPosition.left + 132}px`,
             zIndex: 999999,
             pointerEvents: 'auto',
+            cursor: 'pointer',
           }}
           className="
             w-[98px]
-            max-h-[240px]
+            max-h-[194px]
             overflow-y-auto
-            bg-[#090909]/[0.95] backdrop-blur-[20px]
-            rounded-[20px]
-            border border-[#7C7C7C]/[0.20]
+            bg-[#090909]/[0.55] backdrop-blur-[6px]
+            rounded-[14px]
+            border border-[#7C7C7C]/[0.10]
             shadow-2xl
-            scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent
+            custom-scrollbar
           "
         >
+          <style>{`
+            .custom-scrollbar::-webkit-scrollbar {
+              width: 2px !important;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+              background: transparent !important;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+              background: rgba(217, 217, 217, 0.5) !important;
+              border-radius: 100px !important;
+            }
+            /* Remove standard scrollbar in case of conflict */
+            .custom-scrollbar {
+              scrollbar-width: thin;
+              scrollbar-color: rgba(217, 217, 217, 0.5) transparent;
+            }
+          `}</style>
+          
           {availableVersions.map((version, idx) => (
             <button
               key={version}
@@ -337,17 +357,17 @@ export const ProfileSection: React.FC<ProfileProps> = ({
                 onVersionChange(version);
                 setOpenVersion(false);
               }}
-              className="
-                w-full h-[40px] px-[18px]
+              className={`
+                w-full h-[48px] px-[16px]
                 flex items-center justify-between
-                text-[#CCD9E0]/[0.90] text-[16px] font-[Mazzard]
-                hover:bg-white/[0.08]
+                text-[#CCD9E0]/[0.90] text-[16px] font-[Mazzard] font-[500]
+                hover:bg-white/[0.04]
                 cursor-pointer transition-colors
-                border-b border-white/10 last:border-b-0
-              "
+                ${idx !== availableVersions.length - 1 ? "border-b border-[#D9D9D9]/[0.10]" : ""}
+              `}
             >
-              <span className="pointer-events-none">{version === "auto" ? "auto" : `v${version}`}</span>
-              {String(version) === String(currentVersion) && <Check size={16} className="pointer-events-none" />}
+              <span className="pointer-events-none tracking-[-0.03em] leading-[110%]">{version === "auto" ? "auto" : `v${version}`}</span>
+              {String(version) === String(currentVersion) && <Check size={16} className="pointer-events-none text-[#CCD9E0]/[0.90]" />}
             </button>
           ))}
         </div>,

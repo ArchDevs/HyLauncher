@@ -12,11 +12,15 @@ export function DownloadAndLaunch(arg1:string):Promise<void>;
 
 export function GetAllGameVersions():Promise<app.AllBranchVersions>;
 
+export function GetAllNews():Promise<Array<service.NewsArticle>>;
+
 export function GetBranchVersions(arg1:string):Promise<Array<number>>;
 
 export function GetCrashReports():Promise<Array<service.CrashReport>>;
 
 export function GetInstanceInfo():Promise<Record<string, any>>;
+
+export function GetLatestNews():Promise<service.NewsArticle>;
 
 export function GetLatestVersion(arg1:string):Promise<number>;
 

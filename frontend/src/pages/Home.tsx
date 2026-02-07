@@ -33,8 +33,10 @@ function HomePage() {
     setShowDiagnostics,
     error,
     setError,
+    latestNews,
     handlePlay,
     handleUpdateLauncher,
+    onOpenNews,
     setNick,
     setLocalGameVersion,
     handleBranchChange,      // ADDED
@@ -95,6 +97,8 @@ function HomePage() {
           }}
           updateAvailable={!!updateAsset}
           onUpdate={handleUpdateLauncher}
+          latestNews={latestNews}
+          onOpenNews={onOpenNews}
         />
       </main>
 

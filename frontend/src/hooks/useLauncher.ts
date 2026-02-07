@@ -9,8 +9,10 @@ import {
   Update,
   SetLocalGameVersion,
   UpdateInstanceBranch,
+  GetLatestNews,
+  GetAllNews,
 } from "../../wailsjs/go/app/App";
-import { EventsOn } from "../../wailsjs/runtime/runtime";
+import { EventsOn, BrowserOpenURL } from "../../wailsjs/runtime/runtime";
 import { useTranslation } from "../i18n";
 
 export type ReleaseType = "release" | "pre-release";
@@ -40,6 +42,21 @@ export const useLauncher = () => {
   const [launcherVersion, setLauncherVersion] = useState<string>("0.0.0");
   const [isEditingUsername, setIsEditingUsername] = useState<boolean>(false);
   const [isLoadingVersions, setIsLoadingVersions] = useState<boolean>(true);
+  const [allNews, setAllNews] = useState<any[]>([]);
+  const [newsIndex, setNewsIndex] = useState<number>(0);
+
+  // Auto-rotate news every 30 seconds
+  useEffect(() => {
+    if (allNews.length <= 1) return;
+    
+    const interval = setInterval(() => {
+      setNewsIndex((prev) => (prev + 1) % allNews.length);
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [allNews.length]);
+
+  const latestNews = allNews[newsIndex] || null;
 
   // Progress
   const [progress, setProgress] = useState<number>(0);
@@ -142,6 +159,15 @@ export const useLauncher = () => {
       setLauncherVersion(version);
     }).catch(err => {
       console.error("[useLauncher] Failed to get launcher version:", err);
+    });
+
+    GetAllNews().then((news: any[]) => {
+      console.log("[useLauncher] Fetched news articles:", news);
+      if (news && Array.isArray(news)) {
+        setAllNews(news);
+      }
+    }).catch(err => {
+      console.error("[useLauncher] Failed to fetch news:", err);
     });
 
     // Listen for launcher updates
@@ -319,6 +345,8 @@ export const useLauncher = () => {
     setShowDiagnostics,
     error,
     setError,
+    latestNews,
+    onOpenNews: (url: string) => BrowserOpenURL(url),
 
     // Actions
     handlePlay,

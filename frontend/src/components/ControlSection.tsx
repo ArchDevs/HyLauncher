@@ -27,6 +27,13 @@ interface ControlSectionProps {
   };
   updateAvailable: boolean;
   onUpdate: () => void;
+  latestNews?: {
+    title: string;
+    dest_url: string;
+    description: string;
+    image_url: string;
+  };
+  onOpenNews?: (url: string) => void;
 }
 
 export const ControlSection: React.FC<ControlSectionProps> = ({
@@ -41,6 +48,8 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
   actions,
   updateAvailable,
   onUpdate,
+  latestNews,
+  onOpenNews,
 }) => {
   const { t } = useTranslation();
 
@@ -56,7 +65,38 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
   return (
     <div className="w-full flex items-end gap-[20px] ml-[48px]">
       <div className="w-[280px] flex flex-col gap-[12px]">
-        <div className="w-[280px] h-[120px]  bg-[#090909]/[0.55] backdrop-blur-[12px] border border-[#FFA845]/[0.10] rounded-[14px]"></div>
+        {latestNews ? (
+          <button
+            onClick={() => onOpenNews?.(latestNews.dest_url)}
+            className="w-[280px] h-[120px] bg-[#090909]/[0.55] backdrop-blur-[12px] border border-[#FFA845]/[0.10] rounded-[14px] overflow-hidden group block cursor-pointer text-left"
+          >
+            <div className="relative w-full h-full">
+              <img
+                key={latestNews.title}
+                src={
+                  latestNews.image_url.startsWith("http")
+                    ? latestNews.image_url
+                    : `https://launcher.hytale.com/launcher-feed/release/${latestNews.image_url}`
+                }
+                alt={latestNews.title}
+                className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+              <div className="absolute bottom-0 left-0 p-3 w-full">
+                <h3 className="text-[14px] font-[Unbounded] font-[500] text-[#CCD9E0]/[0.90] line-clamp-1 mb-0.5">
+                  {latestNews.title}
+                </h3>
+                <p className="text-[11px] font-[Mazzard] text-[#CCD9E0]/[0.40] line-clamp-2 leading-tight">
+                  {latestNews.description}
+                </p>
+              </div>
+            </div>
+          </button>
+        ) : (
+          <div className="w-[280px] h-[120px] bg-[#090909]/[0.55] backdrop-blur-[12px] border border-[#FFA845]/[0.10] rounded-[14px] animate-pulse flex items-center justify-center">
+            <span className="text-[12px] text-[#CCD9E0]/[0.20] font-[Mazzard]">Loading news...</span>
+          </div>
+        )}
         {updateAvailable && (
           <button
             onClick={onUpdate}
@@ -70,20 +110,6 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
             </span>
           </button>
         )}
-
-        {/* 
-        <div className="flex gap-[10px]">
-          <NavBtn
-            onClick={actions.openFolder}
-            icon={<FolderOpen size={20} />}
-          />
-          <NavBtn
-            onClick={actions.showDiagnostics}
-            icon={<Activity size={20} />}
-          />
-          <NavBtn icon={<Settings size={20} />} />
-          <NavBtn onClick={actions.showDelete} icon={<Trash size={20} />} />
-        </div> */}
         <motion.button
           style={{
             willChange: "transform",

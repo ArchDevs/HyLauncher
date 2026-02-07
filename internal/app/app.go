@@ -27,6 +27,7 @@ type App struct {
 	crashSvc *service.Reporter
 	gameSvc  *service.GameService
 	authSvc  *service.AuthService
+	newsSvc  *service.NewsService
 }
 
 func NewApp() *App {
@@ -81,6 +82,7 @@ func (a *App) Startup(ctx context.Context) {
 
 	a.authSvc = service.NewAuthService(a.ctx)
 	a.gameSvc = service.NewGameService(a.ctx, a.progress, a.authSvc)
+	a.newsSvc = service.NewNewsService()
 
 	fmt.Printf("Application starting: v%s, branch=%s, build=%s\n",
 		a.launcherCfg.Version, a.instance.Branch, a.instance.BuildVersion)
