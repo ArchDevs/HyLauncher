@@ -59,7 +59,14 @@ func (s *GameService) EnsureGame(request model.InstanceModel) error {
 
 	s.reporter.Report(progress.StageVerify, 65, "Butler is installed...")
 
+	gameDir := env.GetGameDir(request.Branch, request.BuildVersion)
+	clientPath := env.GetGameClientPath(request.Branch, request.BuildVersion)
+	fmt.Printf("[EnsureGame] Checking game installation: branch=%s version=%s\n", request.Branch, request.BuildVersion)
+	fmt.Printf("[EnsureGame] Game dir: %s\n", gameDir)
+	fmt.Printf("[EnsureGame] Client path: %s\n", clientPath)
+
 	if err := game.CheckInstalled(s.ctx, request.Branch, request.BuildVersion); err != nil {
+		fmt.Printf("[EnsureGame] CheckInstalled failed: %v\n", err)
 		return fmt.Errorf("verify game: %w", err)
 	}
 
@@ -97,12 +104,19 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 			currentVer, _ = strconv.Atoi(string(data))
 		}
 
-		if currentVer == latest && game.CheckInstalled(ctx, request.Branch, "auto") == nil {
+		fmt.Printf("[EnsureInstalled] Auto version check: current=%d latest=%d versionFile=%s\n", currentVer, latest, versionFile)
+		
+		checkErr := game.CheckInstalled(ctx, request.Branch, "auto")
+		fmt.Printf("[EnsureInstalled] CheckInstalled result: %v\n", checkErr)
+
+		if currentVer == latest && checkErr == nil {
 			if reporter != nil {
 				reporter.Report(progress.StageVerify, 100, "Auto build is up to date")
 			}
 			return "auto", nil
 		}
+		
+		fmt.Printf("[EnsureInstalled] Reinstalling: currentVer=%d latest=%d checkErr=%v\n", currentVer, latest, checkErr)
 
 		if reporter != nil {
 			reporter.Report(progress.StageVerify, 50, fmt.Sprintf("Updating auto build to version %d", latest))
@@ -152,12 +166,26 @@ func (s *GameService) installInternal(ctx context.Context, branch string, versio
 		return fmt.Errorf("apply patch: %w", err)
 	}
 
+	// Fix permissions on macOS after patching
+	if runtime.GOOS == "darwin" {
+		clientExec := filepath.Join(gameDir, "Client", "Hytale.app", "Contents", "MacOS", "HytaleClient")
+		if fileutil.FileExists(clientExec) {
+			_ = os.Chmod(clientExec, 0755)
+		}
+		// Also fix the Java runtime if needed
+		jreDir := env.GetJREDir()
+		javaExec := filepath.Join(jreDir, "bin", "java")
+		if fileutil.FileExists(javaExec) {
+			_ = os.Chmod(javaExec, 0755)
+		}
+	}
+
 	clientPath := env.GetGameClientPath(branch, version)
 
 	if runtime.GOOS == "darwin" {
-		appPath := filepath.Join(gameDir, "Client", "Hytale.app")
-		if !fileutil.FileExists(appPath) {
-			return fmt.Errorf("client app not found at %s", appPath)
+		// On macOS, check for the executable inside the app bundle
+		if clientPath == "" || !fileutil.FileExists(clientPath) {
+			return fmt.Errorf("client executable not found in app bundle")
 		}
 	} else {
 		if !fileutil.FileExists(clientPath) {

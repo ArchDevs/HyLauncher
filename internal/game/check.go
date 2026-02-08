@@ -13,7 +13,8 @@ func CheckInstalled(ctx context.Context, branch string, buildVersion string) err
 	base := env.GetGameDir(branch, buildVersion)
 	clientPath := env.GetGameClientPath(branch, buildVersion)
 
-	if !fileutil.FileExists(clientPath) {
+	// On macOS, GetGameClientPath may return empty string if executable not found
+	if clientPath == "" || !fileutil.FileExists(clientPath) {
 		return fmt.Errorf("client binary missing")
 	}
 
