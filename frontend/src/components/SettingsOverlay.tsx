@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, HardDrive, Shield, Languages, FolderOpen, FolderSearch, Trash2, Check } from "lucide-react";
+import {
+  X,
+  HardDrive,
+  Shield,
+  Languages,
+  FolderOpen,
+  FolderSearch,
+  Trash2,
+  Check,
+} from "lucide-react";
 import bgSettingsImage from "../assets/images/bg-settings.png";
 import kweebecLogo from "../assets/images/kweeby.png";
 import { useTranslation } from "../i18n";
@@ -20,7 +29,8 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
 }) => {
   const { t } = useTranslation();
   const [overlayEnterReady, setOverlayEnterReady] = useState(false);
-  const [settingsSection, setSettingsSection] = useState<SettingsSection>("storage");
+  const [settingsSection, setSettingsSection] =
+    useState<SettingsSection>("storage");
 
   useEffect(() => {
     if (!isOpen) {
@@ -93,14 +103,20 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
             aria-label="Settings"
           >
             {/* Dark overlay for readability */}
-            <div className="absolute inset-0 bg-[#090909]/[0.75] rounded-[14px]" aria-hidden />
-            
+            <div
+              className="absolute inset-0 bg-[#090909]/[0.75] rounded-[14px]"
+              aria-hidden
+            />
+
             {/* Header */}
             <div className="absolute left-[30px] top-[30px] z-10 flex items-center gap-[12px]">
               <span className="text-[20px] font-[Unbounded] font-[500] uppercase tracking-wide text-white/90">
                 SETTINGS
               </span>
-              <span className="w-[1px] h-[20px] bg-[#7C7C7C]/[0.10]" aria-hidden />
+              <span
+                className="w-[1px] h-[20px] bg-[#7C7C7C]/[0.10]"
+                aria-hidden
+              />
               <span className="text-[14px] text-white/25 font-[Mazzard]">
                 HyLauncher v{launcherVersion}
               </span>
@@ -111,7 +127,7 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
               className="absolute left-0 right-0 top-[80px] z-10 h-[1px] bg-[#7C7C7C]/[0.10]"
               aria-hidden
             />
-            
+
             {/* Vertical divider */}
             <div
               className="absolute left-[176px] top-[81px] bottom-0 z-10 w-[1px] bg-[#7C7C7C]/[0.10]"
@@ -178,7 +194,12 @@ interface SidebarButtonProps {
   onClick: () => void;
 }
 
-const SidebarButton: React.FC<SidebarButtonProps> = ({ icon, label, isActive, onClick }) => (
+const SidebarButton: React.FC<SidebarButtonProps> = ({
+  icon,
+  label,
+  isActive,
+  onClick,
+}) => (
   <button
     type="button"
     onClick={onClick}
@@ -206,7 +227,7 @@ const StorageSection: React.FC = () => {
           setGameDir(result);
         }
       } catch (err) {
-        console.error('Failed to load game directory:', err);
+        console.error("Failed to load game directory:", err);
       } finally {
         setIsLoading(false);
       }
@@ -224,7 +245,7 @@ const StorageSection: React.FC = () => {
         setGameDir(selected);
       }
     } catch (err) {
-      console.error('Failed to browse game directory:', err);
+      console.error("Failed to browse game directory:", err);
     }
   };
 
@@ -233,7 +254,7 @@ const StorageSection: React.FC = () => {
       // @ts-ignore - Wails bindings
       await window.go?.app?.App?.OpenLogsFolder();
     } catch (err) {
-      console.error('Failed to open logs folder:', err);
+      console.error("Failed to open logs folder:", err);
     }
   };
 
@@ -241,9 +262,9 @@ const StorageSection: React.FC = () => {
     try {
       // @ts-ignore - Wails bindings
       await window.go?.app?.App?.DeleteLogs();
-      console.log('[StorageSection] Logs deleted successfully');
+      console.log("[StorageSection] Logs deleted successfully");
     } catch (err) {
-      console.error('Failed to delete logs:', err);
+      console.error("Failed to delete logs:", err);
     }
   };
 
@@ -251,9 +272,9 @@ const StorageSection: React.FC = () => {
     try {
       // @ts-ignore - Wails bindings
       await window.go?.app?.App?.DeleteCache();
-      console.log('[StorageSection] Cache deleted successfully');
+      console.log("[StorageSection] Cache deleted successfully");
     } catch (err) {
-      console.error('Failed to delete cache:', err);
+      console.error("Failed to delete cache:", err);
     }
   };
 
@@ -261,18 +282,21 @@ const StorageSection: React.FC = () => {
     try {
       // @ts-ignore - Wails bindings
       await window.go?.app?.App?.DeleteFiles();
-      console.log('[StorageSection] Game files deleted successfully');
+      console.log("[StorageSection] Game files deleted successfully");
     } catch (err) {
-      console.error('Failed to delete game files:', err);
+      console.error("Failed to delete game files:", err);
     }
   };
 
   return (
     <div className="flex flex-col gap-[24px] text-white/90 font-[Mazzard]">
       <section>
-        <h3 className="text-[16px] font-[Unbounded] font-[500] text-white mb-[6px]">Game directory</h3>
+        <h3 className="text-[16px] font-[Unbounded] font-[500] text-white mb-[6px]">
+          Game directory
+        </h3>
         <p className="text-[14px] font-[Mazzard] text-white/50 mb-[6px]">
-          The directory where the game stores all of its files. Changes will be applied after restarting the launcher.
+          The directory where the game stores all of its files. Changes will be
+          applied after restarting the launcher.
         </p>
         <div className="relative w-full">
           <input
@@ -292,8 +316,12 @@ const StorageSection: React.FC = () => {
         </div>
       </section>
       <section>
-        <h3 className="text-[16px] font-[Unbounded] font-[500] text-white mb-[6px]">Logs</h3>
-        <p className="text-[14px] font-[Mazzard] text-white/50 mb-[6px]">Browse or clean up your log files.</p>
+        <h3 className="text-[16px] font-[Unbounded] font-[500] text-white mb-[6px]">
+          Logs
+        </h3>
+        <p className="text-[14px] font-[Mazzard] text-white/50 mb-[6px]">
+          Browse or clean up your log files.
+        </p>
         <div className="flex items-center gap-[10px]">
           <button
             type="button"
@@ -312,9 +340,12 @@ const StorageSection: React.FC = () => {
         </div>
       </section>
       <section>
-        <h3 className="text-[16px] font-[Unbounded] font-[500] text-white mb-[6px]">Clear Cache/Game</h3>
+        <h3 className="text-[16px] font-[Unbounded] font-[500] text-white mb-[6px]">
+          Clear Cache/Game
+        </h3>
         <p className="text-[14px] font-[Mazzard] text-white/50 mb-[6px]">
-          Clean up HyLauncher cache game files/full files game. (will temporarily increase launch time)
+          Clean up HyLauncher cache game files/full files game. (will
+          temporarily increase launch time)
         </p>
         <div className="flex items-center gap-[10px]">
           <button
@@ -348,11 +379,11 @@ const PrivacySection: React.FC = () => {
       try {
         // @ts-ignore - Wails bindings
         const result = await window.go?.app?.App?.GetDiscordRPC();
-        if (typeof result === 'boolean') {
+        if (typeof result === "boolean") {
           setDiscordRPC(result);
         }
       } catch (err) {
-        console.error('Failed to load Discord RPC setting:', err);
+        console.error("Failed to load Discord RPC setting:", err);
       } finally {
         setIsLoading(false);
       }
@@ -366,7 +397,7 @@ const PrivacySection: React.FC = () => {
       await window.go?.app?.App?.SetDiscordRPC(enabled);
       setDiscordRPC(enabled);
     } catch (err) {
-      console.error('Failed to save Discord RPC setting:', err);
+      console.error("Failed to save Discord RPC setting:", err);
     }
   };
 
@@ -375,7 +406,9 @@ const PrivacySection: React.FC = () => {
       {/* Analytics */}
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-[20px] font-[Unbounded] font-[500] text-white mb-[8px]">Analytics</h3>
+          <h3 className="text-[16px] font-[Unbounded] font-[500] text-white mb-[8px]">
+            Analytics
+          </h3>
           <p className="text-[14px] font-[Mazzard] text-white/50">
             HyLauncher collects analytics to improve the user experience.
           </p>
@@ -386,12 +419,19 @@ const PrivacySection: React.FC = () => {
       {/* Discord RPC */}
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-[20px] font-[Unbounded] font-[500] text-white mb-[8px]">Discord RPC</h3>
+          <h3 className="text-[16px] font-[Unbounded] font-[500] text-white mb-[8px]">
+            Discord RPC
+          </h3>
           <p className="text-[14px] font-[Mazzard] text-white/50 max-w-[400px]">
-            Disabling this will cause 'HyLauncher' to no longer show up as a game or app you are using on your Discord profile.
+            Disabling this will cause 'HyLauncher' to no longer show up as a
+            game or app you are using on your Discord profile.
           </p>
         </div>
-        <ToggleSwitch checked={discordRPC} onChange={handleDiscordRPCChange} disabled={isLoading} />
+        <ToggleSwitch
+          checked={discordRPC}
+          onChange={handleDiscordRPCChange}
+          disabled={isLoading}
+        />
       </div>
     </div>
   );
@@ -403,7 +443,11 @@ interface ToggleSwitchProps {
   disabled?: boolean;
 }
 
-const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, disabled }) => {
+const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
+  checked,
+  onChange,
+  disabled,
+}) => {
   return (
     <button
       type="button"
@@ -413,13 +457,11 @@ const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, disabled
         w-[48px] h-[48px] rounded-[14px] border
         flex items-center justify-center
         transition-all duration-200
-        ${disabled 
-          ? "opacity-50 cursor-not-allowed" 
-          : "cursor-pointer"
-        }
-        ${checked 
-          ? "bg-[#090909]/[0.55] border-[#7C7C7C]/[0.10]" 
-          : "bg-[#090909]/[0.30] border-[#7C7C7C]/[0.05]"
+        ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+        ${
+          checked
+            ? "bg-[#090909]/[0.55] border-[#7C7C7C]/[0.10]"
+            : "bg-[#090909]/[0.30] border-[#7C7C7C]/[0.05]"
         }
       `}
       aria-label={checked ? "Enabled" : "Disabled"}
@@ -456,17 +498,19 @@ const LanguageSection: React.FC = () => {
   return (
     <div className="flex flex-col gap-[16px] text-white/90 font-[Mazzard]">
       {/* Notice block */}
-      <div className="
+      <div
+        className="
         w-full h-[80px]
         bg-[#090909]/[0.55] backdrop-blur-[6px]
         border border-[#FFA845]/[0.10]
         rounded-[14px]
         flex items-center
         px-[10px] gap-[10px]
-      ">
-        <img 
-          src={kweebecLogo} 
-          alt="Kweebec" 
+      "
+      >
+        <img
+          src={kweebecLogo}
+          alt="Kweebec"
           className="w-[60px] h-[60px] rounded-[8px]"
         />
         <div className="flex flex-col gap-[8px]">
@@ -474,7 +518,8 @@ const LanguageSection: React.FC = () => {
             {t.settings?.note || "Note:"}
           </span>
           <span className="text-[14px] font-[Mazzard] font-[500] text-[#CCD9E0]/[0.5] tracking-[-0.03em] leading-[110%]">
-            {t.settings?.translationNotice || "The app is not fully translated yet, so some content may remain in English for certain languages."}
+            {t.settings?.translationNotice ||
+              "The app is not fully translated yet, so some content may remain in English for certain languages."}
           </span>
         </div>
       </div>
@@ -501,7 +546,11 @@ const LanguageSection: React.FC = () => {
               {lang.name}
             </span>
             {language === lang.code && (
-              <Check size={16} className="text-[#CCD9E0]/[0.9]" strokeWidth={2} />
+              <Check
+                size={16}
+                className="text-[#CCD9E0]/[0.9]"
+                strokeWidth={2}
+              />
             )}
           </button>
         ))}
