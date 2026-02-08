@@ -98,6 +98,7 @@ jobs:
         with:
           name: release-${{ matrix.artifact }}
           path: release/*
+          if-no-files-found: error
 
   release:
     name: Create Release
@@ -117,13 +118,54 @@ jobs:
         with:
           path: artifacts
           pattern: release-*
+          merge-multiple: false
+
+      - name: Debug artifact structure
+        run: |
+          echo "Artifact directory structure:"
+          find artifacts -type f -ls 2>/dev/null || echo "No artifacts found"
+          ls -la artifacts/ 2>/dev/null || echo "Artifacts dir empty"
 
       - name: Prepare release files
         run: |
           mkdir -p release
-          cp artifacts/release-linux/* release/
-          cp artifacts/release-windows/* release/
-          cp artifacts/release-macos/* release/
+          
+          # Debug: show all artifact directories
+          echo "Available artifact directories:"
+          find artifacts -type d 2>/dev/null || true
+          
+          # Copy Linux artifacts
+          if [ -d "artifacts/release-linux" ] && [ "$(ls -A artifacts/release-linux)" ]; then
+            echo "Copying Linux artifacts..."
+            cp artifacts/release-linux/* release/
+          else
+            echo "Warning: Linux artifacts not found"
+          fi
+          
+          # Copy Windows artifacts
+          if [ -d "artifacts/release-windows" ] && [ "$(ls -A artifacts/release-windows)" ]; then
+            echo "Copying Windows artifacts..."
+            cp artifacts/release-windows/* release/
+          else
+            echo "Warning: Windows artifacts not found"
+          fi
+          
+          # Copy macOS artifacts
+          if [ -d "artifacts/release-macos" ] && [ "$(ls -A artifacts/release-macos)" ]; then
+            echo "Copying macOS artifacts..."
+            cp artifacts/release-macos/* release/
+          else
+            echo "Warning: macOS artifacts not found"
+          fi
+          
+          echo "Files in release directory:"
+          ls -la release/
+          
+          # Fail if no files were copied
+          if [ ! "$(ls -A release)" ]; then
+            echo "Error: No release files found!"
+            exit 1
+          fi
 
       - name: Generate version manifest
         run: |
