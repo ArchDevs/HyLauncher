@@ -137,7 +137,7 @@ jobs:
           # Copy Linux artifacts
           if [ -d "artifacts/release-linux" ] && [ "$(ls -A artifacts/release-linux)" ]; then
             echo "Copying Linux artifacts..."
-            cp artifacts/release-linux/* release/
+            cp -r artifacts/release-linux/* release/
           else
             echo "Warning: Linux artifacts not found"
           fi
@@ -145,7 +145,7 @@ jobs:
           # Copy Windows artifacts
           if [ -d "artifacts/release-windows" ] && [ "$(ls -A artifacts/release-windows)" ]; then
             echo "Copying Windows artifacts..."
-            cp artifacts/release-windows/* release/
+            cp -r artifacts/release-windows/* release/
           else
             echo "Warning: Windows artifacts not found"
           fi
@@ -153,7 +153,7 @@ jobs:
           # Copy macOS artifacts
           if [ -d "artifacts/release-macos" ] && [ "$(ls -A artifacts/release-macos)" ]; then
             echo "Copying macOS artifacts..."
-            cp artifacts/release-macos/* release/
+            cp -r artifacts/release-macos/* release/
           else
             echo "Warning: macOS artifacts not found"
           fi
