@@ -8,13 +8,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 )
 
 func (a *App) OpenFolder() error {
 	path := env.GetDefaultAppDir()
 
-	// Verify folder exists
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if err := os.MkdirAll(path, 0755); err != nil {
 			return hyerrors.WrapFileSystem(err, "creating game folder")
@@ -27,7 +27,7 @@ func (a *App) OpenFolder() error {
 		cmd = exec.Command("explorer", path)
 	case "darwin":
 		cmd = exec.Command("open", path)
-	default: // Linux
+	default:
 		cmd = exec.Command("xdg-open", path)
 	}
 
@@ -38,7 +38,6 @@ func (a *App) OpenFolder() error {
 	return nil
 }
 
-// TODO move to instance_service.go DeleteGame()
 func (a *App) DeleteGame(instance string) error {
 	homeDir := env.GetDefaultAppDir()
 
@@ -96,4 +95,16 @@ func (a *App) GetCrashReports() ([]service.CrashReport, error) {
 		return nil, hyerrors.Internal("diagnostics not initialized")
 	}
 	return a.crashSvc.GetCrashReports()
+}
+
+func (a *App) validatePlayerName(name string) error {
+	re := regexp.MustCompile("^[A-Za-z0-9_]{3,16}$")
+
+	if !re.MatchString(name) {
+		return hyerrors.Validation("nickname should be 3-16 characters long, consisting only of letters, numbers, and underscores").
+			WithContext("length", len(name)).
+			WithContext("name", name)
+	}
+
+	return nil
 }

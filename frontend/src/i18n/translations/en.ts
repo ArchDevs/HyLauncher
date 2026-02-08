@@ -70,4 +70,8 @@ export const en: Translations = {
       text: "HyNexus - this is Hytale as it should be. Economy, Clans, PVP, PVE, we're waiting for you!",
     },
   },
+  settings: {
+    note: "Note:",
+    translationNotice: "The app is not fully translated yet, so some content may remain in English for certain languages.",
+  },
 };

@@ -14,6 +14,7 @@ import {
 } from "../../wailsjs/go/app/App";
 import { EventsOn, BrowserOpenURL } from "../../wailsjs/runtime/runtime";
 import { useTranslation } from "../i18n";
+import { model } from "../../wailsjs/go/models";
 
 export type ReleaseType = "release" | "pre-release";
 
@@ -85,11 +86,11 @@ export const useLauncher = () => {
   useEffect(() => {
     const loadInstanceInfo = async () => {
       try {
-        const info = await GetInstanceInfo();
+        const info = await GetInstanceInfo() as model.InstanceModel;
         console.log("[useLauncher] Loaded instance info:", info);
         
-        setCurrentVersion(String(info.version || "0"));
-        setSelectedBranch((info.branch || "pre-release") as ReleaseType);
+        setCurrentVersion(String(info.BuildVersion || "0"));
+        setSelectedBranch((info.Branch || "pre-release") as ReleaseType);
       } catch (err) {
         console.error("[useLauncher] Failed to load instance info:", err);
         setError({

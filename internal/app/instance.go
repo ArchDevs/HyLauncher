@@ -5,6 +5,7 @@ import (
 
 	"HyLauncher/internal/config"
 	"HyLauncher/pkg/hyerrors"
+	"HyLauncher/pkg/model"
 )
 
 func (a *App) SelectInstance(instanceID string) error {
@@ -83,13 +84,8 @@ func (a *App) UpdateInstanceBranch(branch string) error {
 	return nil
 }
 
-func (a *App) GetInstanceInfo() map[string]interface{} {
-	return map[string]interface{}{
-		"id":      a.instance.InstanceID,
-		"name":    a.instance.InstanceName,
-		"branch":  a.instance.Branch,
-		"version": a.instance.BuildVersion,
-	}
+func (a *App) GetInstanceInfo() model.InstanceModel {
+	return a.instance
 }
 
 func (a *App) UpdateInstanceName(name string) error {

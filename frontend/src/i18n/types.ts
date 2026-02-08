@@ -72,6 +72,10 @@ export interface Translations {
       text: string;
     };
   };
+  settings: {
+    note: string;
+    translationNotice: string;
+  };
 }
 
 export interface I18nContextValue {

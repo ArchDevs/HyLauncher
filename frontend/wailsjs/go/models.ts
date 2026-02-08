@@ -1,22 +1,3 @@
-export namespace app {
-	
-	export class AllBranchVersions {
-	    release: number[];
-	    preRelease: number[];
-	
-	    static createFrom(source: any = {}) {
-	        return new AllBranchVersions(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.release = source["release"];
-	        this.preRelease = source["preRelease"];
-	    }
-	}
-
-}
-
 export namespace hyerrors {
 	
 	export class Frame {
@@ -79,6 +60,29 @@ export namespace hyerrors {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace model {
+	
+	export class InstanceModel {
+	    InstanceID: string;
+	    InstanceName: string;
+	    Branch: string;
+	    BuildVersion: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new InstanceModel(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.InstanceID = source["InstanceID"];
+	        this.InstanceName = source["InstanceName"];
+	        this.Branch = source["Branch"];
+	        this.BuildVersion = source["BuildVersion"];
+	    }
 	}
 
 }

@@ -1,49 +1,110 @@
 package app
 
-import "HyLauncher/internal/patch"
+import (
+	"fmt"
+	"os"
 
-type BranchVersions struct {
-	Branch   string `json:"branch"`
-	Versions []int  `json:"versions"`
+	"HyLauncher/internal/config"
+	"HyLauncher/internal/env"
+	"HyLauncher/internal/patch"
+	"HyLauncher/pkg/hyerrors"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+)
+
+func (a *App) DownloadAndLaunch(playerName string) error {
+	if err := a.validatePlayerName(playerName); err != nil {
+		hyerrors.Report(hyerrors.Validation("provided invalid username"))
+		return err
+	}
+
+	if err := a.SyncInstanceState(); err != nil {
+		fmt.Printf("Warning: Failed to sync instance state: %v\n", err)
+	}
+
+	installedVersion, err := a.gameSvc.EnsureInstalled(a.ctx, a.instance, a.progress)
+	if err != nil {
+		appErr := hyerrors.WrapGame(err, "failed to install game").
+			WithContext("branch", a.instance.Branch).
+			WithContext("requestedVersion", a.instance.BuildVersion)
+		hyerrors.Report(appErr)
+		return appErr
+	}
+
+	if installedVersion != a.instance.BuildVersion {
+		a.instance.BuildVersion = installedVersion
+		if err := a.UpdateInstanceVersion(installedVersion); err != nil {
+			fmt.Printf("Warning: Failed to update instance version after install: %v\n", err)
+		}
+	}
+
+	if err := a.gameSvc.Launch(playerName, a.instance); err != nil {
+		appErr := hyerrors.GameCritical("failed to launch game").
+			WithDetails(err.Error()).
+			WithContext("player", playerName).
+			WithContext("branch", a.instance.Branch).
+			WithContext("version", a.instance.BuildVersion)
+		hyerrors.Report(appErr)
+		return appErr
+	}
+
+	return nil
 }
 
-type AllBranchVersions struct {
-	Release    []int `json:"release"`
-	PreRelease []int `json:"preRelease"`
+func (a *App) GetGameDirectory() string {
+	if a.launcherCfg.GameDir != "" {
+		return a.launcherCfg.GameDir
+	}
+	return env.GetDefaultAppDir()
 }
 
-func (a *App) GetAllGameVersions() (AllBranchVersions, error) {
+func (a *App) SetGameDirectory(path string) error {
+	if path == "" {
+		return fmt.Errorf("path cannot be empty")
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		if err := os.MkdirAll(path, 0755); err != nil {
+			return fmt.Errorf("failed to create directory: %w", err)
+		}
+	}
+
+	oldCustomPath := env.GetCustomAppDir()
+
+	a.launcherCfg.GameDir = path
+
+	env.SetCustomAppDir(path)
+
+	if err := config.SaveLauncher(a.launcherCfg); err != nil {
+		env.SetCustomAppDir(oldCustomPath)
+		return fmt.Errorf("failed to save launcher config to new location: %w", err)
+	}
+
+	if err := env.CreateFolders(a.instance.InstanceID); err != nil {
+		fmt.Printf("Warning: failed to create folder structure: %v\n", err)
+	}
+
+	return nil
+}
+
+func (a *App) BrowseGameDirectory() (string, error) {
+	selection, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Select Game Directory",
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to open directory dialog: %w", err)
+	}
+	return selection, nil
+}
+
+func (a *App) GetAllGameVersions() (map[string]any, error) {
 	release, prerelease, err := patch.ListAllVersionsBothBranches()
-
 	if err != nil {
-		return AllBranchVersions{
-			Release:    []int{},
-			PreRelease: []int{},
-		}, err
+		return nil, fmt.Errorf("failed to get game versions: %w", err)
 	}
 
-	return AllBranchVersions{
-		Release:    release,
-		PreRelease: prerelease,
+	return map[string]any{
+		"release":    release,
+		"preRelease": prerelease,
 	}, nil
-}
-
-func (a *App) GetBranchVersions(branch string) ([]int, error) {
-	versions, err := patch.ListAllVersions(branch)
-
-	if err != nil {
-		return []int{}, err
-	}
-
-	return versions, nil
-}
-
-func (a *App) GetLatestVersion(branch string) (int, error) {
-	version, err := patch.FindLatestVersion(branch)
-
-	if err != nil {
-		return 0, err
-	}
-
-	return version, nil
 }

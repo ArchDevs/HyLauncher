@@ -6,6 +6,16 @@ import (
 	"runtime"
 )
 
+var customAppDir string
+
+func SetCustomAppDir(path string) {
+	customAppDir = path
+}
+
+func GetCustomAppDir() string {
+	return customAppDir
+}
+
 func GetOS() string {
 	switch runtime.GOOS {
 	case "windows":
@@ -31,6 +41,10 @@ func GetArch() string {
 }
 
 func GetDefaultAppDir() string {
+	if customAppDir != "" {
+		return customAppDir
+	}
+
 	home, _ := os.UserHomeDir()
 	switch runtime.GOOS {
 	case "windows":
