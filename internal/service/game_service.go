@@ -9,12 +9,15 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
+	"syscall"
+	"time"
 
 	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/game"
 	"HyLauncher/internal/java"
 	"HyLauncher/internal/patch"
+	"HyLauncher/internal/platform"
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/fileutil"
 	"HyLauncher/pkg/model"
@@ -316,10 +319,48 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel) err
 
 	game.SetSDLVideoDriver(cmd)
 
-	fmt.Println(cmd)
+	fmt.Printf("[Launch] Starting game: %s\n", clientPath)
+	fmt.Printf("[Launch] Working dir: %s\n", gameDir)
+	fmt.Printf("[Launch] Command: %v\n", cmd.Args)
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start game process: %w", err)
+	}
+
+	fmt.Printf("[Launch] Process started with PID: %d\n", cmd.Process.Pid)
+
+	// On macOS, detach the process so it doesn't die when launcher exits
+	if runtime.GOOS == "darwin" && cmd.Process != nil {
+		if err := cmd.Process.Release(); err != nil {
+			fmt.Printf("[Launch] Warning: could not detach process: %v\n", err)
+		} else {
+			fmt.Printf("[Launch] Process detached\n")
+		}
+	}
+
+	// On macOS, remove quarantine from the binary to prevent silent killing
+	if runtime.GOOS == "darwin" {
+		if err := platform.RemoveQuarantine(clientPath); err != nil {
+			fmt.Printf("[Launch] Warning: could not remove quarantine: %v\n", err)
+		}
+	}
+
+	// Wait a moment and check if process is still running
+	time.Sleep(500 * time.Millisecond)
+	if cmd.Process != nil {
+		// Signal 0 is a no-op that checks if process exists (Unix only)
+		if runtime.GOOS != "windows" {
+			if err := cmd.Process.Signal(syscall.Signal(0)); err != nil {
+				fmt.Printf("[Launch] Process already exited: %v\n", err)
+				// Try to get exit code
+				if waitErr := cmd.Wait(); waitErr != nil {
+					fmt.Printf("[Launch] Process exit error: %v\n", waitErr)
+					return fmt.Errorf("game process exited immediately: %w", waitErr)
+				}
+				return fmt.Errorf("game process exited immediately")
+			}
+		}
+		fmt.Printf("[Launch] Process is still running (PID: %d)\n", cmd.Process.Pid)
 	}
 
 	s.reporter.Report(progress.StageLaunch, 100, "Game launched!")
