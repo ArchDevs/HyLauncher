@@ -1,8 +1,6 @@
 package app
 
 import (
-	"fmt"
-
 	"HyLauncher/internal/config"
 	"HyLauncher/pkg/hyerrors"
 	"HyLauncher/pkg/model"
@@ -34,7 +32,6 @@ func (a *App) SelectInstance(instanceID string) error {
 	a.instance.Branch = instanceCfg.Branch
 	a.instance.BuildVersion = instanceCfg.Build
 
-	fmt.Printf("[SelectInstance] Switched to instance %s\n", instanceID)
 	return nil
 }
 
@@ -54,7 +51,6 @@ func (a *App) UpdateInstanceVersion(buildVersion string) error {
 	a.instance.BuildVersion = buildVersion
 	a.instanceCfg.Build = buildVersion
 
-	fmt.Printf("[UpdateInstanceVersion] Updated to version %s\n", buildVersion)
 	return nil
 }
 
@@ -80,7 +76,6 @@ func (a *App) UpdateInstanceBranch(branch string) error {
 	a.instance.Branch = branch
 	a.instanceCfg.Branch = branch
 
-	fmt.Printf("[UpdateInstanceBranch] Updated to branch %s\n", branch)
 	return nil
 }
 
@@ -108,7 +103,6 @@ func (a *App) UpdateInstanceName(name string) error {
 	a.instance.InstanceName = name
 	a.instanceCfg.Name = name
 
-	fmt.Printf("[UpdateInstanceName] Updated name to %s\n", name)
 	return nil
 }
 
@@ -126,8 +120,6 @@ func (a *App) SyncInstanceState() error {
 	a.instance.Branch = instanceCfg.Branch
 	a.instance.BuildVersion = instanceCfg.Build
 
-	fmt.Printf("[SyncInstanceState] Synced instance state: branch=%s, version=%s\n",
-		a.instance.Branch, a.instance.BuildVersion)
 	return nil
 }
 

@@ -10,8 +10,20 @@ export function CheckUpdate() {
   return window['go']['app']['App']['CheckUpdate']();
 }
 
+export function DeleteCache() {
+  return window['go']['app']['App']['DeleteCache']();
+}
+
+export function DeleteFiles() {
+  return window['go']['app']['App']['DeleteFiles']();
+}
+
 export function DeleteGame(arg1) {
   return window['go']['app']['App']['DeleteGame'](arg1);
+}
+
+export function DeleteLogs() {
+  return window['go']['app']['App']['DeleteLogs']();
 }
 
 export function DownloadAndLaunch(arg1) {
@@ -64,6 +76,10 @@ export function GetNick() {
 
 export function OpenFolder() {
   return window['go']['app']['App']['OpenFolder']();
+}
+
+export function OpenLogsFolder() {
+  return window['go']['app']['App']['OpenLogsFolder']();
 }
 
 export function SelectInstance(arg1) {

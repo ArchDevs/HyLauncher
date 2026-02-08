@@ -18,9 +18,7 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 		return err
 	}
 
-	if err := a.SyncInstanceState(); err != nil {
-		fmt.Printf("Warning: Failed to sync instance state: %v\n", err)
-	}
+	_ = a.SyncInstanceState()
 
 	installedVersion, err := a.gameSvc.EnsureInstalled(a.ctx, a.instance, a.progress)
 	if err != nil {
@@ -34,7 +32,7 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 	if installedVersion != a.instance.BuildVersion {
 		a.instance.BuildVersion = installedVersion
 		if err := a.UpdateInstanceVersion(installedVersion); err != nil {
-			fmt.Printf("Warning: Failed to update instance version after install: %v\n", err)
+			_ = err
 		}
 	}
 
@@ -80,9 +78,7 @@ func (a *App) SetGameDirectory(path string) error {
 		return fmt.Errorf("failed to save launcher config to new location: %w", err)
 	}
 
-	if err := env.CreateFolders(a.instance.InstanceID); err != nil {
-		fmt.Printf("Warning: failed to create folder structure: %v\n", err)
-	}
+	_ = env.CreateFolders(a.instance.InstanceID)
 
 	return nil
 }

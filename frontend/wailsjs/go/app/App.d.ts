@@ -8,7 +8,13 @@ export function BrowseGameDirectory():Promise<string>;
 
 export function CheckUpdate():Promise<updater.Asset>;
 
+export function DeleteCache():Promise<void>;
+
+export function DeleteFiles():Promise<void>;
+
 export function DeleteGame(arg1:string):Promise<void>;
+
+export function DeleteLogs():Promise<void>;
 
 export function DownloadAndLaunch(arg1:string):Promise<void>;
 
@@ -35,6 +41,8 @@ export function GetLogs():Promise<string>;
 export function GetNick():Promise<string>;
 
 export function OpenFolder():Promise<void>;
+
+export function OpenLogsFolder():Promise<void>;
 
 export function SelectInstance(arg1:string):Promise<void>;
 

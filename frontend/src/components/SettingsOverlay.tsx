@@ -228,6 +228,45 @@ const StorageSection: React.FC = () => {
     }
   };
 
+  const handleOpenLogs = async () => {
+    try {
+      // @ts-ignore - Wails bindings
+      await window.go?.app?.App?.OpenLogsFolder();
+    } catch (err) {
+      console.error('Failed to open logs folder:', err);
+    }
+  };
+
+  const handleDeleteLogs = async () => {
+    try {
+      // @ts-ignore - Wails bindings
+      await window.go?.app?.App?.DeleteLogs();
+      console.log('[StorageSection] Logs deleted successfully');
+    } catch (err) {
+      console.error('Failed to delete logs:', err);
+    }
+  };
+
+  const handleDeleteCache = async () => {
+    try {
+      // @ts-ignore - Wails bindings
+      await window.go?.app?.App?.DeleteCache();
+      console.log('[StorageSection] Cache deleted successfully');
+    } catch (err) {
+      console.error('Failed to delete cache:', err);
+    }
+  };
+
+  const handleDeleteFiles = async () => {
+    try {
+      // @ts-ignore - Wails bindings
+      await window.go?.app?.App?.DeleteFiles();
+      console.log('[StorageSection] Game files deleted successfully');
+    } catch (err) {
+      console.error('Failed to delete game files:', err);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-[24px] text-white/90 font-[Mazzard]">
       <section>
@@ -258,12 +297,14 @@ const StorageSection: React.FC = () => {
         <div className="flex items-center gap-[10px]">
           <button
             type="button"
+            onClick={handleOpenLogs}
             className="flex items-center justify-center gap-[16px] w-[130px] h-[46px] rounded-[14px] bg-[#090909]/[0.55] border border-[#7C7C7C]/[0.10] font-[Mazzard] text-[#CCD9E0]/[0.9] text-[14px] hover:bg-[#090909]/70 transition-colors cursor-pointer"
           >
             Open logs <FolderOpen size={16} />
           </button>
           <button
             type="button"
+            onClick={handleDeleteLogs}
             className="flex items-center justify-center gap-[16px] w-[136px] h-[46px] rounded-[14px] bg-[#090909]/[0.55] border border-[#7C7C7C]/[0.10] font-[Mazzard] text-[#CCD9E0]/[0.9] text-[14px] hover:bg-[#090909]/70 transition-colors cursor-pointer"
           >
             Delete logs <Trash2 size={16} />
@@ -278,12 +319,14 @@ const StorageSection: React.FC = () => {
         <div className="flex items-center gap-[10px]">
           <button
             type="button"
+            onClick={handleDeleteCache}
             className="flex items-center justify-center gap-[16px] w-[154px] h-[46px] rounded-[14px] bg-[#090909]/[0.55] border border-[#7C7C7C]/[0.10] font-[Mazzard] text-[#CCD9E0]/[0.9] text-[14px] hover:bg-[#090909]/70 transition-colors cursor-pointer"
           >
             Delete Cache <Trash2 size={16} />
           </button>
           <button
             type="button"
+            onClick={handleDeleteFiles}
             className="flex items-center justify-center gap-[16px] w-[140px] h-[46px] rounded-[14px] bg-[#170000]/[0.55] border border-[#8F0000]/[0.10] font-[Mazzard] text-white text-[14px] hover:bg-[#170000]/70 transition-colors cursor-pointer"
           >
             Delete Files <Trash2 size={16} />

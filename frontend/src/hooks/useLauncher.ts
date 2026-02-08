@@ -9,7 +9,6 @@ import {
   Update,
   SetLocalGameVersion,
   UpdateInstanceBranch,
-  GetLatestNews,
   GetAllNews,
 } from "../../wailsjs/go/app/App";
 import { EventsOn, BrowserOpenURL } from "../../wailsjs/runtime/runtime";
@@ -21,12 +20,10 @@ export type ReleaseType = "release" | "pre-release";
 export const useLauncher = () => {
   const { t } = useTranslation();
 
-  // Game
   const [username, setUsername] = useState<string>("HyLauncher");
   const [currentVersion, setCurrentVersion] = useState<string>("0");
   const [selectedBranch, setSelectedBranch] = useState<ReleaseType>("pre-release");
   
-  // Store versions for both branches
   const [allVersions, setAllVersions] = useState<{
     release: string[];
     preRelease: string[];
@@ -35,7 +32,6 @@ export const useLauncher = () => {
     preRelease: [],
   });
   
-  // Computed: current branch's available versions
   const availableVersions = ["auto", ...(selectedBranch === "release" 
     ? allVersions.release 
     : allVersions.preRelease)];
@@ -46,25 +42,22 @@ export const useLauncher = () => {
   const [allNews, setAllNews] = useState<any[]>([]);
   const [newsIndex, setNewsIndex] = useState<number>(0);
 
-  // Auto-rotate news every 30 seconds
   useEffect(() => {
     if (allNews.length <= 1) return;
     
     const interval = setInterval(() => {
       setNewsIndex((prev) => (prev + 1) % allNews.length);
-    }, 30000); // 30 seconds
+    }, 30000);
     
     return () => clearInterval(interval);
   }, [allNews.length]);
 
   const latestNews = allNews[newsIndex] || null;
 
-  // Progress
   const [progress, setProgress] = useState<number>(0);
   const [status, setStatus] = useState<string>(t.control.status.readyToPlay);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
-  // Download Details
   const [downloadDetails, setDownloadDetails] = useState({
     currentFile: "",
     speed: "",
@@ -72,27 +65,21 @@ export const useLauncher = () => {
     total: 0,
   });
 
-  // Launcher update
   const [updateAsset, setUpdateAsset] = useState<any>(null);
   const [isUpdatingLauncher, setIsUpdatingLauncher] = useState<boolean>(false);
   const [updateStats, setUpdateStats] = useState({ d: 0, t: 0 });
 
-  // UI
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
   const [error, setError] = useState<any>(null);
 
-  // Load initial instance info from backend
   useEffect(() => {
     const loadInstanceInfo = async () => {
       try {
         const info = await GetInstanceInfo() as model.InstanceModel;
-        console.log("[useLauncher] Loaded instance info:", info);
-        
         setCurrentVersion(String(info.BuildVersion || "0"));
         setSelectedBranch((info.Branch || "pre-release") as ReleaseType);
       } catch (err) {
-        console.error("[useLauncher] Failed to load instance info:", err);
         setError({
           type: "INSTANCE_LOAD_ERROR",
           message: "Failed to load instance configuration",
@@ -104,15 +91,12 @@ export const useLauncher = () => {
     loadInstanceInfo();
   }, []);
 
-  // Fetch all versions on mount
   useEffect(() => {
     const fetchVersions = async () => {
       setIsLoadingVersions(true);
       try {
         const versions = await GetAllGameVersions();
-        console.log("[useLauncher] Fetched versions:", versions);
         
-        // Convert all versions to strings for consistent comparison
         const sortedRelease = [...(versions.release || [])]
           .sort((a, b) => b - a)
           .map(v => String(v));
@@ -125,13 +109,11 @@ export const useLauncher = () => {
           preRelease: sortedPreRelease,
         });
       } catch (err) {
-        console.error("[useLauncher] Failed to fetch game versions:", err);
         setError({
           type: "VERSION_FETCH_ERROR",
           message: "Failed to fetch available game versions",
           technical: err instanceof Error ? err.message : String(err),
         });
-        // Keep empty arrays on error
         setAllVersions({
           release: [],
           preRelease: [],
@@ -145,35 +127,21 @@ export const useLauncher = () => {
   }, []);
 
   useEffect(() => {
-    // Load username and launcher version
     GetNick().then((n: string) => {
-      if (n) {
-        console.log("[useLauncher] Loaded username:", n);
-        setUsername(n);
-      }
-    }).catch(err => {
-      console.error("[useLauncher] Failed to get username:", err);
+      if (n) setUsername(n);
     });
 
     GetLauncherVersion().then((version: string) => {
-      console.log("[useLauncher] Launcher version:", version);
       setLauncherVersion(version);
-    }).catch(err => {
-      console.error("[useLauncher] Failed to get launcher version:", err);
     });
 
     GetAllNews().then((news: any[]) => {
-      console.log("[useLauncher] Fetched news articles:", news);
       if (news && Array.isArray(news)) {
         setAllNews(news);
       }
-    }).catch(err => {
-      console.error("[useLauncher] Failed to fetch news:", err);
     });
 
-    // Listen for launcher updates
     const offUpdateAvailable = EventsOn("update:available", (asset: any) => {
-      console.log("[useLauncher] Update available:", asset);
       setUpdateAsset(asset);
     });
 
@@ -186,7 +154,6 @@ export const useLauncher = () => {
       },
     );
 
-    // Listen for game download progress
     const offProgress = EventsOn("progress-update", (data: any) => {
       setProgress(data.progress ?? 0);
       setStatus(data.message ?? "");
@@ -223,18 +190,10 @@ export const useLauncher = () => {
       return;
     }
     
-    console.log("[useLauncher] Starting game with:", {
-      username,
-      version: currentVersion,
-      branch: selectedBranch,
-    });
-    
     setIsDownloading(true);
     try {
       await DownloadAndLaunch(username);
-      console.log("[useLauncher] Game launched successfully");
     } catch (err) {
-      console.error("[useLauncher] Launch failed:", err);
       setIsDownloading(false);
       setError({
         type: "LAUNCH_ERROR",
@@ -245,14 +204,12 @@ export const useLauncher = () => {
   }, [username, currentVersion, selectedBranch]);
 
   const handleUpdateLauncher = async () => {
-    console.log("[useLauncher] Starting launcher update");
     setIsUpdatingLauncher(true);
     setProgress(0);
     setUpdateStats({ d: 0, t: 0 });
     try {
       await Update();
     } catch (err) {
-      console.error("[useLauncher] Launcher update failed:", err);
       setError({
         type: "UPDATE_ERROR",
         message: "Failed to update launcher",
@@ -264,21 +221,16 @@ export const useLauncher = () => {
   };
 
   const setNick = useCallback((val: string) => {
-    console.log("[useLauncher] Setting username:", val);
     SetNickBackend(val, "default");
     setUsername(val);
   }, []);
 
-  // This is called by ProfileCard after backend confirms the change
   const setLocalGameVersion = useCallback(async (version: string) => {
-    // 1. Update local state immediately (Optimistic UI)
     setCurrentVersion(version);
     
     try {
-      // 2. Call backend
       await SetLocalGameVersion(version, "default"); 
     } catch (err) {
-      console.error("[useLauncher] Failed to save version:", err);
       setError({ 
         type: "CONFIG_ERROR", 
         message: "Failed to save version", 
@@ -287,16 +239,12 @@ export const useLauncher = () => {
     }
   }, [setError]);
 
-  // This is called by ProfileCard after backend confirms the change
   const handleBranchChange = useCallback(async (branch: ReleaseType) => {
-    // 1. Update local state immediately
     setSelectedBranch(branch);
     
     try {
-      // 2. Call backend
       await UpdateInstanceBranch(branch);
       
-      // 3. Refresh versions for the new branch
       setIsLoadingVersions(true);
       const versions = await GetAllGameVersions();
       
@@ -313,7 +261,6 @@ export const useLauncher = () => {
       });
       setIsLoadingVersions(false);
     } catch (err) {
-      console.error("[useLauncher] Failed to save branch:", err);
       setError({ 
         type: "CONFIG_ERROR", 
         message: "Failed to save branch", 
@@ -323,7 +270,6 @@ export const useLauncher = () => {
   }, [setError]);
 
   return {
-    // State
     username,
     currentVersion,
     selectedBranch,
@@ -348,8 +294,6 @@ export const useLauncher = () => {
     setError,
     latestNews,
     onOpenNews: (url: string) => BrowserOpenURL(url),
-
-    // Actions
     handlePlay,
     handleUpdateLauncher,
     setNick,

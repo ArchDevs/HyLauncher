@@ -34,9 +34,7 @@ func (a *App) discordRPC() {
 		},
 	})
 
-	if err != nil {
-		fmt.Printf("failed to set Discord activity: %v\n", err)
-	}
+	_ = err
 }
 
 func (a *App) GetDiscordRPC() bool {
@@ -56,7 +54,6 @@ func (a *App) SetDiscordRPC(enabled bool) error {
 
 	if enabled {
 		if err := client.Login("1465005878276128888"); err != nil {
-			fmt.Printf("failed to initialize Discord RPC: %v\n", err)
 			return nil
 		}
 		go a.discordRPC()

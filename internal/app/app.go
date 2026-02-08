@@ -52,9 +52,7 @@ func (a *App) Startup(ctx context.Context) {
 	a.launcherCfg = launcherCfg
 
 	if launcherCfg.DiscordRPC {
-		if err := client.Login("1465005878276128888"); err != nil {
-			fmt.Printf("failed to initialize Discord RPC: %v\n", err)
-		}
+		_ = client.Login("1465005878276128888")
 	}
 
 	instanceName := launcherCfg.Instance
@@ -88,9 +86,6 @@ func (a *App) Startup(ctx context.Context) {
 	a.authSvc = service.NewAuthService(a.ctx)
 	a.gameSvc = service.NewGameService(a.ctx, a.progress, a.authSvc)
 	a.newsSvc = service.NewNewsService()
-
-	fmt.Printf("Application starting: v%s, branch=%s, build=%s, discord_rpc=%v\n",
-		a.launcherCfg.Version, a.instance.Branch, a.instance.BuildVersion, a.launcherCfg.DiscordRPC)
 
 	go a.discordRPC()
 	go env.CreateFolders(a.instance.InstanceID)
