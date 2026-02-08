@@ -79,17 +79,20 @@ func MoveFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer in.Close()
 
 	out, err := os.OpenFile(tmpDst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {
+		in.Close()
 		return err
 	}
 
 	if _, err := io.Copy(out, in); err != nil {
+		in.Close()
 		out.Close()
 		return err
 	}
+
+	in.Close()
 
 	if err := out.Sync(); err != nil {
 		out.Close()
@@ -100,9 +103,12 @@ func MoveFile(src, dst string) error {
 		return err
 	}
 
+	// Remove source before rename to avoid conflicts on Windows
+	os.Remove(src)
+
 	if err := os.Rename(tmpDst, dst); err != nil {
 		return err
 	}
 
-	return os.Remove(src)
+	return nil
 }

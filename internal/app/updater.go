@@ -8,6 +8,9 @@ import (
 	"HyLauncher/pkg/hyerrors"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -74,7 +77,19 @@ func (a *App) Update() error {
 		return appErr
 	}
 
-	cmd := exec.Command(helperPath, exe, tmp)
+	var cmd *exec.Cmd
+	if runtime.GOOS == "darwin" {
+		// On macOS, find the .app bundle and use open command
+		appPath := findAppBundle(exe)
+		if appPath != "" {
+			// Use update helper to replace then open the app
+			cmd = exec.Command(helperPath, exe, tmp, appPath)
+		} else {
+			cmd = exec.Command(helperPath, exe, tmp)
+		}
+	} else {
+		cmd = exec.Command(helperPath, exe, tmp)
+	}
 	platform.HideConsoleWindow(cmd)
 
 	cmd.Stdin = nil
@@ -95,6 +110,18 @@ func (a *App) Update() error {
 	time.Sleep(500 * time.Millisecond)
 	os.Exit(0)
 	return nil
+}
+
+func findAppBundle(exePath string) string {
+	// Walk up from the executable to find the .app bundle
+	dir := filepath.Dir(exePath)
+	for dir != "/" && dir != "." {
+		if strings.HasSuffix(dir, ".app") {
+			return dir
+		}
+		dir = filepath.Dir(dir)
+	}
+	return ""
 }
 
 func (a *App) checkUpdateSilently() {

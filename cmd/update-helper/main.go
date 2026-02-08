@@ -10,20 +10,24 @@ import (
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Fprintln(os.Stderr, "usage: update-helper <old-exe> <new-exe>")
+		fmt.Fprintln(os.Stderr, "usage: update-helper <old-exe> <new-exe> [app-bundle]")
 		os.Exit(1)
 	}
 
 	oldExe := os.Args[1]
 	newExe := os.Args[2]
+	appBundle := ""
+	if len(os.Args) > 3 {
+		appBundle = os.Args[3]
+	}
 
-	if err := performUpdate(oldExe, newExe); err != nil {
+	if err := performUpdate(oldExe, newExe, appBundle); err != nil {
 		fmt.Fprintf(os.Stderr, "Update failed: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func performUpdate(oldExe, newExe string) error {
+func performUpdate(oldExe, newExe, appBundle string) error {
 	// Verify the new executable exists
 	if _, err := os.Stat(newExe); err != nil {
 		return fmt.Errorf("new executable not found: %w", err)
@@ -87,7 +91,7 @@ func performUpdate(oldExe, newExe string) error {
 	}
 
 	fmt.Println("Restarting launcher...")
-	if err := restartLauncher(oldExe); err != nil {
+	if err := restartLauncher(oldExe, appBundle); err != nil {
 		return fmt.Errorf("failed to restart launcher: %w", err)
 	}
 

@@ -8,7 +8,7 @@ import (
 	"syscall"
 )
 
-func restartLauncher(exePath string) error {
+func restartLauncher(exePath, appBundle string) error {
 	absPath, err := filepath.Abs(exePath)
 	if err != nil {
 		return err
