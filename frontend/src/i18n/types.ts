@@ -71,6 +71,9 @@ export interface Translations {
     hynexus: {
       text: string;
     };
+    nctale: {
+      text: string;
+    };
   };
   settings: {
     note: string;

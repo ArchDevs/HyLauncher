@@ -70,6 +70,9 @@ export const ru: Translations = {
     hynexus: {
       text: "HyNexus - это Hytale, каким он должен быть. Экономика, Кланы, PVP, PVE, ждем тебя!",
     },
+    nctale: {
+      text: "NCTale — королевство в hytale! PvP-битвы, войны за территорию, варварство, экономика.",
+    },
   },
   settings: {
     note: "Примечание:",

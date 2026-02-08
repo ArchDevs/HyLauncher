@@ -69,6 +69,9 @@ export const en: Translations = {
     hynexus: {
       text: "HyNexus - this is Hytale as it should be. Economy, Clans, PVP, PVE, we're waiting for you!",
     },
+    nctale: {
+      text: "Join the community on Discord and Telegram — news, help and chat.",
+    },
   },
   settings: {
     note: "Note:",
