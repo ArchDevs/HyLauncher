@@ -278,12 +278,13 @@ export const ProfileSection: React.FC<ProfileProps> = ({
                 e.preventDefault();
                 e.stopPropagation();
               }}
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 // Only change if different branch selected
                 if (opt.value !== selectedBranch) {
-                  onBranchChange(opt.value);
+                  // Wait for branch change to complete before setting version
+                  await onBranchChange(opt.value);
                   // Reset version to auto when switching branches
                   onVersionChange("auto");
                 }

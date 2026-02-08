@@ -5,7 +5,6 @@ type LauncherConfig struct {
 	Version    string `toml:"version"`
 	Instance   string `toml:"instance"`
 	DiscordRPC bool   `toml:"discord_rpc"`
-	GameDir    string `toml:"game_dir,omitempty"`
 }
 
 type InstanceConfig struct {

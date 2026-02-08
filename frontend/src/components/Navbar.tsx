@@ -57,23 +57,28 @@ function Navbar({ activeTab, onTabChange, onDiagnosticsClick, onSettingsClick }:
         {pages.map((page) => {
           const Icon = page.icon;
           const isActive = !isSettingsOpen && activeTab === page.id;
+          const isDisabled = page.id === "mods";
           return (
             <button
               key={page.id}
               onClick={() => {
+                if (isDisabled) return;
                 console.log("Navbar click:", page.id);
                 onTabChange(page.id);
               }}
+              disabled={isDisabled}
               style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-              className={`transition-all cursor-pointer pointer-events-auto text-white ${
-                isActive ? "opacity-90" : "opacity-50 hover:opacity-70"
+              className={`transition-all pointer-events-auto ${
+                isDisabled
+                  ? "cursor-not-allowed text-neutral-600 opacity-30"
+                  : "cursor-pointer text-white " + (isActive ? "opacity-90" : "opacity-50 hover:opacity-70")
               }`}
-              title={page.name}
+              title={isDisabled ? "Coming soon" : page.name}
             >
               <Icon size={18} />
             </button>
           );
-        })}
+        })} 
         {/* Divider */}
         <div
           className="w-[48px] h-[1px] bg-[#7C7C7C]/[0.10]"
@@ -109,7 +114,7 @@ function Navbar({ activeTab, onTabChange, onDiagnosticsClick, onSettingsClick }:
           onClick={onDiagnosticsClick}
           disabled={!onDiagnosticsClick}
           style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-          className={`transition-all cursor-pointer pointer-events-auto text-white ${
+          className={`transition-all cursor-not-allowed pointer-events-auto text-neutral-700 ${
             onDiagnosticsClick ? "opacity-30" : "opacity-60 hover:opacity-90"
           }`}
           title="Диагностика"

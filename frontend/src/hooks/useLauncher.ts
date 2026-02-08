@@ -4,7 +4,8 @@ import {
   GetNick,
   SetNick as SetNickBackend,
   GetInstanceInfo,
-  GetAllGameVersions,
+  GetReleaseVersions,
+  GetPreReleaseVersions,
   GetLauncherVersion,
   Update,
   SetLocalGameVersion,
@@ -22,7 +23,7 @@ export const useLauncher = () => {
 
   const [username, setUsername] = useState<string>("HyLauncher");
   const [currentVersion, setCurrentVersion] = useState<string>("0");
-  const [selectedBranch, setSelectedBranch] = useState<ReleaseType>("pre-release");
+  const [selectedBranch, setSelectedBranch] = useState<ReleaseType>("release");
   
   const [allVersions, setAllVersions] = useState<{
     release: string[];
@@ -73,57 +74,42 @@ export const useLauncher = () => {
   const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
   const [error, setError] = useState<any>(null);
 
+  // Initial load: get instance info then fetch versions for saved branch
   useEffect(() => {
     const loadInstanceInfo = async () => {
       try {
         const info = await GetInstanceInfo() as model.InstanceModel;
+        const savedBranch = (info.Branch || "pre-release") as ReleaseType;
+        
         setCurrentVersion(String(info.BuildVersion || "0"));
-        setSelectedBranch((info.Branch || "pre-release") as ReleaseType);
+        setSelectedBranch(savedBranch);
+        
+        // Fetch versions for the saved branch
+        setIsLoadingVersions(true);
+        const versions = savedBranch === "release" 
+          ? await GetReleaseVersions()
+          : await GetPreReleaseVersions();
+        
+        const sortedVersions = [...versions]
+          .sort((a, b) => b - a)
+          .map(v => String(v));
+        
+        setAllVersions(prev => ({
+          release: savedBranch === "release" ? sortedVersions : prev.release,
+          preRelease: savedBranch === "pre-release" ? sortedVersions : prev.preRelease,
+        }));
       } catch (err) {
         setError({
           type: "INSTANCE_LOAD_ERROR",
           message: "Failed to load instance configuration",
           technical: err instanceof Error ? err.message : String(err),
         });
-      }
-    };
-
-    loadInstanceInfo();
-  }, []);
-
-  useEffect(() => {
-    const fetchVersions = async () => {
-      setIsLoadingVersions(true);
-      try {
-        const versions = await GetAllGameVersions();
-        
-        const sortedRelease = [...(versions.release || [])]
-          .sort((a, b) => b - a)
-          .map(v => String(v));
-        const sortedPreRelease = [...(versions.preRelease || [])]
-          .sort((a, b) => b - a)
-          .map(v => String(v));
-        
-        setAllVersions({
-          release: sortedRelease,
-          preRelease: sortedPreRelease,
-        });
-      } catch (err) {
-        setError({
-          type: "VERSION_FETCH_ERROR",
-          message: "Failed to fetch available game versions",
-          technical: err instanceof Error ? err.message : String(err),
-        });
-        setAllVersions({
-          release: [],
-          preRelease: [],
-        });
       } finally {
         setIsLoadingVersions(false);
       }
     };
 
-    fetchVersions();
+    loadInstanceInfo();
   }, []);
 
   useEffect(() => {
@@ -240,32 +226,35 @@ export const useLauncher = () => {
   }, [setError]);
 
   const handleBranchChange = useCallback(async (branch: ReleaseType) => {
-    setSelectedBranch(branch);
-    
     try {
+      // 1. Save to backend FIRST (this must complete)
       await UpdateInstanceBranch(branch);
       
-      setIsLoadingVersions(true);
-      const versions = await GetAllGameVersions();
+      // 2. Update UI state
+      setSelectedBranch(branch);
       
-      const sortedRelease = [...(versions.release || [])]
-        .sort((a, b) => b - a)
-        .map(v => String(v));
-      const sortedPreRelease = [...(versions.preRelease || [])]
+      // 3. Fetch versions for the new branch
+      setIsLoadingVersions(true);
+      const versions = branch === "release" 
+        ? await GetReleaseVersions()
+        : await GetPreReleaseVersions();
+      
+      const sortedVersions = [...versions]
         .sort((a, b) => b - a)
         .map(v => String(v));
         
-      setAllVersions({
-        release: sortedRelease,
-        preRelease: sortedPreRelease,
-      });
-      setIsLoadingVersions(false);
+      setAllVersions(prev => ({
+        ...prev,
+        [branch === "release" ? "release" : "preRelease"]: sortedVersions,
+      }));
     } catch (err) {
       setError({ 
         type: "CONFIG_ERROR", 
         message: "Failed to save branch", 
         technical: String(err) 
       });
+    } finally {
+      setIsLoadingVersions(false);
     }
   }, [setError]);
 

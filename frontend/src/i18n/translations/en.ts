@@ -47,9 +47,12 @@ export const en: Translations = {
       cancelButton: "Cancel",
     },
     error: {
-      title: "Error Occurred",
-      technicalDetails: "Technical Details",
+      title: "An error occurred",
+      technicalDetails: "Technical details",
       stackTrace: "Stack trace",
+      suggestion: "Please report this issue if it persists.",
+      copyError: "Copy error",
+      copied: "Copied!",
       suggestions: {
         network: "Check your internet connection and try again.",
         filesystem:

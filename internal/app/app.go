@@ -45,10 +45,6 @@ func (a *App) Startup(ctx context.Context) {
 		panic(fmt.Errorf("failed to load launcher config: %w", err))
 	}
 
-	if launcherCfg.GameDir != "" {
-		env.SetCustomAppDir(launcherCfg.GameDir)
-	}
-
 	a.launcherCfg = launcherCfg
 
 	if launcherCfg.DiscordRPC {

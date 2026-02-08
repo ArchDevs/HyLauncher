@@ -15,7 +15,6 @@ import (
 	"HyLauncher/internal/game"
 	"HyLauncher/internal/java"
 	"HyLauncher/internal/patch"
-	"HyLauncher/internal/platform"
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/fileutil"
 	"HyLauncher/pkg/model"
@@ -76,6 +75,15 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 		reporter.Report(progress.StageVerify, 0, "Checking for game updates")
 	}
 
+	if err := s.EnsureGame(request); err == nil {
+		return request.BuildVersion, nil
+	} else {
+		fmt.Println("[EnsureInstalled] verify failed:", err)
+		if reporter != nil {
+			reporter.Report(progress.StageVerify, 0, fmt.Sprintf("Verification failed: %v", err))
+		}
+	}
+
 	if request.BuildVersion == "auto" {
 		latest, err := s.fetchLatestVersion(ctx, request.Branch)
 		if err != nil {
@@ -104,19 +112,9 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 			return "", err
 		}
 
-		// Write .version file
 		_ = os.WriteFile(versionFile, []byte(strconv.Itoa(latest)), 0644)
 
 		return "auto", nil
-	}
-
-	if err := s.EnsureGame(request); err == nil {
-		return request.BuildVersion, nil
-	} else {
-		fmt.Println("[EnsureInstalled] verify failed:", err)
-		if reporter != nil {
-			reporter.Report(progress.StageVerify, 0, fmt.Sprintf("Verification failed: %v", err))
-		}
 	}
 
 	verInt, err := strconv.Atoi(request.BuildVersion)
@@ -126,6 +124,13 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 
 	if err := s.installInternal(ctx, request.Branch, request.BuildVersion, verInt, reporter); err != nil {
 		return "", err
+	}
+
+	if err := config.UpdateInstance(request.InstanceID, func(cfg *config.InstanceConfig) error {
+		cfg.Build = request.BuildVersion
+		return nil
+	}); err != nil {
+		return "", fmt.Errorf("update instance: %w", err)
 	}
 
 	return request.BuildVersion, nil
@@ -178,19 +183,6 @@ func (s *GameService) installInternal(ctx context.Context, branch string, versio
 		}
 	}
 
-	// Fix macOS app permissions after patching
-	if runtime.GOOS == "darwin" {
-		appPath := filepath.Join(gameDir, "Client", "Hytale.app")
-		if fileutil.FileExists(appPath) {
-			if reporter != nil {
-				reporter.Report(progress.StagePatch, 95, "Fixing macOS app permissions...")
-			}
-			if err := platform.FixMacOSApp(appPath); err != nil {
-				fmt.Printf("Warning: Failed to fix macOS app permissions: %v\n", err)
-			}
-		}
-	}
-
 	if reporter != nil {
 		reporter.Report(progress.StageComplete, 100, "Game installed successfully")
 	}
@@ -206,13 +198,6 @@ func (s *GameService) Install(ctx context.Context, request model.InstanceModel, 
 
 	if err := s.installInternal(ctx, request.Branch, request.BuildVersion, verInt, reporter); err != nil {
 		return err
-	}
-
-	if err := config.UpdateInstance(request.InstanceID, func(cfg *config.InstanceConfig) error {
-		cfg.Build = request.BuildVersion
-		return nil
-	}); err != nil {
-		return fmt.Errorf("update instance: %w", err)
 	}
 
 	return nil
@@ -278,15 +263,6 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel) err
 	if runtime.GOOS == "darwin" {
 		_ = os.Chmod(clientPath, 0755)
 		_ = os.Chmod(javaBin, 0755)
-		
-		// Fix macOS app permissions before launch
-		appPath := filepath.Join(gameDir, "Client", "Hytale.app")
-		if fileutil.FileExists(appPath) {
-			s.reporter.Report(progress.StageLaunch, 65, "Fixing macOS app permissions...")
-			if err := platform.FixMacOSApp(appPath); err != nil {
-				fmt.Printf("Warning: Failed to fix macOS app permissions: %v\n", err)
-			}
-		}
 	}
 
 	clientPath, _ = filepath.Abs(clientPath)

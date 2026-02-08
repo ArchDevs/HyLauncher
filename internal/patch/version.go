@@ -278,6 +278,9 @@ func checkVersionExists(client *http.Client, branch string, version int) bool {
 
 	url := buildPatchURL(branch, version)
 	resp, err := client.Head(url)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 
 	exists := err == nil && resp.StatusCode == http.StatusOK
 	versionCache.setVersion(key, exists)
@@ -292,7 +295,9 @@ func createClient() *http.Client {
 		Timeout: 10 * time.Second,
 		Transport: &http.Transport{
 			Proxy:                 http.ProxyFromEnvironment,
-			MaxIdleConns:          10,
+			MaxIdleConns:          3,
+			MaxIdleConnsPerHost:   2,
+			MaxConnsPerHost:       3,
 			IdleConnTimeout:       30 * time.Second,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,

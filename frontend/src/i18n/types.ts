@@ -54,6 +54,9 @@ export interface Translations {
       title: string;
       technicalDetails: string;
       stackTrace: string;
+      suggestion: string;
+      copyError: string;
+      copied: string;
       suggestions: {
         network: string;
         filesystem: string;

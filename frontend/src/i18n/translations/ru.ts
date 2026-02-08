@@ -50,6 +50,9 @@ export const ru: Translations = {
       title: "Произошла ошибка",
       technicalDetails: "Технические детали",
       stackTrace: "Трассировка стека",
+      suggestion: "Пожалуйста, сообщите об этой проблеме, если она сохраняется.",
+      copyError: "Скопировать ошибку",
+      copied: "Скопировано!",
       suggestions: {
         network: "Проверьте подключение к интернету и попробуйте снова.",
         filesystem:

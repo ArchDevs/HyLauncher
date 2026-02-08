@@ -1,15 +1,8 @@
 package app
 
 import (
-	"fmt"
-	"os"
-
-	"HyLauncher/internal/config"
-	"HyLauncher/internal/env"
 	"HyLauncher/internal/patch"
 	"HyLauncher/pkg/hyerrors"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func (a *App) DownloadAndLaunch(playerName string) error {
@@ -49,58 +42,30 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 	return nil
 }
 
-func (a *App) GetGameDirectory() string {
-	if a.launcherCfg.GameDir != "" {
-		return a.launcherCfg.GameDir
-	}
-	return env.GetDefaultAppDir()
-}
-
-func (a *App) SetGameDirectory(path string) error {
-	if path == "" {
-		return fmt.Errorf("path cannot be empty")
-	}
-
-	if _, err := os.Stat(path); err != nil {
-		if err := os.MkdirAll(path, 0755); err != nil {
-			return fmt.Errorf("failed to create directory: %w", err)
-		}
-	}
-
-	oldCustomPath := env.GetCustomAppDir()
-
-	a.launcherCfg.GameDir = path
-
-	env.SetCustomAppDir(path)
-
-	if err := config.SaveLauncher(a.launcherCfg); err != nil {
-		env.SetCustomAppDir(oldCustomPath)
-		return fmt.Errorf("failed to save launcher config to new location: %w", err)
-	}
-
-	_ = env.CreateFolders(a.instance.InstanceID)
-
-	return nil
-}
-
-func (a *App) BrowseGameDirectory() (string, error) {
-	selection, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "Select Game Directory",
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to open directory dialog: %w", err)
-	}
-	return selection, nil
-}
-
 func (a *App) GetAllGameVersions() (map[string]any, error) {
 	release, prerelease, err := patch.ListAllVersionsBothBranches()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get game versions: %w", err)
+		return nil, err
 	}
 
 	return map[string]any{
 		"release":    release,
 		"preRelease": prerelease,
 	}, nil
+}
+
+func (a *App) GetReleaseVersions() ([]int, error) {
+	release, err := patch.ListAllVersions("release")
+	if err != nil {
+		return nil, err
+	}
+	return release, err
+}
+
+func (a *App) GetPreReleaseVersions() ([]int, error) {
+	release, err := patch.ListAllVersions("pre-release")
+	if err != nil {
+		return nil, err
+	}
+	return release, err
 }

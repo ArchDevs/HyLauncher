@@ -4,8 +4,6 @@ import {updater} from '../models';
 import {service} from '../models';
 import {model} from '../models';
 
-export function BrowseGameDirectory():Promise<string>;
-
 export function CheckUpdate():Promise<updater.Asset>;
 
 export function DeleteCache():Promise<void>;
@@ -26,8 +24,6 @@ export function GetCrashReports():Promise<Array<service.CrashReport>>;
 
 export function GetDiscordRPC():Promise<boolean>;
 
-export function GetGameDirectory():Promise<string>;
-
 export function GetInstanceInfo():Promise<model.InstanceModel>;
 
 export function GetLatestNews():Promise<service.NewsArticle>;
@@ -40,6 +36,10 @@ export function GetLogs():Promise<string>;
 
 export function GetNick():Promise<string>;
 
+export function GetPreReleaseVersions():Promise<Array<number>>;
+
+export function GetReleaseVersions():Promise<Array<number>>;
+
 export function OpenFolder():Promise<void>;
 
 export function OpenLogsFolder():Promise<void>;
@@ -47,8 +47,6 @@ export function OpenLogsFolder():Promise<void>;
 export function SelectInstance(arg1:string):Promise<void>;
 
 export function SetDiscordRPC(arg1:boolean):Promise<void>;
-
-export function SetGameDirectory(arg1:string):Promise<void>;
 
 export function SetLocalGameVersion(arg1:string,arg2:string):Promise<void>;
 
