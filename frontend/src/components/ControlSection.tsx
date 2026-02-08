@@ -144,7 +144,7 @@ export const ControlSection: React.FC<ControlSectionProps> = ({
           </div>
 
           {/* Re-added speed and total size labels */}
-          <div className="text-[14px] text-[#CCD9E0]/[0.30] font-[MazzardM-Medium] max-w-[200px] truncate mr-[48px]">
+          <div className="text-[14px] text-[#CCD9E0]/[0.30] font-[MazzardM-Medium] text-right break-words min-w-0 flex-1 mr-[48px]">
             {speed && total > 0
               ? `${speed} • ${formatBytes(downloaded)} / ${formatBytes(total)}`
               : currentFile || t.common.ready}
