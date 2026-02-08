@@ -8,7 +8,6 @@ import (
 	"HyLauncher/pkg/hyerrors"
 	"os"
 	"os/exec"
-	"runtime"
 	"time"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -99,10 +98,7 @@ func (a *App) Update() error {
 }
 
 func (a *App) checkUpdateSilently() {
-	if runtime.GOOS != "windows" {
-		return
-	}
-
+	// Check for updates on all platforms
 	asset, _, err := updater.CheckUpdate(a.ctx, a.launcherCfg.Version)
 	if err != nil {
 		return

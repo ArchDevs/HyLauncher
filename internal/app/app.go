@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
@@ -82,6 +83,8 @@ func (a *App) Startup(ctx context.Context) {
 	a.authSvc = service.NewAuthService(a.ctx)
 	a.gameSvc = service.NewGameService(a.ctx, a.progress, a.authSvc)
 	a.newsSvc = service.NewNewsService()
+
+	log.Printf("[Start] Starting app, version=%s", a.launcherCfg.Version)
 
 	go a.discordRPC()
 	go env.CreateFolders(a.instance.InstanceID)
