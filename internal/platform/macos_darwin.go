@@ -43,6 +43,25 @@ func AdHocSign(path string) error {
 	return nil
 }
 
+func RemoveSignature(path string) error {
+	_, err := exec.LookPath("codesign")
+	if err != nil {
+		return fmt.Errorf("codesign not found: %w", err)
+	}
+
+	cmd := exec.Command("codesign", "--remove-signature", path)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// If no signature, that's fine
+		if strings.Contains(string(output), "no signature") || strings.Contains(string(output), "not signed") {
+			return nil
+		}
+		return fmt.Errorf("failed to remove signature: %w (output: %s)", err, string(output))
+	}
+
+	return nil
+}
+
 func FixMacOSApp(appPath string) error {
 	if _, err := os.Stat(appPath); err != nil {
 		return fmt.Errorf("app not found: %w", err)

@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 
 	"HyLauncher/internal/env"
+	"HyLauncher/internal/platform"
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/fileutil"
 	"HyLauncher/pkg/model"
@@ -247,6 +249,16 @@ func (cp *ClientPatcher) PatchClient(clientPath string, reporter *progress.Repor
 		return fmt.Errorf("client binary not found: %s", clientPath)
 	}
 
+	// On macOS, remove code signature before patching
+	if runtime.GOOS == "darwin" {
+		if reporter != nil {
+			reporter.Report(progress.StagePatch, 5, "Removing code signature...")
+		}
+		if err := platform.RemoveSignature(clientPath); err != nil {
+			fmt.Printf("Warning: could not remove signature: %v\n", err)
+		}
+	}
+
 	if reporter != nil {
 		reporter.Report(progress.StagePatch, 10, "Reading client binary...")
 	}
@@ -282,6 +294,18 @@ func (cp *ClientPatcher) PatchClient(clientPath string, reporter *progress.Repor
 	// Write patched version
 	if err := os.WriteFile(clientPath, patchedData, 0755); err != nil {
 		return fmt.Errorf("failed to write patched client: %w", err)
+	}
+
+	// On macOS, re-sign with ad-hoc signature after patching
+	if runtime.GOOS == "darwin" {
+		if reporter != nil {
+			reporter.Report(progress.StagePatch, 90, "Re-signing binary...")
+		}
+		if err := platform.AdHocSign(clientPath); err != nil {
+			fmt.Printf("Warning: could not re-sign binary: %v\n", err)
+		} else {
+			fmt.Println("Re-signed binary with ad-hoc signature")
+		}
 	}
 
 	if reporter != nil {
