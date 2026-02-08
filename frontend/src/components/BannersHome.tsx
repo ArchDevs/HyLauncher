@@ -18,7 +18,7 @@ function BannersHome() {
       <Banner
         variant="compact"
         iconImage={banner2Image}
-        text={t.banners.nctale.text}
+        text={`${t.banners.nctale.text} Заходи айпи: nctale.ru`}
       />
     </div>
   );
