@@ -290,7 +290,7 @@ const StorageSection: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-[24px] text-white/90 font-[Mazzard]">
-      <section>
+      {/* <section>
         <h3 className="text-[16px] font-[Unbounded] font-[500] text-white mb-[6px]">
           Game directory
         </h3>
@@ -314,7 +314,7 @@ const StorageSection: React.FC = () => {
             <FolderSearch size={18} />
           </button>
         </div>
-      </section>
+      </section> */}
       <section>
         <h3 className="text-[16px] font-[Unbounded] font-[500] text-white mb-[6px]">
           Logs
