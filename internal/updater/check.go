@@ -24,10 +24,21 @@ type UpdateInfo struct {
 	} `json:"linux"`
 	Windows struct {
 		Amd64 struct {
-			Launcher Asset `json:"launcher"`
+			Portable Asset `json:"portable"`
+			Setup    Asset `json:"setup"`
 			Helper   Asset `json:"helper"`
 		} `json:"amd64"`
 	} `json:"windows"`
+	Darwin struct {
+		Arm64 struct {
+			Launcher Asset `json:"launcher"`
+			Helper   Asset `json:"helper"`
+		} `json:"arm64"`
+		Amd64 struct {
+			Launcher Asset `json:"launcher"`
+			Helper   Asset `json:"helper"`
+		} `json:"amd64"`
+	} `json:"darwin"`
 }
 
 type Asset struct {
@@ -53,10 +64,22 @@ func CheckUpdate(ctx context.Context, current string) (*Asset, string, error) {
 	}
 
 	var asset *Asset
-	if runtime.GOOS == "windows" {
-		asset = &info.Windows.Amd64.Launcher
+	switch runtime.GOOS {
+	case "windows":
+		// Use portable for auto-updates (setup requires user interaction)
+		asset = &info.Windows.Amd64.Portable
 		fmt.Printf("Update available for Windows: %s -> %s\n", current, info.Version)
-	} else {
+	case "darwin":
+		// Detect architecture for macOS
+		if runtime.GOARCH == "arm64" {
+			asset = &info.Darwin.Arm64.Launcher
+			fmt.Printf("Update available for macOS ARM64: %s -> %s\n", current, info.Version)
+		} else {
+			asset = &info.Darwin.Amd64.Launcher
+			fmt.Printf("Update available for macOS AMD64: %s -> %s\n", current, info.Version)
+		}
+	default:
+		// Linux - use AppImage
 		asset = &info.Linux.Amd64.Launcher
 		fmt.Printf("Update available for Linux: %s -> %s\n", current, info.Version)
 	}
@@ -76,9 +99,16 @@ func GetHelperAsset(ctx context.Context) (*Asset, error) {
 	}
 
 	var asset *Asset
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "windows":
 		asset = &info.Windows.Amd64.Helper
-	} else {
+	case "darwin":
+		if runtime.GOARCH == "arm64" {
+			asset = &info.Darwin.Arm64.Helper
+		} else {
+			asset = &info.Darwin.Amd64.Helper
+		}
+	default:
 		asset = &info.Linux.Amd64.Helper
 	}
 
