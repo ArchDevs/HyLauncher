@@ -15,6 +15,7 @@ const bgTransition = {
 };
 
 import { SettingsOverlayContext } from "./context/SettingsOverlayContext";
+import { NavigationProvider } from "./context/NavigationContext";
 
 const App: React.FC = () => {
   const { t } = useTranslation();
@@ -43,7 +44,8 @@ const App: React.FC = () => {
 
   return (
     <SettingsOverlayContext.Provider value={showSettingsOverlay}>
-      <div className="relative w-screen h-screen max-w-[1280px] max-h-[720px] bg-[#090909] text-white overflow-hidden font-sans select-none rounded-[14px] border border-white/5 mx-auto">
+      <NavigationProvider onNavigate={setActiveTab}>
+        <div className="relative w-screen h-screen max-w-[1280px] max-h-[720px] bg-[#090909] text-white overflow-hidden font-sans select-none rounded-[14px] border border-white/5 mx-auto">
         {/* BACKGROUND */}
         <div className="absolute inset-0 pointer-events-none">
           <AnimatePresence mode="wait">
@@ -145,7 +147,8 @@ const App: React.FC = () => {
             );
           })()}
         </AnimatePresence>
-      </div>
+        </div>
+      </NavigationProvider>
     </SettingsOverlayContext.Provider>
   );
 };

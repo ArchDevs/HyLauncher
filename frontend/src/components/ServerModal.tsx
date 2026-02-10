@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { X, Copy, Play, Check } from "lucide-react";
 import { service } from "../../wailsjs/go/models";
 import { useTranslation } from "../i18n";
+import { useNavigateHome } from "../context/NavigationContext";
 
 // Use the generated type
 type ServerWithFullUrls = service.ServerWithUrls;
@@ -21,6 +22,7 @@ export const ServerModal: React.FC<ServerModalProps> = ({
   onPlay,
 }) => {
   const { t } = useTranslation();
+  const navigateHome = useNavigateHome();
   const [copied, setCopied] = useState(false);
 
   if (!isOpen || !server) return null;
@@ -40,6 +42,8 @@ export const ServerModal: React.FC<ServerModalProps> = ({
       onPlay(server.ip);
     }
     onClose();
+    // Navigate to home page so user can see launch progress
+    navigateHome();
   };
 
   return (

@@ -26,9 +26,13 @@ jobs:
             platform: windows/amd64
             artifact: windows
           - os: macos-latest
-            name: macOS
-            platform: darwin/universal
-            artifact: macos
+            name: macOS ARM64
+            platform: darwin/arm64
+            artifact: macos-arm64
+          - os: macos-latest
+            name: macOS AMD64
+            platform: darwin/amd64
+            artifact: macos-amd64
 
     runs-on: ${{ matrix.os }}
 
@@ -50,7 +54,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Linux dependencies
-        if: matrix.platform == 'linux/amd64'
+        if: startsWith(matrix.platform, 'linux/')
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -62,36 +66,110 @@ jobs:
 
       # Build based on platform
       - name: Build (Linux)
-        if: matrix.platform == 'linux/amd64'
-        env:
-          CGO_ENABLED: 0
+        if: startsWith(matrix.platform, 'linux/')
         run: |
           mkdir -p release
           go build -o release/update-helper-linux ./cmd/update-helper
+          
+          # Build the application
           wails build -platform linux/amd64 -tags webkit2_41
+          
+          # Create AppImage using linuxdeploy
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          
+          # Create AppDir structure
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/512x512/apps
+          mkdir -p AppDir/usr/share/metainfo
+          
+          # Copy binary
+          cp build/bin/HyLauncher AppDir/usr/bin/
+          chmod +x AppDir/usr/bin/HyLauncher
+          
+          # Copy icon
+          cp build/appicon.png AppDir/usr/share/icons/hicolor/512x512/apps/HyLauncher.png
+          
+          # Copy existing desktop file
+          cp HyLauncher.desktop AppDir/usr/share/applications/
+          sed -i 's|Exec=/usr/bin/HyLauncher|Exec=HyLauncher|' AppDir/usr/share/applications/HyLauncher.desktop
+          cp AppDir/usr/share/applications/HyLauncher.desktop AppDir/
+          
+          # Create AppImage
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage
+          
+          # Rename AppImage
+          mv HyLauncher*.AppImage release/HyLauncher-linux-x86_64.AppImage
+          
+          # Also keep raw binary for backward compatibility
           cp build/bin/HyLauncher release/HyLauncher-linux-x64
           chmod +x release/HyLauncher-linux-x64
 
       - name: Build (Windows)
-        if: matrix.platform == 'windows/amd64'
+        if: startsWith(matrix.platform, 'windows/')
         shell: bash
-        env:
-          CGO_ENABLED: 0
         run: |
           mkdir -p release
           go build -o release/update-helper-windows.exe ./cmd/update-helper
+          
+          # Build portable version
           wails build -platform windows/amd64
           cp build/bin/HyLauncher.exe release/HyLauncher-windows-x64-portable.exe
+          
+          # Build NSIS installer version
+          wails build -platform windows/amd64 -nsis
+          cp build/bin/HyLauncher-amd64-installer.exe release/HyLauncher-windows-x64-setup.exe
 
-      - name: Build (macOS)
-        if: matrix.platform == 'darwin/universal'
+      - name: Build (macOS ARM64)
+        if: matrix.platform == 'darwin/arm64'
         run: |
           mkdir -p release
-          go build -o release/update-helper-macos ./cmd/update-helper
-          chmod +x release/update-helper-macos
-          wails build -platform darwin/universal
-          cp -r build/bin/HyLauncher.app release/
-          cd release && zip -r HyLauncher-macos-universal.zip HyLauncher.app
+          go build -o release/update-helper-macos-arm64 ./cmd/update-helper
+          chmod +x release/update-helper-macos-arm64
+          
+          # Build ARM64 binary
+          wails build -platform darwin/arm64
+          
+          # Create DMG
+          npm install -g create-dmg
+          create-dmg \
+            --volname "HyLauncher" \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --app-drop-link 600 185 \
+            "release/HyLauncher-macos-arm64.dmg" \
+            "build/bin/HyLauncher.app" || true
+          
+          # If create-dmg fails, create zip as fallback
+          if [ ! -f "release/HyLauncher-macos-arm64.dmg" ]; then
+            cd build/bin && zip -r ../../release/HyLauncher-macos-arm64.zip HyLauncher.app
+          fi
+
+      - name: Build (macOS AMD64)
+        if: matrix.platform == 'darwin/amd64'
+        run: |
+          mkdir -p release
+          go build -o release/update-helper-macos-amd64 ./cmd/update-helper
+          chmod +x release/update-helper-macos-amd64
+          
+          # Build AMD64 binary
+          wails build -platform darwin/amd64
+          
+          # Create DMG
+          npm install -g create-dmg
+          create-dmg \
+            --volname "HyLauncher" \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --app-drop-link 600 185 \
+            "release/HyLauncher-macos-amd64.dmg" \
+            "build/bin/HyLauncher.app" || true
+          
+          # If create-dmg fails, create zip as fallback
+          if [ ! -f "release/HyLauncher-macos-amd64.dmg" ]; then
+            cd build/bin && zip -r ../../release/HyLauncher-macos-amd64.zip HyLauncher.app
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -134,29 +212,13 @@ jobs:
           echo "Available artifact directories:"
           find artifacts -type d 2>/dev/null || true
           
-          # Copy Linux artifacts
-          if [ -d "artifacts/release-linux" ] && [ "$(ls -A artifacts/release-linux)" ]; then
-            echo "Copying Linux artifacts..."
-            cp -r artifacts/release-linux/* release/
-          else
-            echo "Warning: Linux artifacts not found"
-          fi
-          
-          # Copy Windows artifacts
-          if [ -d "artifacts/release-windows" ] && [ "$(ls -A artifacts/release-windows)" ]; then
-            echo "Copying Windows artifacts..."
-            cp -r artifacts/release-windows/* release/
-          else
-            echo "Warning: Windows artifacts not found"
-          fi
-          
-          # Copy macOS artifacts
-          if [ -d "artifacts/release-macos" ] && [ "$(ls -A artifacts/release-macos)" ]; then
-            echo "Copying macOS artifacts..."
-            cp -r artifacts/release-macos/* release/
-          else
-            echo "Warning: macOS artifacts not found"
-          fi
+          # Copy all artifacts
+          for dir in artifacts/release-*/; do
+            if [ -d "$dir" ] && [ "$(ls -A $dir)" ]; then
+              echo "Copying from $dir..."
+              cp -r "$dir"* release/
+            fi
+          done
           
           echo "Files in release directory:"
           ls -la release/
@@ -172,14 +234,35 @@ jobs:
           VERSION="${{ inputs.version }}"
           
           echo "Calculating checksums..."
-          LINUX_LAUNCHER_SHA=$(sha256sum release/HyLauncher-linux-x64 | cut -d' ' -f1)
+          
+          # Linux
+          LINUX_APPIMAGE_SHA=$(sha256sum release/HyLauncher-linux-x86_64.AppImage | cut -d' ' -f1)
           LINUX_HELPER_SHA=$(sha256sum release/update-helper-linux | cut -d' ' -f1)
           
-          WINDOWS_LAUNCHER_SHA=$(sha256sum release/HyLauncher-windows-x64-portable.exe | cut -d' ' -f1)
+          # Windows
+          WINDOWS_PORTABLE_SHA=$(sha256sum release/HyLauncher-windows-x64-portable.exe | cut -d' ' -f1)
+          WINDOWS_SETUP_SHA=$(sha256sum release/HyLauncher-windows-x64-setup.exe | cut -d' ' -f1)
           WINDOWS_HELPER_SHA=$(sha256sum release/update-helper-windows.exe | cut -d' ' -f1)
           
-          MACOS_HELPER_SHA=$(sha256sum release/update-helper-macos | cut -d' ' -f1)
-          MACOS_LAUNCHER_SHA=$(sha256sum release/HyLauncher-macos-universal.zip | cut -d' ' -f1)
+          # macOS ARM64
+          if [ -f "release/HyLauncher-macos-arm64.dmg" ]; then
+            MACOS_ARM64_LAUNCHER_SHA=$(sha256sum release/HyLauncher-macos-arm64.dmg | cut -d' ' -f1)
+            MACOS_ARM64_EXT="dmg"
+          else
+            MACOS_ARM64_LAUNCHER_SHA=$(sha256sum release/HyLauncher-macos-arm64.zip | cut -d' ' -f1)
+            MACOS_ARM64_EXT="zip"
+          fi
+          MACOS_ARM64_HELPER_SHA=$(sha256sum release/update-helper-macos-arm64 | cut -d' ' -f1)
+          
+          # macOS AMD64
+          if [ -f "release/HyLauncher-macos-amd64.dmg" ]; then
+            MACOS_AMD64_LAUNCHER_SHA=$(sha256sum release/HyLauncher-macos-amd64.dmg | cut -d' ' -f1)
+            MACOS_AMD64_EXT="dmg"
+          else
+            MACOS_AMD64_LAUNCHER_SHA=$(sha256sum release/HyLauncher-macos-amd64.zip | cut -d' ' -f1)
+            MACOS_AMD64_EXT="zip"
+          fi
+          MACOS_AMD64_HELPER_SHA=$(sha256sum release/update-helper-macos-amd64 | cut -d' ' -f1)
           
           echo "Generating version.json..."
           cat <<EOF > release/version.json
@@ -188,8 +271,8 @@ jobs:
             "linux": {
               "amd64": {
                 "launcher": {
-                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-linux-x64",
-                  "sha256": "$LINUX_LAUNCHER_SHA"
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-linux-x86_64.AppImage",
+                  "sha256": "$LINUX_APPIMAGE_SHA"
                 },
                 "helper": {
                   "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-linux",
@@ -199,9 +282,13 @@ jobs:
             },
             "windows": {
               "amd64": {
-                "launcher": {
+                "portable": {
                   "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-windows-x64-portable.exe",
-                  "sha256": "$WINDOWS_LAUNCHER_SHA"
+                  "sha256": "$WINDOWS_PORTABLE_SHA"
+                },
+                "setup": {
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-windows-x64-setup.exe",
+                  "sha256": "$WINDOWS_SETUP_SHA"
                 },
                 "helper": {
                   "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-windows.exe",
@@ -210,14 +297,24 @@ jobs:
               }
             },
             "darwin": {
-              "universal": {
+              "arm64": {
                 "launcher": {
-                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-macos-universal.zip",
-                  "sha256": "$MACOS_LAUNCHER_SHA"
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-macos-arm64.$MACOS_ARM64_EXT",
+                  "sha256": "$MACOS_ARM64_LAUNCHER_SHA"
                 },
                 "helper": {
-                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-macos",
-                  "sha256": "$MACOS_HELPER_SHA"
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-macos-arm64",
+                  "sha256": "$MACOS_ARM64_HELPER_SHA"
+                }
+              },
+              "amd64": {
+                "launcher": {
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/HyLauncher-macos-amd64.$MACOS_AMD64_EXT",
+                  "sha256": "$MACOS_AMD64_LAUNCHER_SHA"
+                },
+                "helper": {
+                  "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/update-helper-macos-amd64",
+                  "sha256": "$MACOS_AMD64_HELPER_SHA"
                 }
               }
             }
