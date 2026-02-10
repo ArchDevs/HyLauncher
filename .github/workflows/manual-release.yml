@@ -66,9 +66,15 @@ jobs:
 
       - name: Install NSIS (Windows)
         if: startsWith(matrix.platform, 'windows/')
+        shell: powershell
         run: |
           choco install nsis -y
-          echo "C:\Program Files (x86)\NSIS\Bin" >> $GITHUB_PATH
+          $env:NSIS_PATH = "C:\Program Files (x86)\NSIS\Bin"
+          Write-Output "$env:NSIS_PATH" | Out-File -FilePath $env:GITHUB_PATH -Append
+          # Also add to current session PATH
+          $env:PATH = "$env:NSIS_PATH;$env:PATH"
+          Write-Output "NSIS installed at: $env:NSIS_PATH"
+          Get-Command makensis
 
       # Build based on platform
       - name: Build (Linux)
@@ -114,18 +120,22 @@ jobs:
 
       - name: Build (Windows)
         if: startsWith(matrix.platform, 'windows/')
-        shell: bash
+        shell: powershell
         run: |
-          mkdir -p release
+          $ErrorActionPreference = "Stop"
+          mkdir -Force release | Out-Null
           go build -o release/update-helper-windows.exe ./cmd/update-helper
+          
+          # Add NSIS to PATH for this step
+          $env:PATH = "C:\Program Files (x86)\NSIS\Bin;$env:PATH"
           
           # Build portable version
           wails build -platform windows/amd64
-          cp build/bin/HyLauncher.exe release/HyLauncher-windows-x64-portable.exe
+          Copy-Item build/bin/HyLauncher.exe release/HyLauncher-windows-x64-portable.exe
           
           # Build NSIS installer version
           wails build -platform windows/amd64 -nsis
-          cp build/bin/HyLauncher-amd64-installer.exe release/HyLauncher-windows-x64-setup.exe
+          Copy-Item build/bin/HyLauncher-amd64-installer.exe release/HyLauncher-windows-x64-setup.exe
 
       - name: Build (macOS ARM64)
         if: matrix.platform == 'darwin/arm64'
