@@ -133,8 +133,21 @@ function Banner({
           />
         )}
 
-        {/* Text */}
-        {text && (
+        {/* Text with title and description */}
+        {(title || description) ? (
+          <div className="flex flex-col justify-center overflow-hidden">
+            {title && (
+              <span className="text-[14px] font-[Mazzard] text-[#CCD9E0]/90 tracking-[-3%]">
+                {title}
+              </span>
+            )}
+            {description && (
+              <span className="text-[12px] font-[Mazzard] text-[#CCD9E0]/50 tracking-[-3%] truncate max-w-[300px]">
+                {description}
+              </span>
+            )}
+          </div>
+        ) : text && (
           <div className="flex flex-col justify-center">
             <span className="text-[14px] text-center text-[#CCD9E0]/[0.90] font-[Mazzard] tracking-[-3%]">
               {text}

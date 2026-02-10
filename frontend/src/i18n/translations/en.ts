@@ -67,8 +67,15 @@ export const en: Translations = {
       message:
         "Downloading the latest version. HyLauncher will restart automatically once finished.",
     },
+    server: {
+      copyIp: "Copy IP",
+      copied: "Copied!",
+      play: "Play",
+    },
   },
   banners: {
+    advertising: "Contact @hylauncher_bot for advertising",
+    noServers: "No servers available",
     hynexus: {
       text: "HyNexus - this is Hytale as it should be. Economy, Clans, PVP, PVE, we're waiting for you!",
     },

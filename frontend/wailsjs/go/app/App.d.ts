@@ -16,6 +16,8 @@ export function DeleteLogs():Promise<void>;
 
 export function DownloadAndLaunch(arg1:string):Promise<void>;
 
+export function DownloadAndLaunchWithServer(arg1:string,arg2:string):Promise<void>;
+
 export function GetAllGameVersions():Promise<Record<string, any>>;
 
 export function GetAllNews():Promise<Array<service.NewsArticle>>;
@@ -39,6 +41,8 @@ export function GetNick():Promise<string>;
 export function GetPreReleaseVersions():Promise<Array<number>>;
 
 export function GetReleaseVersions():Promise<Array<number>>;
+
+export function GetServers():Promise<Array<service.ServerWithUrls>>;
 
 export function OpenFolder():Promise<void>;
 

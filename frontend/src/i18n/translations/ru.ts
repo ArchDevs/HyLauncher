@@ -68,8 +68,15 @@ export const ru: Translations = {
       message:
         "Загрузка последней версии. HyLauncher автоматически перезапустится после завершения.",
     },
+    server: {
+      copyIp: "Копировать IP",
+      copied: "Скопировано!",
+      play: "Играть",
+    },
   },
   banners: {
+    advertising: "По поводу рекламы пишите нашему боту @hylauncher_bot",
+    noServers: "Нет доступных серверов",
     hynexus: {
       text: "HyNexus - это Hytale, каким он должен быть. Экономика, Кланы, PVP, PVE, ждем тебя!",
     },

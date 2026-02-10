@@ -6,6 +6,14 @@ import (
 )
 
 func (a *App) DownloadAndLaunch(playerName string) error {
+	return a.downloadAndLaunchInternal(playerName, "")
+}
+
+func (a *App) DownloadAndLaunchWithServer(playerName string, serverIP string) error {
+	return a.downloadAndLaunchInternal(playerName, serverIP)
+}
+
+func (a *App) downloadAndLaunchInternal(playerName string, serverIP string) error {
 	if err := a.validatePlayerName(playerName); err != nil {
 		hyerrors.Report(hyerrors.Validation("provided invalid username"))
 		return err
@@ -29,7 +37,7 @@ func (a *App) DownloadAndLaunch(playerName string) error {
 		}
 	}
 
-	if err := a.gameSvc.Launch(playerName, a.instance); err != nil {
+	if err := a.gameSvc.Launch(playerName, a.instance, serverIP); err != nil {
 		appErr := hyerrors.GameCritical("failed to launch game").
 			WithDetails(err.Error()).
 			WithContext("player", playerName).

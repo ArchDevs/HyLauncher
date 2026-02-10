@@ -39,7 +39,9 @@ function HomePage() {
     onOpenNews,
     setNick,
     setLocalGameVersion,
-    handleBranchChange,      // ADDED
+    handleBranchChange,
+    servers,
+    isLoadingServers,
   } = useLauncher();
 
   return (
@@ -75,7 +77,7 @@ function HomePage() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
               >
-                <BannersHome />
+                <BannersHome servers={servers} isLoading={isLoadingServers} onPlay={handlePlay} />
               </motion.div>
             )}
           </AnimatePresence>

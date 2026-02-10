@@ -208,6 +208,32 @@ export namespace service {
 	        this.image_url = source["image_url"];
 	    }
 	}
+	export class ServerWithUrls {
+	    id: number;
+	    name: string;
+	    description: string;
+	    logo: string;
+	    banner: string;
+	    ip: string;
+	    logo_url: string;
+	    banner_url: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ServerWithUrls(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.logo = source["logo"];
+	        this.banner = source["banner"];
+	        this.ip = source["ip"];
+	        this.logo_url = source["logo_url"];
+	        this.banner_url = source["banner_url"];
+	    }
+	}
 
 }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   DownloadAndLaunch,
+  DownloadAndLaunchWithServer,
   GetNick,
   SetNick as SetNickBackend,
   GetInstanceInfo,
@@ -11,10 +12,14 @@ import {
   SetLocalGameVersion,
   UpdateInstanceBranch,
   GetAllNews,
+  GetServers,
 } from "../../wailsjs/go/app/App";
 import { EventsOn, BrowserOpenURL } from "../../wailsjs/runtime/runtime";
 import { useTranslation } from "../i18n";
-import { model } from "../../wailsjs/go/models";
+import { model, service } from "../../wailsjs/go/models";
+
+// Re-export server type
+export type ServerWithFullUrls = service.ServerWithUrls;
 
 export type ReleaseType = "release" | "pre-release";
 
@@ -42,6 +47,10 @@ export const useLauncher = () => {
   const [isLoadingVersions, setIsLoadingVersions] = useState<boolean>(true);
   const [allNews, setAllNews] = useState<any[]>([]);
   const [newsIndex, setNewsIndex] = useState<number>(0);
+  
+  // Servers state
+  const [servers, setServers] = useState<service.ServerWithUrls[]>([]);
+  const [isLoadingServers, setIsLoadingServers] = useState(true);
 
   useEffect(() => {
     if (allNews.length <= 1) return;
@@ -126,6 +135,14 @@ export const useLauncher = () => {
         setAllNews(news);
       }
     });
+    
+    // Fetch servers
+    GetServers().then((data: service.ServerWithUrls[]) => {
+      setServers(data);
+      setIsLoadingServers(false);
+    }).catch(() => {
+      setIsLoadingServers(false);
+    });
 
     const offUpdateAvailable = EventsOn("update:available", (asset: any) => {
       setUpdateAsset(asset);
@@ -170,7 +187,7 @@ export const useLauncher = () => {
     };
   }, [t.control.status.readyToPlay]);
 
-  const handlePlay = useCallback(async () => {
+  const handlePlay = useCallback(async (serverIP?: string) => {
     if (!username.trim()) {
       setError({ type: "VALIDATION", message: "Username cannot be empty" });
       return;
@@ -178,7 +195,11 @@ export const useLauncher = () => {
     
     setIsDownloading(true);
     try {
-      await DownloadAndLaunch(username);
+      if (serverIP) {
+        await DownloadAndLaunchWithServer(username, serverIP);
+      } else {
+        await DownloadAndLaunch(username);
+      }
     } catch (err) {
       setIsDownloading(false);
       setError({
@@ -288,5 +309,8 @@ export const useLauncher = () => {
     setNick,
     setLocalGameVersion,
     handleBranchChange,
+    // Servers
+    servers,
+    isLoadingServers,
   };
 };

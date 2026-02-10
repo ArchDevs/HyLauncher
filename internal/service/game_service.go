@@ -108,7 +108,7 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 		}
 
 		fmt.Printf("[EnsureInstalled] Auto version check: current=%d latest=%d versionFile=%s\n", currentVer, latest, versionFile)
-		
+
 		checkErr := game.CheckInstalled(ctx, request.Branch, "auto")
 		fmt.Printf("[EnsureInstalled] CheckInstalled result: %v\n", checkErr)
 
@@ -118,7 +118,7 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 			}
 			return "auto", nil
 		}
-		
+
 		fmt.Printf("[EnsureInstalled] Reinstalling: currentVer=%d latest=%d checkErr=%v\n", currentVer, latest, checkErr)
 
 		if reporter != nil {
@@ -257,7 +257,7 @@ func (s *GameService) fetchLatestVersion(ctx context.Context, branch string) (in
 	}
 }
 
-func (s *GameService) Launch(playerName string, request model.InstanceModel) error {
+func (s *GameService) Launch(playerName string, request model.InstanceModel, serverIP ...string) error {
 	gameSession, err := s.authSvc.FetchGameSession(playerName)
 	if err != nil {
 		return err
@@ -303,7 +303,7 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel) err
 
 	s.reporter.Report(progress.StageLaunch, 80, "Launching...")
 
-	cmd := exec.Command(clientPath,
+	args := []string{
 		"--app-dir", gameDir,
 		"--user-dir", userDataDir,
 		"--java-exec", javaBin,
@@ -312,7 +312,13 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel) err
 		"--name", gameSession.Username,
 		"--identity-token", gameSession.IdentityToken,
 		"--session-token", gameSession.SessionToken,
-	)
+	}
+
+	if len(serverIP) > 0 && serverIP[0] != "" {
+		args = append(args, "--server", serverIP[0])
+	}
+
+	cmd := exec.Command(clientPath, args...)
 
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -329,7 +335,6 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel) err
 
 	fmt.Printf("[Launch] Process started with PID: %d\n", cmd.Process.Pid)
 
-	// On macOS, detach the process so it doesn't die when launcher exits
 	if runtime.GOOS == "darwin" && cmd.Process != nil {
 		if err := cmd.Process.Release(); err != nil {
 			fmt.Printf("[Launch] Warning: could not detach process: %v\n", err)
@@ -338,17 +343,14 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel) err
 		}
 	}
 
-	// On macOS, remove quarantine from the binary to prevent silent killing
 	if runtime.GOOS == "darwin" {
 		if err := platform.RemoveQuarantine(clientPath); err != nil {
 			fmt.Printf("[Launch] Warning: could not remove quarantine: %v\n", err)
 		}
 	}
 
-	// Wait a moment and check if process is still running
 	time.Sleep(500 * time.Millisecond)
 	if cmd.Process != nil {
-		// Signal 0 is a no-op that checks if process exists (Unix only)
 		if runtime.GOOS != "windows" {
 			if err := cmd.Process.Signal(syscall.Signal(0)); err != nil {
 				fmt.Printf("[Launch] Process already exited: %v\n", err)

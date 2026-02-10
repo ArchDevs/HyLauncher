@@ -23,10 +23,11 @@ type App struct {
 	progress    *progress.Reporter
 	instance    model.InstanceModel
 
-	crashSvc *service.Reporter
-	gameSvc  *service.GameService
-	authSvc  *service.AuthService
-	newsSvc  *service.NewsService
+	crashSvc   *service.Reporter
+	gameSvc    *service.GameService
+	authSvc    *service.AuthService
+	newsSvc    *service.NewsService
+	serversSvc *service.ServersService
 }
 
 func NewApp() *App {
@@ -83,6 +84,7 @@ func (a *App) Startup(ctx context.Context) {
 	a.authSvc = service.NewAuthService(a.ctx)
 	a.gameSvc = service.NewGameService(a.ctx, a.progress, a.authSvc)
 	a.newsSvc = service.NewNewsService()
+	a.serversSvc = service.NewServersService()
 
 	log.Printf("[Start] Starting app, version=%s", a.launcherCfg.Version)
 

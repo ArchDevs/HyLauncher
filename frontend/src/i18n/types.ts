@@ -69,8 +69,15 @@ export interface Translations {
       title: string;
       message: string;
     };
+    server: {
+      copyIp: string;
+      copied: string;
+      play: string;
+    };
   };
   banners: {
+    advertising: string;
+    noServers: string;
     hynexus: {
       text: string;
     };

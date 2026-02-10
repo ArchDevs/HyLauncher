@@ -26,6 +26,10 @@ export function DownloadAndLaunch(arg1) {
   return window['go']['app']['App']['DownloadAndLaunch'](arg1);
 }
 
+export function DownloadAndLaunchWithServer(arg1, arg2) {
+  return window['go']['app']['App']['DownloadAndLaunchWithServer'](arg1, arg2);
+}
+
 export function GetAllGameVersions() {
   return window['go']['app']['App']['GetAllGameVersions']();
 }
@@ -72,6 +76,10 @@ export function GetPreReleaseVersions() {
 
 export function GetReleaseVersions() {
   return window['go']['app']['App']['GetReleaseVersions']();
+}
+
+export function GetServers() {
+  return window['go']['app']['App']['GetServers']();
 }
 
 export function OpenFolder() {
