@@ -64,6 +64,12 @@ jobs:
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
+      - name: Install NSIS (Windows)
+        if: startsWith(matrix.platform, 'windows/')
+        run: |
+          choco install nsis -y
+          echo "C:\Program Files (x86)\NSIS\Bin" >> $GITHUB_PATH
+
       # Build based on platform
       - name: Build (Linux)
         if: startsWith(matrix.platform, 'linux/')
