@@ -2,7 +2,6 @@ package config
 
 type LauncherConfig struct {
 	Nick       string `toml:"nick"`
-	Version    string `toml:"version"`
 	Instance   string `toml:"instance"`
 	DiscordRPC bool   `toml:"discord_rpc"`
 }

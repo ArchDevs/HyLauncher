@@ -73,7 +73,7 @@ func (a *App) Startup(ctx context.Context) {
 
 	crashReporter, err := service.NewCrashReporter(
 		env.GetDefaultAppDir(),
-		a.launcherCfg.Version,
+		config.LauncherVersion,
 	)
 	if err != nil {
 		fmt.Printf("failed to initialize diagnostics: %v\n", err)
@@ -86,7 +86,7 @@ func (a *App) Startup(ctx context.Context) {
 	a.newsSvc = service.NewNewsService()
 	a.serversSvc = service.NewServersService()
 
-	log.Printf("[Start] Starting app, version=%s", a.launcherCfg.Version)
+	log.Printf("[Start] Starting app, version=%s", config.LauncherVersion)
 
 	go a.discordRPC()
 	go env.CreateFolders(a.instance.InstanceID)

@@ -41,7 +41,7 @@ func (a *App) GetNick() (string, error) {
 }
 
 func (a *App) GetLauncherVersion() string {
-	return config.LauncherDefault().Version
+	return config.LauncherVersion
 }
 
 func (a *App) SetLocalGameVersion(version string, instanceID string) error {

@@ -2,7 +2,6 @@ package config
 
 var launcherDefaults = LauncherConfig{
 	Nick:       "HyLauncher",
-	Version:    "1.0.0",
 	Instance:   "default",
 	DiscordRPC: true,
 }

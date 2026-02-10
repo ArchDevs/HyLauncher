@@ -1,6 +1,7 @@
 package app
 
 import (
+	"HyLauncher/internal/config"
 	"HyLauncher/internal/platform"
 	"HyLauncher/internal/progress"
 	"HyLauncher/internal/updater"
@@ -17,7 +18,7 @@ import (
 )
 
 func (a *App) CheckUpdate() (*updater.Asset, error) {
-	asset, _, err := updater.CheckUpdate(a.ctx, a.launcherCfg.Version)
+	asset, _, err := updater.CheckUpdate(a.ctx, config.LauncherVersion)
 	if err != nil {
 		// Don't report - this is expected when offline
 		return nil, nil
@@ -27,10 +28,10 @@ func (a *App) CheckUpdate() (*updater.Asset, error) {
 }
 
 func (a *App) Update() error {
-	asset, newVersion, err := updater.CheckUpdate(a.ctx, a.launcherCfg.Version)
+	asset, newVersion, err := updater.CheckUpdate(a.ctx, config.LauncherVersion)
 	if err != nil {
 		appErr := hyerrors.WrapNetwork(err, "failed to check for updates").
-			WithContext("current_version", a.launcherCfg.Version)
+			WithContext("current_version", config.LauncherVersion)
 		hyerrors.Report(appErr)
 		return appErr
 	}
@@ -126,7 +127,7 @@ func findAppBundle(exePath string) string {
 
 func (a *App) checkUpdateSilently() {
 	// Check for updates on all platforms
-	asset, _, err := updater.CheckUpdate(a.ctx, a.launcherCfg.Version)
+	asset, _, err := updater.CheckUpdate(a.ctx, config.LauncherVersion)
 	if err != nil {
 		return
 	}
