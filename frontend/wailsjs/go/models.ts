@@ -1,5 +1,19 @@
 export namespace app {
 	
+	export class LaunchResponse {
+	    success: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LaunchResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
+	    }
+	}
 	export class VersionsResponse {
 	    versions: number[];
 	    error?: string;

@@ -11,18 +11,24 @@ type VersionsResponse struct {
 	Error    string `json:"error,omitempty"`
 }
 
-func (a *App) DownloadAndLaunch(playerName string) error {
+// LaunchResponse is used to return launch results without cyclic JSON references
+type LaunchResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+func (a *App) DownloadAndLaunch(playerName string) LaunchResponse {
 	return a.downloadAndLaunchInternal(playerName, "")
 }
 
-func (a *App) DownloadAndLaunchWithServer(playerName string, serverIP string) error {
+func (a *App) DownloadAndLaunchWithServer(playerName string, serverIP string) LaunchResponse {
 	return a.downloadAndLaunchInternal(playerName, serverIP)
 }
 
-func (a *App) downloadAndLaunchInternal(playerName string, serverIP string) error {
+func (a *App) downloadAndLaunchInternal(playerName string, serverIP string) LaunchResponse {
 	if err := a.validatePlayerName(playerName); err != nil {
 		hyerrors.Report(hyerrors.Validation("provided invalid username"))
-		return err
+		return LaunchResponse{Success: false, Error: err.Error()}
 	}
 
 	_ = a.SyncInstanceState()
@@ -33,7 +39,7 @@ func (a *App) downloadAndLaunchInternal(playerName string, serverIP string) erro
 			WithContext("branch", a.instance.Branch).
 			WithContext("requestedVersion", a.instance.BuildVersion)
 		hyerrors.Report(appErr)
-		return appErr
+		return LaunchResponse{Success: false, Error: appErr.Error()}
 	}
 
 	if installedVersion != a.instance.BuildVersion {
@@ -50,10 +56,10 @@ func (a *App) downloadAndLaunchInternal(playerName string, serverIP string) erro
 			WithContext("branch", a.instance.Branch).
 			WithContext("version", a.instance.BuildVersion)
 		hyerrors.Report(appErr)
-		return appErr
+		return LaunchResponse{Success: false, Error: appErr.Error()}
 	}
 
-	return nil
+	return LaunchResponse{Success: true}
 }
 
 func (a *App) GetAllGameVersions() (map[string]any, error) {

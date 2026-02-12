@@ -196,13 +196,18 @@ export const useLauncher = () => {
       setError({ type: "VALIDATION", message: "Username cannot be empty" });
       return;
     }
-    
+
     setIsDownloading(true);
     try {
+      let response;
       if (serverIP) {
-        await DownloadAndLaunchWithServer(username, serverIP);
+        response = await DownloadAndLaunchWithServer(username, serverIP);
       } else {
-        await DownloadAndLaunch(username);
+        response = await DownloadAndLaunch(username);
+      }
+
+      if (!response.success) {
+        throw new Error(response.error || "Unknown error");
       }
     } catch (err) {
       setIsDownloading(false);
