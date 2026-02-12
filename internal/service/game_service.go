@@ -135,17 +135,20 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 	}
 
 	if request.BuildVersion == "latest" {
-		latestDir := env.GetGameDir(request.Branch, "latest")
-		versionFile := filepath.Join(latestDir, ".version")
+		// Use the actual version number as the folder name (e.g., "8")
+		versionStr := strconv.Itoa(latest)
+		versionDir := env.GetGameDir(request.Branch, versionStr)
+		versionFile := filepath.Join(versionDir, ".version")
 
 		// Check if already installed with correct version
 		if data, err := os.ReadFile(versionFile); err == nil {
 			if installedVer, _ := strconv.Atoi(string(data)); installedVer == latest {
-				if checkErr := game.CheckInstalled(ctx, request.Branch, "latest"); checkErr == nil {
+				if checkErr := game.CheckInstalled(ctx, request.Branch, versionStr); checkErr == nil {
 					if reporter != nil {
 						reporter.Report(progress.StageVerify, 100, "Latest build is up to date")
 					}
-					return "latest", nil
+					// Return the actual version number so the instance is updated correctly
+					return versionStr, nil
 				}
 			}
 		}
@@ -156,13 +159,15 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 			reporter.Report(progress.StageVerify, 50, fmt.Sprintf("Installing latest version %d", latest))
 		}
 
-		if err := s.installInternal(ctx, request.Branch, "latest", latest, reporter); err != nil {
+		// Pass the actual version number as the folder name
+		if err := s.installInternal(ctx, request.Branch, versionStr, latest, reporter); err != nil {
 			return "", err
 		}
 
 		_ = os.WriteFile(versionFile, []byte(strconv.Itoa(latest)), 0644)
 
-		return "latest", nil
+		// Return the actual version number so the instance is updated correctly
+		return versionStr, nil
 	}
 
 	return "", fmt.Errorf("invalid version %q: only 'auto' and 'latest' are supported", request.BuildVersion)
@@ -183,7 +188,7 @@ func (s *GameService) installInternal(ctx context.Context, branch string, versio
 	}
 	// For specific versions, currentVer remains 0 (fresh install from version 0)
 
-	if err := patch.DownloadAndApplyPWR(ctx, branch, currentVer, verInt, reporter); err != nil {
+	if err := patch.DownloadAndApplyPWR(ctx, branch, currentVer, verInt, version, reporter); err != nil {
 		return fmt.Errorf("download and apply patches: %w", err)
 	}
 
@@ -304,6 +309,10 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel, ser
 	s.reporter.Report(progress.StageLaunch, 60, "Looking for files...")
 
 	clientPath := env.GetGameClientPath(request.Branch, request.BuildVersion)
+	if clientPath == "" {
+		return fmt.Errorf("game client not found in %s", env.GetGameDir(request.Branch, request.BuildVersion))
+	}
+
 	javaBin, err := java.GetJavaExec(request.Branch)
 	if err != nil {
 		return fmt.Errorf("find java: %w", err)

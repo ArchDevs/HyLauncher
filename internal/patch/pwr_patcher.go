@@ -38,7 +38,7 @@ type PatchStepsResponse struct {
 	Steps []PatchStep `json:"steps"`
 }
 
-func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, targetVer int, reporter *progress.Reporter) error {
+func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, targetVer int, versionDir string, reporter *progress.Reporter) error {
 	var pwrPath string
 
 	// Fetch patch steps from API
@@ -68,8 +68,8 @@ func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, tar
 			return fmt.Errorf("download patch step %d→%d: %w", step.From, step.To, err)
 		}
 
-		// Apply the patch
-		if err := applyPWR(ctx, pwrPath, sigPath, branch, "auto", reporter); err != nil {
+		// Apply the patch to the specified version directory
+		if err := applyPWR(ctx, pwrPath, sigPath, branch, versionDir, reporter); err != nil {
 			return fmt.Errorf("apply patch %d→%d: %w", step.From, step.To, err)
 		}
 	}
