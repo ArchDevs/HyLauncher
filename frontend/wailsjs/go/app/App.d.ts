@@ -18,8 +18,6 @@ export function DownloadAndLaunch(arg1:string):Promise<void>;
 
 export function DownloadAndLaunchWithServer(arg1:string,arg2:string):Promise<void>;
 
-export function GetAllGameVersions():Promise<Record<string, any>>;
-
 export function GetAllNews():Promise<Array<service.NewsArticle>>;
 
 export function GetCrashReports():Promise<Array<service.CrashReport>>;

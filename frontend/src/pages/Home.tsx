@@ -77,14 +77,14 @@ function HomePage() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
               >
-                <BannersHome servers={servers} isLoading={isLoadingServers} onPlay={handlePlay} />
+                <BannersHome servers={servers} isLoading={isLoadingServers} onPlay={() => handlePlay()} />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         <ControlSection
-          onPlay={handlePlay}
+          onPlay={() => handlePlay()}
           isDownloading={isDownloading}
           progress={progress}
           status={status}

@@ -30,10 +30,6 @@ export function DownloadAndLaunchWithServer(arg1, arg2) {
   return window['go']['app']['App']['DownloadAndLaunchWithServer'](arg1, arg2);
 }
 
-export function GetAllGameVersions() {
-  return window['go']['app']['App']['GetAllGameVersions']();
-}
-
 export function GetAllNews() {
   return window['go']['app']['App']['GetAllNews']();
 }

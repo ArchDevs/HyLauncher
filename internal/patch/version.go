@@ -124,44 +124,6 @@ func ListAllVersions(branch string) ([]int, error) {
 	return result.Versions, result.Error
 }
 
-func ListAllVersionsBothBranches() (release []int, prerelease []int, err error) {
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var errors []error
-
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
-		versions, e := ListAllVersions("release")
-		mu.Lock()
-		release = versions
-		if e != nil {
-			errors = append(errors, fmt.Errorf("release: %w", e))
-		}
-		mu.Unlock()
-	}()
-
-	go func() {
-		defer wg.Done()
-		versions, e := ListAllVersions("pre-release")
-		mu.Lock()
-		prerelease = versions
-		if e != nil {
-			errors = append(errors, fmt.Errorf("pre-release: %w", e))
-		}
-		mu.Unlock()
-	}()
-
-	wg.Wait()
-
-	if len(errors) > 0 {
-		return release, prerelease, fmt.Errorf("errors occurred: %v", errors)
-	}
-
-	return release, prerelease, nil
-}
-
 func ClearVersionCache() {
 	versionCache.clear()
 }

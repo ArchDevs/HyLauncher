@@ -50,17 +50,6 @@ func (a *App) downloadAndLaunchInternal(playerName string, serverIP string) erro
 	return nil
 }
 
-func (a *App) GetAllGameVersions() (map[string]any, error) {
-	release, prerelease, err := patch.ListAllVersionsBothBranches()
-	if err != nil {
-		return nil, err
-	}
-
-	return map[string]any{
-		"release":    release,
-		"preRelease": prerelease,
-	}, nil
-}
 
 func (a *App) GetReleaseVersions() ([]int, error) {
 	release, err := patch.ListAllVersions("release")
