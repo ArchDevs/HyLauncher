@@ -5,11 +5,16 @@ import { useTranslation } from "../i18n";
 
 export type ReleaseType = "pre-release" | "release";
 
+interface VersionOption {
+  value: string;
+  label: string;
+}
+
 interface ProfileProps {
   username: string;
   currentVersion: string;
   selectedBranch: ReleaseType;
-  availableVersions: string[];
+  availableVersions: VersionOption[];
   isLoadingVersions?: boolean;
   isEditing: boolean;
   onEditToggle: (val: boolean) => void;
@@ -212,7 +217,11 @@ export const ProfileSection: React.FC<ProfileProps> = ({
           ) : (
             <>
               <span className={`${baseText} whitespace-nowrap`}>
-                {currentVersion ? (currentVersion === "auto" ? "auto" : `v${currentVersion}`) : `${t.profile.noVersion || "No Version"}`}
+                {(() => {
+                  if (!currentVersion) return t.profile.noVersion || "No Version";
+                  const option = availableVersions.find(v => v.value === currentVersion);
+                  return option ? option.label : currentVersion;
+                })()}
               </span>
               <ChevronDown
                 size={16}
@@ -350,7 +359,7 @@ export const ProfileSection: React.FC<ProfileProps> = ({
           
           {availableVersions.map((version, idx) => (
             <button
-              key={version}
+              key={version.value}
               type="button"
               role="menuitem"
               onMouseDown={(e) => {
@@ -360,7 +369,7 @@ export const ProfileSection: React.FC<ProfileProps> = ({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onVersionChange(version);
+                onVersionChange(version.value);
                 setOpenVersion(false);
               }}
               className={`
@@ -372,8 +381,8 @@ export const ProfileSection: React.FC<ProfileProps> = ({
                 ${idx !== availableVersions.length - 1 ? "border-b border-[#D9D9D9]/[0.10]" : ""}
               `}
             >
-              <span className="pointer-events-none tracking-[-0.03em] leading-[110%]">{version === "auto" ? "auto" : `v${version}`}</span>
-              {String(version) === String(currentVersion) && <Check size={16} className="pointer-events-none text-[#CCD9E0]/[0.90]" />}
+              <span className="pointer-events-none tracking-[-0.03em] leading-[110%]">{version.label}</span>
+              {version.value === currentVersion && <Check size={16} className="pointer-events-none text-[#CCD9E0]/[0.90]" />}
             </button>
           ))}
         </div>,

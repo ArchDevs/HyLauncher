@@ -1,12 +1,17 @@
 package patch
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"time"
 
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/platform"
@@ -14,7 +19,64 @@ import (
 	"HyLauncher/pkg/download"
 )
 
-func ApplyPWR(ctx context.Context, pwrFile string, sigFile string, branch string, version string, reporter *progress.Reporter) error {
+type PatchRequest struct {
+	OS      string `json:"os"`
+	Arch    string `json:"arch"`
+	Branch  string `json:"branch"`
+	Version string `json:"version"`
+}
+
+type PatchStep struct {
+	From    int    `json:"from"`
+	To      int    `json:"to"`
+	PWR     string `json:"pwr"`
+	PWRHead string `json:"pwrHead"`
+	Sig     string `json:"sig"`
+}
+
+type PatchStepsResponse struct {
+	Steps []PatchStep `json:"steps"`
+}
+
+
+func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, targetVer int, reporter *progress.Reporter) error {
+	// Fetch patch steps from API
+	steps, err := fetchPatchSteps(ctx, branch, currentVer)
+	if err != nil {
+		return fmt.Errorf("fetch patch steps: %w", err)
+	}
+
+	if len(steps) == 0 {
+		return fmt.Errorf("no patch steps available")
+	}
+
+	// Apply each patch step
+	for i, step := range steps {
+		// Stop if we've reached the target version
+		if targetVer > 0 && step.From >= targetVer {
+			break
+		}
+
+		if reporter != nil {
+			reporter.Report(progress.StagePatch, 0, fmt.Sprintf("Patching %d → %d (%d/%d)", step.From, step.To, i+1, len(steps)))
+		}
+
+		// Download PWR and signature files for this step
+		pwrPath, sigPath, err := downloadPatchStep(ctx, step, reporter)
+		if err != nil {
+			return fmt.Errorf("download patch step %d→%d: %w", step.From, step.To, err)
+		}
+
+		// Apply the patch
+		if err := applyPWR(ctx, pwrPath, sigPath, branch, "auto", reporter); err != nil {
+			return fmt.Errorf("apply patch %d→%d: %w", step.From, step.To, err)
+		}
+	}
+
+	return nil
+}
+
+func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string, version string, reporter *progress.Reporter) error {
 	gameDir := env.GetGameDir(branch, version)
 	// Keep staging dir OUTSIDE game directory to avoid verification issues
 	stagingDir := filepath.Join(env.GetCacheDir(), "staging-temp")
@@ -66,50 +128,88 @@ func ApplyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 	return nil
 }
 
-func DownloadPWR(ctx context.Context, branch string, targetVer int, reporter *progress.Reporter) (pwrPath string, sigPath string, err error) {
+func fetchPatchSteps(ctx context.Context, branch string, currentVer int) ([]PatchStep, error) {
+	reqBody := PatchRequest{
+		OS:      runtime.GOOS,
+		Arch:    runtime.GOARCH,
+		Branch:  branch,
+		Version: strconv.Itoa(currentVer),
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.hylauncher.fun/v1/pwr", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var result PatchStepsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return result.Steps, nil
+}
+
+func downloadPatchStep(ctx context.Context, step PatchStep, reporter *progress.Reporter) (pwrPath string, sigPath string, err error) {
 	cacheDir := env.GetCacheDir()
 	_ = os.MkdirAll(cacheDir, 0755)
 
-	osName := runtime.GOOS
-	arch := runtime.GOARCH
-
-	pwrFileName := fmt.Sprintf("%d.pwr", targetVer)
-	sigFileName := fmt.Sprintf("%d.pwr.sig", targetVer)
+	pwrFileName := fmt.Sprintf("%d_to_%d.pwr", step.From, step.To)
+	sigFileName := fmt.Sprintf("%d_to_%d.pwr.sig", step.From, step.To)
 
 	pwrDest := filepath.Join(cacheDir, pwrFileName)
 	sigDest := filepath.Join(cacheDir, sigFileName)
 
-	baseURL := fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/0", osName, arch, branch)
-
-	// Check if both files are already cached
+	// Check if files are already cached
 	_, pwrErr := os.Stat(pwrDest)
 	_, sigErr := os.Stat(sigDest)
 	if pwrErr == nil && sigErr == nil {
-		reporter.Report(progress.StagePWR, 100, "PWR files cached")
+		if reporter != nil {
+			reporter.Report(progress.StagePWR, 100, "Patch files cached")
+		}
 		return pwrDest, sigDest, nil
 	}
 
-	// Download PWR file
-	reporter.Report(progress.StagePWR, 0, "Downloading PWR file...")
-	pwrURL := fmt.Sprintf("%s/%s", baseURL, pwrFileName)
-	scaler := progress.NewScaler(reporter, progress.StagePWR, 0, 70)
+	if reporter != nil {
+		reporter.Report(progress.StagePWR, 0, fmt.Sprintf("Downloading patch %d→%d...", step.From, step.To))
+	}
 
-	if err := download.DownloadWithReporter(ctx, pwrDest, pwrURL, pwrFileName, reporter, progress.StagePWR, scaler); err != nil {
+	pwrScaler := progress.NewScaler(reporter, progress.StagePWR, 0, 70)
+	if err := download.DownloadWithReporter(ctx, pwrDest, step.PWR, pwrFileName, reporter, progress.StagePWR, pwrScaler); err != nil {
 		_ = os.Remove(pwrDest + ".tmp")
-		return "", "", err
+		return "", "", fmt.Errorf("download PWR: %w", err)
 	}
 
-	// Download signature file
-	reporter.Report(progress.StagePWR, 70, "Downloading signature file...")
-	sigURL := fmt.Sprintf("%s/%s", baseURL, sigFileName)
+	if reporter != nil {
+		reporter.Report(progress.StagePWR, 70, "Downloading signature...")
+	}
+
 	sigScaler := progress.NewScaler(reporter, progress.StagePWR, 70, 100)
-
-	if err := download.DownloadWithReporter(ctx, sigDest, sigURL, sigFileName, reporter, progress.StagePWR, sigScaler); err != nil {
+	if err := download.DownloadWithReporter(ctx, sigDest, step.Sig, sigFileName, reporter, progress.StagePWR, sigScaler); err != nil {
 		_ = os.Remove(sigDest + ".tmp")
-		return "", "", err
+		return "", "", fmt.Errorf("download signature: %w", err)
 	}
 
-	reporter.Report(progress.StagePWR, 100, "PWR files downloaded")
+	if reporter != nil {
+		reporter.Report(progress.StagePWR, 100, "Patch files downloaded")
+	}
 
 	return pwrDest, sigDest, nil
 }

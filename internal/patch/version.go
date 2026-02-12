@@ -1,6 +1,8 @@
 package patch
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -139,96 +141,103 @@ func VerifyVersionExists(branch string, version int) error {
 }
 
 func findLatestVersion(branch string) VersionCheckResult {
-	client := createClient()
-
-	base := findFirstVersion(client, branch)
-	if base == 0 {
+	// Call API with version 1 to get all steps from 1 to latest
+	steps, err := fetchPatchStepsFromAPI(branch, 1)
+	if err != nil {
 		return VersionCheckResult{
-			Error: fmt.Errorf("cannot reach game servers or no patches available for %s/%s (check firewall/network)", runtime.GOOS, runtime.GOARCH),
+			Error: fmt.Errorf("cannot reach API or no patches available for %s/%s: %w", runtime.GOOS, runtime.GOARCH, err),
 		}
 	}
 
-	upper := findUpperBound(client, branch, base)
-	latest := binarySearchLatest(client, branch, base, upper)
+	if len(steps) == 0 {
+		return VersionCheckResult{
+			Error: fmt.Errorf("no patches available for %s/%s", runtime.GOOS, runtime.GOARCH),
+		}
+	}
 
+	// The latest version is the "to" field of the last step
+	latest := steps[len(steps)-1].To
 	return VersionCheckResult{LatestVersion: latest}
 }
 
 func listAllVersions(branch string) AllVersionsResult {
-	client := createClient()
-
-	base := findFirstVersion(client, branch)
-	if base == 0 {
+	// Call API with version 1 to get all steps from 1 to latest
+	steps, err := fetchPatchStepsFromAPI(branch, 1)
+	if err != nil {
 		return AllVersionsResult{
-			Error: fmt.Errorf("cannot reach game servers or no patches available for %s/%s (check firewall/network)", runtime.GOOS, runtime.GOARCH),
+			Error: fmt.Errorf("cannot reach API or no patches available for %s/%s: %w", runtime.GOOS, runtime.GOARCH, err),
 		}
 	}
 
-	upper := findUpperBound(client, branch, base)
-	versions := collectAllVersions(client, branch, base, upper)
+	if len(steps) == 0 {
+		return AllVersionsResult{
+			Error: fmt.Errorf("no patches available for %s/%s", runtime.GOOS, runtime.GOARCH),
+		}
+	}
+
+	// Extract all unique versions from steps
+	versionMap := make(map[int]bool)
+	for _, step := range steps {
+		versionMap[step.From] = true
+		versionMap[step.To] = true
+	}
+
+	// Convert to sorted slice
+	var versions []int
+	for v := range versionMap {
+		versions = append(versions, v)
+	}
+
+	// Sort in ascending order
+	for i := 0; i < len(versions); i++ {
+		for j := i + 1; j < len(versions); j++ {
+			if versions[i] > versions[j] {
+				versions[i], versions[j] = versions[j], versions[i]
+			}
+		}
+	}
 
 	return AllVersionsResult{Versions: versions}
 }
 
-func findFirstVersion(client *http.Client, branch string) int {
-	checkPoints := []int{1, 5, 10, 25}
-
-	for _, v := range checkPoints {
-		if checkVersionExists(client, branch, v) {
-			return v
-		}
+// fetchPatchStepsFromAPI calls the PWR API to get patch steps
+func fetchPatchStepsFromAPI(branch string, currentVer int) ([]PatchStep, error) {
+	reqBody := PatchRequest{
+		OS:      runtime.GOOS,
+		Arch:    runtime.GOARCH,
+		Branch:  branch,
+		Version: fmt.Sprintf("%d", currentVer),
 	}
 
-	return 0
-}
-
-func findUpperBound(client *http.Client, branch string, base int) int {
-	current := base
-	step := max(base, 10)
-
-	for {
-		next := current + step
-		if checkVersionExists(client, branch, next) {
-			current = next
-			step *= 2
-		} else {
-			return next
-		}
-
-		if step > 1000 {
-			break
-		}
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	return current + step
-}
-
-func binarySearchLatest(client *http.Client, branch string, low, high int) int {
-	latest := low
-
-	for low < high {
-		mid := (low + high + 1) / 2
-		if checkVersionExists(client, branch, mid) {
-			latest = mid
-			low = mid
-		} else {
-			high = mid - 1
-		}
+	req, err := http.NewRequest("GET", "https://api.hylauncher.fun/v1/pwr", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	return latest
-}
+	req.Header.Set("Content-Type", "application/json")
 
-func collectAllVersions(client *http.Client, branch string, start, end int) []int {
-	var versions []int
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
 
-	for v := start; v <= end; v++ {
-		if checkVersionExists(client, branch, v) {
-			versions = append(versions, v)
-		}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
 	}
 
-	return versions
+	var result PatchStepsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return result.Steps, nil
 }
 
 func checkVersionExists(client *http.Client, branch string, version int) bool {

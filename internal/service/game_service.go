@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/game"
 	"HyLauncher/internal/java"
@@ -94,12 +93,13 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 		}
 	}
 
-	if request.BuildVersion == "auto" {
-		latest, err := s.fetchLatestVersion(ctx, request.Branch)
-		if err != nil {
-			return "", fmt.Errorf("fetch latest version: %w", err)
-		}
+	latest, err := s.fetchLatestVersion(ctx, request.Branch)
+	if err != nil {
+		return "", fmt.Errorf("fetch latest version: %w", err)
+	}
 
+	if request.BuildVersion == "auto" {
+		// AUTO mode: always stay on latest with incremental updates
 		autoDir := env.GetGameDir(request.Branch, "auto")
 		versionFile := filepath.Join(autoDir, ".version")
 		currentVer := 0
@@ -134,39 +134,57 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 		return "auto", nil
 	}
 
-	verInt, err := strconv.Atoi(request.BuildVersion)
-	if err != nil {
-		return "", fmt.Errorf("invalid static version %q: %w", request.BuildVersion, err)
+	if request.BuildVersion == "latest" {
+		latestDir := env.GetGameDir(request.Branch, "latest")
+		versionFile := filepath.Join(latestDir, ".version")
+
+		// Check if already installed with correct version
+		if data, err := os.ReadFile(versionFile); err == nil {
+			if installedVer, _ := strconv.Atoi(string(data)); installedVer == latest {
+				if checkErr := game.CheckInstalled(ctx, request.Branch, "latest"); checkErr == nil {
+					if reporter != nil {
+						reporter.Report(progress.StageVerify, 100, "Latest build is up to date")
+					}
+					return "latest", nil
+				}
+			}
+		}
+
+		fmt.Printf("[EnsureInstalled] Installing latest version: %d\n", latest)
+
+		if reporter != nil {
+			reporter.Report(progress.StageVerify, 50, fmt.Sprintf("Installing latest version %d", latest))
+		}
+
+		if err := s.installInternal(ctx, request.Branch, "latest", latest, reporter); err != nil {
+			return "", err
+		}
+
+		_ = os.WriteFile(versionFile, []byte(strconv.Itoa(latest)), 0644)
+
+		return "latest", nil
 	}
 
-	if err := s.installInternal(ctx, request.Branch, request.BuildVersion, verInt, reporter); err != nil {
-		return "", err
-	}
-
-	if err := config.UpdateInstance(request.InstanceID, func(cfg *config.InstanceConfig) error {
-		cfg.Build = request.BuildVersion
-		return nil
-	}); err != nil {
-		return "", fmt.Errorf("update instance: %w", err)
-	}
-
-	return request.BuildVersion, nil
+	return "", fmt.Errorf("invalid version %q: only 'auto' and 'latest' are supported", request.BuildVersion)
 }
 
 func (s *GameService) installInternal(ctx context.Context, branch string, version string, verInt int, reporter *progress.Reporter) error {
 	gameDir := env.GetGameDir(branch, version)
 
-	pwrPath, sigPath, err := patch.DownloadPWR(ctx, branch, verInt, reporter)
-	if err != nil {
-		return fmt.Errorf("download patch: %w", err)
+	// Determine current version for incremental patching
+	currentVer := 0
+	if version == "auto" {
+		// For AUTO version, read current version from .version file
+		autoDir := env.GetGameDir(branch, "auto")
+		versionFile := filepath.Join(autoDir, ".version")
+		if data, err := os.ReadFile(versionFile); err == nil {
+			currentVer, _ = strconv.Atoi(string(data))
+		}
 	}
+	// For specific versions, currentVer remains 0 (fresh install from version 0)
 
-	if reporter != nil {
-		reporter.Report(progress.StagePatch, 0, "Applying game patch...")
-	}
-
-	if err := patch.ApplyPWR(ctx, pwrPath, sigPath, branch, version, reporter); err != nil {
-		return fmt.Errorf("apply patch: %w", err)
+	if err := patch.DownloadAndApplyPWR(ctx, branch, currentVer, verInt, reporter); err != nil {
+		return fmt.Errorf("download and apply patches: %w", err)
 	}
 
 	// Fix permissions on macOS after patching

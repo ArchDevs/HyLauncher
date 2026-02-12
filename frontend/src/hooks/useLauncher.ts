@@ -30,17 +30,16 @@ export const useLauncher = () => {
   const [currentVersion, setCurrentVersion] = useState<string>("0");
   const [selectedBranch, setSelectedBranch] = useState<ReleaseType>("release");
   
-  const [allVersions, setAllVersions] = useState<{
-    release: string[];
-    preRelease: string[];
-  }>({
-    release: [],
-    preRelease: [],
-  });
+  // Store the latest version number for display
+  const [latestVersionNumber, setLatestVersionNumber] = useState<number | null>(null);
   
-  const availableVersions = ["auto", ...(selectedBranch === "release" 
-    ? allVersions.release 
-    : allVersions.preRelease)];
+  // Only "auto" and "latest" are supported
+  // - "auto": Always stays on latest with auto-updates
+  // - "latest": Static install of current latest version
+  const availableVersions = [
+    { value: "auto", label: "auto" },
+    { value: "latest", label: latestVersionNumber ? `latest (v${latestVersionNumber})` : "latest" }
+  ];
 
   const [launcherVersion, setLauncherVersion] = useState<string>("0.0.0");
   const [isEditingUsername, setIsEditingUsername] = useState<boolean>(false);
@@ -103,14 +102,11 @@ export const useLauncher = () => {
           throw new Error(response.error);
         }
         
-        const sortedVersions = [...response.versions]
-          .sort((a, b) => b - a)
-          .map(v => String(v));
-        
-        setAllVersions(prev => ({
-          release: savedBranch === "release" ? sortedVersions : prev.release,
-          preRelease: savedBranch === "pre-release" ? sortedVersions : prev.preRelease,
-        }));
+        // Get the latest version number for display
+        if (response.versions && response.versions.length > 0) {
+          const latest = Math.max(...response.versions);
+          setLatestVersionNumber(latest);
+        }
       } catch (err) {
         setError({
           type: "INSTANCE_LOAD_ERROR",
@@ -139,6 +135,21 @@ export const useLauncher = () => {
         setAllNews(news);
       }
     });
+    
+    // Fetch latest version number for display
+    const fetchLatestVersion = async () => {
+      try {
+        const response = await GetReleaseVersions();
+        if (!response.error && response.versions && response.versions.length > 0) {
+          // Get the highest version number
+          const latest = Math.max(...response.versions);
+          setLatestVersionNumber(latest);
+        }
+      } catch (err) {
+        console.error("Failed to fetch latest version:", err);
+      }
+    };
+    fetchLatestVersion();
     
     // Fetch servers
     GetServers().then((data: service.ServerWithUrls[]) => {
@@ -273,14 +284,11 @@ export const useLauncher = () => {
         throw new Error(response.error);
       }
       
-      const sortedVersions = [...response.versions]
-        .sort((a, b) => b - a)
-        .map(v => String(v));
-        
-      setAllVersions(prev => ({
-        ...prev,
-        [branch === "release" ? "release" : "preRelease"]: sortedVersions,
-      }));
+      // Update latest version number when switching branches
+      if (response.versions && response.versions.length > 0) {
+        const latest = Math.max(...response.versions);
+        setLatestVersionNumber(latest);
+      }
     } catch (err) {
       setError({ 
         type: "CONFIG_ERROR", 
@@ -297,7 +305,6 @@ export const useLauncher = () => {
     currentVersion,
     selectedBranch,
     availableVersions,
-    allVersions,
     isLoadingVersions,
     launcherVersion,
     isEditingUsername,
