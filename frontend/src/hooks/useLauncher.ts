@@ -95,11 +95,15 @@ export const useLauncher = () => {
         
         // Fetch versions for the saved branch
         setIsLoadingVersions(true);
-        const versions = savedBranch === "release" 
+        const response = savedBranch === "release" 
           ? await GetReleaseVersions()
           : await GetPreReleaseVersions();
         
-        const sortedVersions = [...versions]
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        
+        const sortedVersions = [...response.versions]
           .sort((a, b) => b - a)
           .map(v => String(v));
         
@@ -192,13 +196,18 @@ export const useLauncher = () => {
       setError({ type: "VALIDATION", message: "Username cannot be empty" });
       return;
     }
-    
+
     setIsDownloading(true);
     try {
+      let response;
       if (serverIP) {
-        await DownloadAndLaunchWithServer(username, serverIP);
+        response = await DownloadAndLaunchWithServer(username, serverIP);
       } else {
-        await DownloadAndLaunch(username);
+        response = await DownloadAndLaunch(username);
+      }
+
+      if (!response.success) {
+        throw new Error(response.error || "Unknown error");
       }
     } catch (err) {
       setIsDownloading(false);
@@ -256,11 +265,15 @@ export const useLauncher = () => {
       
       // 3. Fetch versions for the new branch
       setIsLoadingVersions(true);
-      const versions = branch === "release" 
+      const response = branch === "release" 
         ? await GetReleaseVersions()
         : await GetPreReleaseVersions();
       
-      const sortedVersions = [...versions]
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      
+      const sortedVersions = [...response.versions]
         .sort((a, b) => b - a)
         .map(v => String(v));
         
