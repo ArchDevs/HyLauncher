@@ -3,6 +3,7 @@
 import {updater} from '../models';
 import {service} from '../models';
 import {model} from '../models';
+import {app} from '../models';
 
 export function CheckUpdate():Promise<updater.Asset>;
 
@@ -38,9 +39,9 @@ export function GetLogs():Promise<string>;
 
 export function GetNick():Promise<string>;
 
-export function GetPreReleaseVersions():Promise<Array<number>>;
+export function GetPreReleaseVersions():Promise<app.VersionsResponse>;
 
-export function GetReleaseVersions():Promise<Array<number>>;
+export function GetReleaseVersions():Promise<app.VersionsResponse>;
 
 export function GetServers():Promise<Array<service.ServerWithUrls>>;
 

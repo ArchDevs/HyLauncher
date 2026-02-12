@@ -1,3 +1,22 @@
+export namespace app {
+	
+	export class VersionsResponse {
+	    versions: number[];
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new VersionsResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.versions = source["versions"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+
 export namespace hyerrors {
 	
 	export class Frame {

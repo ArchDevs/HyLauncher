@@ -5,6 +5,12 @@ import (
 	"HyLauncher/pkg/hyerrors"
 )
 
+// VersionsResponse is used to return versions without cyclic JSON references
+type VersionsResponse struct {
+	Versions []int  `json:"versions"`
+	Error    string `json:"error,omitempty"`
+}
+
 func (a *App) DownloadAndLaunch(playerName string) error {
 	return a.downloadAndLaunchInternal(playerName, "")
 }
@@ -62,18 +68,18 @@ func (a *App) GetAllGameVersions() (map[string]any, error) {
 	}, nil
 }
 
-func (a *App) GetReleaseVersions() ([]int, error) {
+func (a *App) GetReleaseVersions() VersionsResponse {
 	release, err := patch.ListAllVersions("release")
 	if err != nil {
-		return nil, err
+		return VersionsResponse{Error: err.Error()}
 	}
-	return release, err
+	return VersionsResponse{Versions: release}
 }
 
-func (a *App) GetPreReleaseVersions() ([]int, error) {
+func (a *App) GetPreReleaseVersions() VersionsResponse {
 	release, err := patch.ListAllVersions("pre-release")
 	if err != nil {
-		return nil, err
+		return VersionsResponse{Error: err.Error()}
 	}
-	return release, err
+	return VersionsResponse{Versions: release}
 }
