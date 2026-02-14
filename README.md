@@ -11,7 +11,7 @@
   <i>Неофициальный Hytale лаунчер</i>
 </p>
 <p align="center">
-  <a href="https://github.com/ArchDevs/HyLauncher/releases"><img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/ArchDevs/HyLauncher/total"></a>
+  <a href="https://github.com/ArchDevs/HyLauncher/releases"><img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/ArchDevs/HyLauncher/total?style=flat-square"></a>
   <img src="https://img.shields.io/badge/License-GPL_3.0-yellow?style=flat-square"/>
   <a href="https://dsc.gg/hylauncher"><img alt="Static Badge" src="https://img.shields.io/badge/Discord-Link-blue?style=flat-square&logo=discord"></a>
   <a href="https://t.me/hylauncher"><img alt="Static Badge" src="https://img.shields.io/badge/Telegram-Link-lightblue?logo=telegram&style=flat-square"></a>
