@@ -19,6 +19,7 @@ import (
 	"HyLauncher/internal/platform"
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/fileutil"
+	"HyLauncher/pkg/logger"
 	"HyLauncher/pkg/model"
 )
 
@@ -155,7 +156,7 @@ func (s *GameService) install(ctx context.Context, branch, version string, targe
 	}
 
 	if err := s.applyAuthPatch(branch, version, reporter); err != nil {
-		fmt.Printf("Warning: auth patch failed: %v\n", err)
+		logger.Warn("Auth patch failed", "error", err)
 	}
 
 	if reporter != nil {

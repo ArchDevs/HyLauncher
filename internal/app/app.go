@@ -3,13 +3,13 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/internal/progress"
 	"HyLauncher/internal/service"
 	"HyLauncher/pkg/hyerrors"
+	"HyLauncher/pkg/logger"
 	"HyLauncher/pkg/model"
 
 	"github.com/hugolgst/rich-go/client"
@@ -76,7 +76,7 @@ func (a *App) Startup(ctx context.Context) {
 		config.LauncherVersion,
 	)
 	if err != nil {
-		fmt.Printf("failed to initialize diagnostics: %v\n", err)
+		logger.Error("Failed to initialize diagnostics", "error", err)
 	} else {
 		a.crashSvc = crashReporter
 	}
@@ -86,7 +86,7 @@ func (a *App) Startup(ctx context.Context) {
 	a.newsSvc = service.NewNewsService()
 	a.serversSvc = service.NewServersService()
 
-	log.Printf("[Start] Starting app, version=%s", config.LauncherVersion)
+	logger.Info("App started", "version", config.LauncherVersion)
 
 	go a.discordRPC()
 	go env.CreateFolders(a.instance.InstanceID)

@@ -2,6 +2,8 @@ package main
 
 import (
 	"HyLauncher/internal/app"
+	"HyLauncher/internal/env"
+	"HyLauncher/pkg/logger"
 	"embed"
 
 	"github.com/wailsapp/wails/v2"
@@ -15,7 +17,11 @@ import (
 var assets embed.FS
 
 func main() {
-	// Create an instance of the app structure
+	if err := logger.Init(env.GetDefaultAppDir()+"/logs", logger.INFO, true); err != nil {
+		println("Failed to init logger:", err.Error())
+	}
+	defer logger.Close()
+
 	application := app.NewApp()
 
 	err := wails.Run(&options.App{
