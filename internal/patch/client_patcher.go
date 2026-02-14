@@ -15,6 +15,7 @@ import (
 	"HyLauncher/internal/platform"
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/fileutil"
+	"HyLauncher/pkg/logger"
 	"HyLauncher/pkg/model"
 )
 
@@ -31,8 +32,11 @@ type ClientPatcher struct {
 
 func NewClientPatcher(targetDomain string) *ClientPatcher {
 	if len(targetDomain) < minDomainLength || len(targetDomain) > maxDomainLength {
-		fmt.Printf("Warning: Domain %q is invalid (must be %d-%d chars), using default: %s\n",
-			targetDomain, minDomainLength, maxDomainLength, defaultNewDomain)
+		logger.Warn("Invalid domain, using default",
+			"domain", targetDomain,
+			"min", minDomainLength,
+			"max", maxDomainLength,
+			"default", defaultNewDomain)
 		targetDomain = defaultNewDomain
 	}
 	return &ClientPatcher{
@@ -97,7 +101,9 @@ func (cp *ClientPatcher) FindAllOccurrences(data, pattern []byte) []int {
 // ReplaceBytes replaces all occurrences of oldBytes with newBytes
 func (cp *ClientPatcher) ReplaceBytes(data, oldBytes, newBytes []byte) ([]byte, int) {
 	if len(newBytes) > len(oldBytes) {
-		fmt.Printf("  Warning: New pattern (%d) longer than old (%d), skipping\n", len(newBytes), len(oldBytes))
+		logger.Warn("New pattern longer than old, skipping",
+			"newLen", len(newBytes),
+			"oldLen", len(oldBytes))
 		return data, 0
 	}
 
@@ -241,9 +247,7 @@ func (cp *ClientPatcher) ApplyDomainPatches(data []byte, protocol string) ([]byt
 
 // PatchClient patches the client binary
 func (cp *ClientPatcher) PatchClient(clientPath string, reporter *progress.Reporter) error {
-	fmt.Printf("=== Client Patcher ===\n")
-	fmt.Printf("Target: %s\n", clientPath)
-	fmt.Printf("Domain: %s (%d chars)\n", cp.targetDomain, len(cp.targetDomain))
+	logger.Info("Patching client", "path", clientPath, "domain", cp.targetDomain)
 
 	if !fileutil.FileExists(clientPath) {
 		return fmt.Errorf("client binary not found: %s", clientPath)
@@ -255,7 +259,7 @@ func (cp *ClientPatcher) PatchClient(clientPath string, reporter *progress.Repor
 			reporter.Report(progress.StagePatch, 5, "Removing code signature...")
 		}
 		if err := platform.RemoveSignature(clientPath); err != nil {
-			fmt.Printf("Warning: could not remove signature: %v\n", err)
+			logger.Warn("Could not remove signature", "path", clientPath, "error", err)
 		}
 	}
 
@@ -275,7 +279,7 @@ func (cp *ClientPatcher) PatchClient(clientPath string, reporter *progress.Repor
 	patchedData, count := cp.ApplyDomainPatches(data, "https://")
 
 	if count == 0 {
-		fmt.Println("No patches applied (already patched or no matches found)")
+		logger.Info("No patches applied", "reason", "already patched or no matches")
 		return nil
 	}
 
@@ -302,9 +306,9 @@ func (cp *ClientPatcher) PatchClient(clientPath string, reporter *progress.Repor
 			reporter.Report(progress.StagePatch, 90, "Re-signing binary...")
 		}
 		if err := platform.AdHocSign(clientPath); err != nil {
-			fmt.Printf("Warning: could not re-sign binary: %v\n", err)
+			logger.Warn("Could not re-sign binary", "path", clientPath, "error", err)
 		} else {
-			fmt.Println("Re-signed binary with ad-hoc signature")
+			logger.Info("Re-signed binary with ad-hoc signature", "path", clientPath)
 		}
 	}
 
@@ -312,15 +316,13 @@ func (cp *ClientPatcher) PatchClient(clientPath string, reporter *progress.Repor
 		reporter.Report(progress.StagePatch, 100, fmt.Sprintf("Client patched (%d occurrences)", count))
 	}
 
-	fmt.Printf("Client patched successfully (%d total occurrences)\n", count)
+	logger.Info("Client patched successfully", "occurrences", count)
 	return nil
 }
 
 // PatchServer patches the server JAR file
 func (cp *ClientPatcher) PatchServer(serverPath string, reporter *progress.Reporter) error {
-	fmt.Printf("=== Server Patcher ===\n")
-	fmt.Printf("Target: %s\n", serverPath)
-	fmt.Printf("Domain: %s (%d chars)\n", cp.targetDomain, len(cp.targetDomain))
+	logger.Info("Patching server", "path", serverPath, "domain", cp.targetDomain)
 
 	if !fileutil.FileExists(serverPath) {
 		return fmt.Errorf("server JAR not found: %s", serverPath)
@@ -419,14 +421,14 @@ func (cp *ClientPatcher) PatchServer(serverPath string, reporter *progress.Repor
 		}
 	} else {
 		os.Remove(tempPath)
-		fmt.Println("No patches applied (already patched or no matches found)")
+		logger.Info("No patches applied to server", "reason", "already patched or no matches")
 	}
 
 	if reporter != nil {
 		reporter.Report(progress.StagePatch, 100, fmt.Sprintf("Server patched (%d occurrences)", totalCount))
 	}
 
-	fmt.Printf("Server patched successfully (%d total occurrences)\n", totalCount)
+	logger.Info("Server patched successfully", "occurrences", totalCount)
 	return nil
 }
 
@@ -445,7 +447,7 @@ func EnsureGamePatched(ctx context.Context, request model.InstanceModel, targetD
 			return fmt.Errorf("failed to patch client: %w", err)
 		}
 	} else {
-		fmt.Println("Warning: Client binary not found, skipping client patch")
+		logger.Warn("Client binary not found, skipping client patch")
 	}
 
 	// Patch server
@@ -459,7 +461,7 @@ func EnsureGamePatched(ctx context.Context, request model.InstanceModel, targetD
 			return fmt.Errorf("failed to patch server: %w", err)
 		}
 	} else {
-		fmt.Println("Warning: Server JAR not found, skipping server patch")
+		logger.Warn("Server JAR not found, skipping server patch")
 	}
 
 	if reporter != nil {
@@ -482,7 +484,7 @@ func RestoreOriginalGame(request model.InstanceModel) error {
 			if err := os.Rename(backupPath, clientPath); err != nil {
 				return fmt.Errorf("failed to restore original client: %w", err)
 			}
-			fmt.Println("Restored original client binary")
+			logger.Info("Restored original client binary")
 			restored++
 		}
 	}
@@ -497,7 +499,7 @@ func RestoreOriginalGame(request model.InstanceModel) error {
 			if err := os.Rename(backupPath, serverPath); err != nil {
 				return fmt.Errorf("failed to restore original server: %w", err)
 			}
-			fmt.Println("Restored original server JAR")
+			logger.Info("Restored original server JAR")
 			restored++
 		}
 	}
@@ -506,6 +508,6 @@ func RestoreOriginalGame(request model.InstanceModel) error {
 		return fmt.Errorf("no backups found to restore")
 	}
 
-	fmt.Printf("Restored %d original file\n", restored)
+	logger.Info("Restored original files", "count", restored)
 	return nil
 }

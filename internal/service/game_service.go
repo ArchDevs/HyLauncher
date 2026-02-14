@@ -141,6 +141,14 @@ func (s *GameService) readVersionFile(path string) int {
 }
 
 func (s *GameService) install(ctx context.Context, branch, version string, targetVer int, reporter *progress.Reporter) error {
+	if err := java.EnsureJRE(ctx, branch, reporter); err != nil {
+		return fmt.Errorf("jre: %w", err)
+	}
+
+	if err := patch.EnsureButler(ctx, reporter); err != nil {
+		return fmt.Errorf("butler: %w", err)
+	}
+
 	currentVer := 0
 	if version == "auto" {
 		versionFile := filepath.Join(env.GetGameDir(branch, "auto"), ".version")

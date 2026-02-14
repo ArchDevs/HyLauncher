@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"HyLauncher/internal/progress"
+	"HyLauncher/pkg/logger"
 )
 
 const (
@@ -80,7 +81,7 @@ func DownloadWithReporter(
 		}
 
 		lastErr = err
-		fmt.Println("Download failed:", err)
+		logger.Debug("Download failed", "error", err)
 
 		// Windows AV needs a little time
 		if runtime.GOOS == "windows" {
@@ -131,13 +132,12 @@ func attemptDownload(
 	defer resp.Body.Close()
 
 	if debugDownload {
-		fmt.Printf(
-			"Download debug: status=%d resume=%v length=%d accept-ranges=%q content-range=%q\n",
-			resp.StatusCode,
-			resumeFrom > 0,
-			resp.ContentLength,
-			resp.Header.Get("Accept-Ranges"),
-			resp.Header.Get("Content-Range"),
+		logger.Debug("Download debug",
+			"status", resp.StatusCode,
+			"resume", resumeFrom > 0,
+			"length", resp.ContentLength,
+			"accept-ranges", resp.Header.Get("Accept-Ranges"),
+			"content-range", resp.Header.Get("Content-Range"),
 		)
 	}
 
@@ -421,7 +421,7 @@ func renameWithRetry(oldPath, newPath string) error {
 }
 
 func reportWarning(reporter *progress.Reporter, scaler *progress.Scaler, stage progress.Stage, msg string) {
-	fmt.Println("Warning:", msg)
+	logger.Warn(msg)
 	if scaler != nil {
 		scaler.Report(stage, 0, msg)
 	} else if reporter != nil {

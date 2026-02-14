@@ -6,6 +6,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.15.0
 	github.com/hugolgst/rich-go v0.0.0-20240715122152-74618cc1ace2
+	github.com/jaypipes/ghw v0.23.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/wailsapp/wails/v2 v2.11.0
 	golang.org/x/sys v0.34.0
@@ -17,6 +18,7 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
+	github.com/jaypipes/pcidb v1.1.1 // indirect
 	github.com/jchv/go-winloader v0.0.0-20210711035445-715c2860da7e // indirect
 	github.com/labstack/echo/v4 v4.13.3 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
@@ -35,10 +37,13 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
+	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/crypto v0.40.0 // indirect
 	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+	howett.net/plist v1.0.2-0.20250314012144-ee69052608d9 // indirect
 )
 
 // replace github.com/wailsapp/wails/v2 v2.11.0 => /home/arch/go/pkg/mod

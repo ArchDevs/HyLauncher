@@ -3,6 +3,7 @@
 package platform
 
 import (
+	"HyLauncher/pkg/logger"
 	"fmt"
 	"os"
 	"os/exec"
@@ -68,7 +69,7 @@ func FixMacOSApp(appPath string) error {
 	}
 
 	if err := RemoveQuarantine(appPath); err != nil {
-		fmt.Printf("Warning: could not remove quarantine: %v\n", err)
+		logger.Warn("Could not remove quarantine", "path", appPath, "error", err)
 	}
 
 	if err := AdHocSign(appPath); err != nil {
@@ -78,7 +79,7 @@ func FixMacOSApp(appPath string) error {
 	executablePath := filepath.Join(appPath, "Contents", "MacOS", "HytaleClient")
 	if _, err := os.Stat(executablePath); err == nil {
 		if err := AdHocSign(executablePath); err != nil {
-			fmt.Printf("Warning: could not sign executable: %v\n", err)
+			logger.Warn("Could not sign executable", "path", executablePath, "error", err)
 		}
 	}
 

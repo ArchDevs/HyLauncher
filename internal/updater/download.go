@@ -4,8 +4,8 @@ import (
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/download"
 	"HyLauncher/pkg/fileutil"
+	"HyLauncher/pkg/logger"
 	"context"
-	"fmt"
 	"os"
 )
 
@@ -30,7 +30,7 @@ func DownloadTemp(
 		return "", err
 	}
 
-	fmt.Printf("Download complete: %s\n", tmpPath)
+	logger.Info("Download complete", "path", tmpPath)
 	reporter.Report(progress.StageUpdate, 100, "Download complete")
 
 	return tmpPath, nil

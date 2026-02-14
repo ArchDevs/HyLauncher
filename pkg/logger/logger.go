@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"HyLauncher/pkg/sysinfo"
 )
 
 type Level int
@@ -55,19 +57,75 @@ func Init(logDir string, level Level, console bool) error {
 		return fmt.Errorf("open log file: %w", err)
 	}
 
+	sessionID := generateSessionID()
 	defaultLogger = &Logger{
 		file:      file,
 		level:     level,
 		console:   console,
-		sessionID: generateSessionID(),
+		sessionID: sessionID,
 	}
 
-	defaultLogger.log(INFO, "Logger initialized", "session", defaultLogger.sessionID, "file", logFile)
+	defaultLogger.log(INFO, "=== LAUNCHER STARTED ===")
+	defaultLogger.log(INFO, "Session", "id", sessionID)
+
+	logSystemInfo()
+
+	defaultLogger.log(INFO, "Log file", "path", logFile)
+
 	return nil
 }
 
 func generateSessionID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
+	const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	result := make([]byte, 4)
+	for i := range result {
+		result[i] = chars[time.Now().UnixNano()%int64(len(chars))]
+	}
+	return string(result)
+}
+
+func logSystemInfo() {
+	info := sysinfo.GetSystemInfo()
+
+	Info("OS",
+		"name", info.OS.Name,
+		"version", info.OS.Version,
+		"kernel", info.OS.Kernel,
+		"arch", info.OS.Arch,
+		"go_version", info.OS.GoVersion,
+	)
+
+	Info("CPU",
+		"model", info.CPU.Model,
+		"cores", info.CPU.Cores,
+		"threads", info.CPU.Threads,
+	)
+
+	Info("Memory",
+		"total", info.Memory.Total,
+	)
+
+	for i, gpu := range info.GPU {
+		Info("GPU",
+			"index", i,
+			"model", gpu.Model,
+			"vendor", gpu.Vendor,
+		)
+	}
+
+	for i, display := range info.Displays {
+		Info("Display",
+			"index", i,
+			"resolution", display.Resolution,
+		)
+	}
+
+	Info("Environment",
+		"home", os.Getenv("HOME"),
+		"user", os.Getenv("USER"),
+		"xdg_session_type", os.Getenv("XDG_SESSION_TYPE"),
+		"xdg_current_desktop", os.Getenv("XDG_CURRENT_DESKTOP"),
+	)
 }
 
 func (l *Logger) log(level Level, msg string, keysAndValues ...interface{}) {
@@ -80,7 +138,6 @@ func (l *Logger) log(level Level, msg string, keysAndValues ...interface{}) {
 
 	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
 
-	// Build structured fields
 	fields := ""
 	for i := 0; i < len(keysAndValues)-1; i += 2 {
 		if i > 0 {

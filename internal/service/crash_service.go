@@ -54,7 +54,6 @@ func NewCrashReporter(rootDir, appVersion string) (*Reporter, error) {
 	}
 
 	if err := ensureErrorsFile(rootDir); err != nil {
-		fmt.Printf("%s\n", err)
 		return nil, err
 	}
 
@@ -101,7 +100,7 @@ func (r *Reporter) logError(err *hyerrors.Error) {
 	defer r.mu.Unlock()
 
 	if err := ensureErrorsFile(r.rootDir); err != nil {
-		fmt.Printf("%s\n", err)
+		// Silently ignore - errors.log is optional
 	}
 
 	logPath := filepath.Join(r.logsDir(), "errors.log")

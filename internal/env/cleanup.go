@@ -1,6 +1,7 @@
 package env
 
 import (
+	"HyLauncher/pkg/logger"
 	"HyLauncher/pkg/model"
 	"fmt"
 	"os"
@@ -11,22 +12,22 @@ func CleanupLauncher(request model.InstanceModel) error {
 	cacheDir := GetCacheDir()
 
 	if err := cleanDirectoryWithFileExentsions(cacheDir, []string{".pwr", ".zip", ".tar.gz"}); err != nil {
-		fmt.Println("Warning: failed to clean cache:", err)
+		logger.Warn("Failed to clean cache", "error", err)
 	}
 
 	gameLatest := GetGameDir(request.Branch, request.BuildVersion)
 	if err := cleanIncompleteGame(gameLatest); err != nil {
-		fmt.Println("Warning: failed to clean game directory:", err)
+		logger.Warn("Failed to clean game directory", "error", err)
 	}
 
 	stagingDir := filepath.Join(gameLatest, "staging-temp")
 	if err := os.RemoveAll(stagingDir); err != nil {
-		fmt.Println("Warning: failed to remove staging dir:", err)
+		logger.Warn("Failed to remove staging dir", "error", err)
 	}
 
 	// Clean up old launcher backup from updates
 	if err := cleanupLauncherBackup(); err != nil {
-		fmt.Println("Warning: failed to clean launcher backup:", err)
+		logger.Warn("Failed to clean launcher backup", "error", err)
 	}
 
 	return nil
@@ -46,12 +47,12 @@ func cleanupLauncherBackup() error {
 	}
 
 	// Remove the backup
-	fmt.Println("Removing old launcher backup:", backup)
+	logger.Info("Removing old launcher backup", "path", backup)
 	if err := os.Remove(backup); err != nil {
 		return fmt.Errorf("failed to remove backup: %w", err)
 	}
 
-	fmt.Println("Old launcher backup removed successfully")
+	logger.Info("Old launcher backup removed successfully")
 	return nil
 }
 
@@ -73,9 +74,9 @@ func cleanDirectoryWithFileExentsions(dir string, extensions []string) error {
 		for _, ext := range extensions {
 			if filepath.Ext(entry.Name()) == ext {
 				filePath := filepath.Join(dir, entry.Name())
-				fmt.Println("Removing incomplete download:", filePath)
+				logger.Info("Removing incomplete download", "path", filePath)
 				if err := os.Remove(filePath); err != nil {
-					fmt.Println("Warning: failed to remove", filePath, ":", err)
+					logger.Warn("Failed to remove file", "path", filePath, "error", err)
 				}
 				break
 			}
@@ -99,7 +100,7 @@ func cleanDirectory(dir string) error {
 		path := filepath.Join(dir, entry.Name())
 
 		if err := os.RemoveAll(path); err != nil {
-			fmt.Println("Warning: failed to remove", path, ":", err)
+			logger.Warn("Failed to remove", "path", path, "error", err)
 		}
 	}
 
@@ -118,8 +119,7 @@ func cleanIncompleteGame(gameDir string) error {
 
 	clientPath := filepath.Join(gameDir, "Client", gameClient)
 	if _, err := os.Stat(clientPath); os.IsNotExist(err) {
-		// Game is incomplete, remove entire directory
-		fmt.Println("Incomplete game installation detected, cleaning up...")
+		logger.Info("Incomplete game installation detected, cleaning up...")
 		return cleanDirectory(gameDir)
 	}
 

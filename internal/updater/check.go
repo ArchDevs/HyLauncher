@@ -4,6 +4,7 @@ import (
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/download"
 	"HyLauncher/pkg/fileutil"
+	"HyLauncher/pkg/logger"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -56,32 +57,29 @@ func CheckUpdate(ctx context.Context, current string) (*Asset, string, error) {
 	currentClean := strings.TrimPrefix(strings.TrimSpace(current), "v")
 	latestClean := strings.TrimPrefix(strings.TrimSpace(info.Version), "v")
 
-	fmt.Printf("Current version: %s, Latest version: %s\n", current, info.Version)
+	logger.Info("Checking for updates", "current", current, "latest", info.Version)
 
 	if currentClean == latestClean {
-		fmt.Println("Already on latest version")
+		logger.Info("Already on latest version")
 		return nil, "", nil
 	}
 
 	var asset *Asset
 	switch runtime.GOOS {
 	case "windows":
-		// Use portable for auto-updates (setup requires user interaction)
 		asset = &info.Windows.Amd64.Portable
-		fmt.Printf("Update available for Windows: %s -> %s\n", current, info.Version)
+		logger.Info("Update available", "platform", "windows", "current", current, "latest", info.Version)
 	case "darwin":
-		// Detect architecture for macOS
 		if runtime.GOARCH == "arm64" {
 			asset = &info.Darwin.Arm64.Launcher
-			fmt.Printf("Update available for macOS ARM64: %s -> %s\n", current, info.Version)
+			logger.Info("Update available", "platform", "darwin-arm64", "current", current, "latest", info.Version)
 		} else {
 			asset = &info.Darwin.Amd64.Launcher
-			fmt.Printf("Update available for macOS AMD64: %s -> %s\n", current, info.Version)
+			logger.Info("Update available", "platform", "darwin-amd64", "current", current, "latest", info.Version)
 		}
 	default:
-		// Linux - use AppImage
 		asset = &info.Linux.Amd64.Launcher
-		fmt.Printf("Update available for Linux: %s -> %s\n", current, info.Version)
+		logger.Info("Update available", "platform", "linux", "current", current, "latest", info.Version)
 	}
 
 	if asset.URL == "" {

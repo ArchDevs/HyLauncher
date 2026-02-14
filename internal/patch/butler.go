@@ -13,6 +13,7 @@ import (
 	"HyLauncher/pkg/archive"
 	"HyLauncher/pkg/download"
 	"HyLauncher/pkg/fileutil"
+	"HyLauncher/pkg/logger"
 )
 
 var (
@@ -49,20 +50,20 @@ func EnsureButler(ctx context.Context, reporter *progress.Reporter) error {
 
 func ReinstallButler(ctx context.Context, toolsDir, zipPath, tempZipPath, osName, arch string, reporter *progress.Reporter) error {
 	if err := os.RemoveAll(toolsDir); err != nil {
-		fmt.Println("Warning: cannot delete butler folder")
+		logger.Warn("Cannot delete butler folder", "error", err)
 		return err
 	}
 
 	reporter.Report(progress.StageButler, 0, "Starting Butler installation")
 
 	if err := os.MkdirAll(toolsDir, 0755); err != nil {
-		fmt.Println("Warning: cannot create butler folder")
+		logger.Warn("Cannot create butler folder", "error", err)
 		return err
 	}
 
 	err := DownloadButler(ctx, toolsDir, zipPath, tempZipPath, osName, arch, reporter)
 	if err != nil {
-		fmt.Println("Warning: cannot download Butler")
+		logger.Warn("Cannot download Butler", "error", err)
 		return err
 	}
 

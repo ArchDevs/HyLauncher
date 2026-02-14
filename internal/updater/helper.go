@@ -2,6 +2,7 @@ package updater
 
 import (
 	"HyLauncher/pkg/fileutil"
+	"HyLauncher/pkg/logger"
 	"context"
 	"fmt"
 	"io"
@@ -33,7 +34,7 @@ func EnsureUpdateHelper(ctx context.Context) (string, error) {
 		return helperPath, nil
 	}
 
-	fmt.Println("Update helper not found, downloading...")
+	logger.Info("Update helper not found, downloading...")
 
 	// Get info about latest update-helper as: url, hash
 	asset, err := GetHelperAsset(ctx)
@@ -53,7 +54,7 @@ func EnsureUpdateHelper(ctx context.Context) (string, error) {
 		if err := fileutil.VerifySHA256(tmp, asset.Sha256); err != nil {
 			return "", fmt.Errorf("helper verification failed: %w", err)
 		}
-		fmt.Println("Helper verification successful")
+		logger.Info("Helper verification successful")
 	}
 
 	// Move to final location
@@ -68,7 +69,7 @@ func EnsureUpdateHelper(ctx context.Context) (string, error) {
 		}
 	}
 
-	fmt.Printf("Update helper installed: %s\n", helperPath)
+	logger.Info("Update helper installed", "path", helperPath)
 	return helperPath, nil
 }
 
