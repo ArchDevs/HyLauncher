@@ -40,7 +40,6 @@ type PatchStepsResponse struct {
 func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, targetVer int, versionDir string, reporter *progress.Reporter) error {
 	var pwrPath string
 
-	// Fetch patch steps from API
 	steps, err := fetchPatchSteps(ctx, branch, currentVer)
 	if err != nil {
 		return fmt.Errorf("fetch patch steps: %w", err)
@@ -50,9 +49,7 @@ func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, tar
 		return fmt.Errorf("no patch steps available")
 	}
 
-	// Apply each patch step
 	for i, step := range steps {
-		// Stop if we've reached the target version
 		if targetVer > 0 && step.From >= targetVer {
 			break
 		}
@@ -61,15 +58,12 @@ func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, tar
 			reporter.Report(progress.StagePatch, 0, fmt.Sprintf("Patching %d → %d (%d/%d)", step.From, step.To, i+1, len(steps)))
 		}
 
-		// Download PWR and signature files for this step
 		pwrPath, sigPath, err := downloadPatchStep(ctx, step, reporter)
 		if err != nil {
 			return fmt.Errorf("download patch step %d→%d: %w", step.From, step.To, err)
 		}
 
-		// Apply the patch to the specified version directory
 		if err := applyPWR(ctx, pwrPath, sigPath, branch, versionDir, reporter); err != nil {
-			// Clean up patch files on failure to force re-download on retry
 			_ = os.Remove(pwrPath)
 			_ = os.Remove(sigPath)
 			return fmt.Errorf("apply patch %d→%d: %w", step.From, step.To, err)
@@ -83,10 +77,7 @@ func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, tar
 
 func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string, version string, reporter *progress.Reporter) error {
 	gameDir := env.GetGameDir(branch, version)
-	// Keep staging dir OUTSIDE game directory to avoid verification issues
 	stagingDir := filepath.Join(env.GetCacheDir(), "staging-temp")
-
-	// Clean up any previous incomplete staging state
 	_ = os.RemoveAll(stagingDir)
 
 	_ = os.MkdirAll(gameDir, 0755)
@@ -114,10 +105,7 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 	}
 
 	if err := cmd.Run(); err != nil {
-		// Clean up staging on failure
 		_ = os.RemoveAll(stagingDir)
-
-		// Provide more detailed error information for debugging
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			return fmt.Errorf("butler apply failed with exit code %d: %s", exitErr.ExitCode(), string(exitErr.Stderr))
 		}
@@ -129,7 +117,6 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 		_ = cmd.Process.Release()
 	}
 
-	// Clean up staging directory
 	_ = os.RemoveAll(stagingDir)
 
 	if reporter != nil {
@@ -140,7 +127,7 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 
 func fetchPatchSteps(ctx context.Context, branch string, currentVer int) ([]PatchStep, error) {
 	reqBody := PatchRequest{
-		OS:      env.GetOSForAPI(),
+		OS:      env.GetOS(),
 		Arch:    env.GetArchForAPI(),
 		Branch:  branch,
 		Version: strconv.Itoa(currentVer),
@@ -187,7 +174,6 @@ func downloadPatchStep(ctx context.Context, step PatchStep, reporter *progress.R
 	pwrDest := filepath.Join(cacheDir, pwrFileName)
 	sigDest := filepath.Join(cacheDir, sigFileName)
 
-	// Check if files are already cached
 	_, pwrErr := os.Stat(pwrDest)
 	_, sigErr := os.Stat(sigDest)
 	if pwrErr == nil && sigErr == nil {

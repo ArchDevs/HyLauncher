@@ -19,11 +19,6 @@ func GetOS() string {
 	}
 }
 
-// GetOSForAPI returns the OS identifier for API calls
-func GetOSForAPI() string {
-	return runtime.GOOS
-}
-
 func GetArch() string {
 	switch runtime.GOARCH {
 	case "amd64":
@@ -35,12 +30,9 @@ func GetArch() string {
 	}
 }
 
-// GetArchForAPI returns the architecture identifier for API calls
-// On macOS, the server only supports arm64, not amd64
 func GetArchForAPI() string {
 	switch runtime.GOARCH {
 	case "amd64":
-		// macOS only supports arm64 on the server
 		if runtime.GOOS == "darwin" {
 			return "arm64"
 		}

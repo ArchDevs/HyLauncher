@@ -143,7 +143,6 @@ func VerifyVersionExists(branch string, version int) error {
 }
 
 func findLatestVersion(branch string) VersionCheckResult {
-	// Call API with version 1 to get all steps from 1 to latest
 	steps, err := fetchPatchStepsFromAPI(branch, 1)
 	if err != nil {
 		return VersionCheckResult{
@@ -157,13 +156,11 @@ func findLatestVersion(branch string) VersionCheckResult {
 		}
 	}
 
-	// The latest version is the "to" field of the last step
 	latest := steps[len(steps)-1].To
 	return VersionCheckResult{LatestVersion: latest}
 }
 
 func listAllVersions(branch string) AllVersionsResult {
-	// Call API with version 1 to get all steps from 1 to latest
 	steps, err := fetchPatchStepsFromAPI(branch, 1)
 	if err != nil {
 		return AllVersionsResult{
@@ -177,20 +174,17 @@ func listAllVersions(branch string) AllVersionsResult {
 		}
 	}
 
-	// Extract all unique versions from steps
 	versionMap := make(map[int]bool)
 	for _, step := range steps {
 		versionMap[step.From] = true
 		versionMap[step.To] = true
 	}
 
-	// Convert to sorted slice
 	var versions []int
 	for v := range versionMap {
 		versions = append(versions, v)
 	}
 
-	// Sort in ascending order
 	for i := 0; i < len(versions); i++ {
 		for j := i + 1; j < len(versions); j++ {
 			if versions[i] > versions[j] {
@@ -202,10 +196,9 @@ func listAllVersions(branch string) AllVersionsResult {
 	return AllVersionsResult{Versions: versions}
 }
 
-// fetchPatchStepsFromAPI calls the PWR API to get patch steps
 func fetchPatchStepsFromAPI(branch string, currentVer int) ([]PatchStep, error) {
 	reqBody := PatchRequest{
-		OS:      env.GetOSForAPI(),
+		OS:      env.GetOS(),
 		Arch:    env.GetArchForAPI(),
 		Branch:  branch,
 		Version: fmt.Sprintf("%d", currentVer),

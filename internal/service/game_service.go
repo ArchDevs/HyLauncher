@@ -23,14 +23,11 @@ import (
 )
 
 type GameService struct {
-	ctx      context.Context
-	reporter *progress.Reporter
-
-	installMutex sync.Mutex
-
-	authSvc *AuthService
-
+	ctx        context.Context
+	reporter   *progress.Reporter
+	authSvc    *AuthService
 	authDomain string
+	installMu  sync.Mutex
 }
 
 func NewGameService(ctx context.Context, reporter *progress.Reporter, svc *AuthService) *GameService {
@@ -42,282 +39,192 @@ func NewGameService(ctx context.Context, reporter *progress.Reporter, svc *AuthS
 	}
 }
 
-func (s *GameService) SetAuthDomain(domain string) {
-	s.authDomain = domain
-}
-
 func (s *GameService) EnsureGame(request model.InstanceModel) error {
-	s.reporter.Report(progress.StageVerify, 0, "Starting verifying game installation...")
+	s.reporter.Report(progress.StageVerify, 0, "Verifying installation...")
 
 	if err := java.EnsureJRE(s.ctx, request.Branch, s.reporter); err != nil {
-		return fmt.Errorf("verify jre: %w", err)
+		return fmt.Errorf("jre: %w", err)
 	}
-
-	s.reporter.Report(progress.StageVerify, 30, "JRE is installed...")
 
 	if err := patch.EnsureButler(s.ctx, s.reporter); err != nil {
-		return fmt.Errorf("verify butler: %w", err)
+		return fmt.Errorf("butler: %w", err)
 	}
-
-	s.reporter.Report(progress.StageVerify, 65, "Butler is installed...")
-
-	gameDir := env.GetGameDir(request.Branch, request.BuildVersion)
-	clientPath := env.GetGameClientPath(request.Branch, request.BuildVersion)
-	fmt.Printf("[EnsureGame] Checking game installation: branch=%s version=%s\n", request.Branch, request.BuildVersion)
-	fmt.Printf("[EnsureGame] Game dir: %s\n", gameDir)
-	fmt.Printf("[EnsureGame] Client path: %s\n", clientPath)
 
 	if err := game.CheckInstalled(s.ctx, request.Branch, request.BuildVersion); err != nil {
-		fmt.Printf("[EnsureGame] CheckInstalled failed: %v\n", err)
-		return fmt.Errorf("verify game: %w", err)
+		return fmt.Errorf("game files: %w", err)
 	}
 
-	s.reporter.Report(progress.StageVerify, 100, "Hytale is installed...")
+	s.reporter.Report(progress.StageVerify, 100, "Ready")
 	return nil
 }
 
 func (s *GameService) EnsureInstalled(ctx context.Context, request model.InstanceModel, reporter *progress.Reporter) (string, error) {
-	s.installMutex.Lock()
-	defer s.installMutex.Unlock()
+	s.installMu.Lock()
+	defer s.installMu.Unlock()
 
 	if reporter != nil {
-		reporter.Report(progress.StageVerify, 0, "Checking for game updates")
+		reporter.Report(progress.StageVerify, 0, "Checking for updates...")
 	}
 
-	// For auto mode, always check for updates first before verifying game files
-	// This ensures we can do incremental updates even if current game files are valid
-	if request.BuildVersion == "auto" {
-		latest, err := s.fetchLatestVersion(ctx, request.Branch)
-		if err != nil {
-			return "", fmt.Errorf("fetch latest version: %w", err)
+	latest, err := patch.FindLatestVersion(request.Branch)
+	if err != nil {
+		return "", fmt.Errorf("fetch latest: %w", err)
+	}
+
+	switch request.BuildVersion {
+	case "auto":
+		return s.handleAutoVersion(ctx, request.Branch, latest, reporter)
+	case "latest":
+		return s.handleLatestVersion(ctx, request.Branch, latest, reporter)
+	default:
+		if err := s.EnsureGame(request); err == nil {
+			return request.BuildVersion, nil
 		}
+		return "", fmt.Errorf("version %q not installed", request.BuildVersion)
+	}
+}
 
-		autoDir := env.GetGameDir(request.Branch, "auto")
-		versionFile := filepath.Join(autoDir, ".version")
-		currentVer := 0
-		if data, err := os.ReadFile(versionFile); err == nil {
-			currentVer, _ = strconv.Atoi(string(data))
-		}
+func (s *GameService) handleAutoVersion(ctx context.Context, branch string, latest int, reporter *progress.Reporter) (string, error) {
+	autoDir := env.GetGameDir(branch, "auto")
+	versionFile := filepath.Join(autoDir, ".version")
 
-		fmt.Printf("[EnsureInstalled] Auto version check: current=%d latest=%d versionFile=%s\n", currentVer, latest, versionFile)
+	currentVer := s.readVersionFile(versionFile)
 
-		// Only skip update if we're on the latest version AND game files are valid
-		if currentVer == latest {
-			if checkErr := game.CheckInstalled(ctx, request.Branch, "auto"); checkErr == nil {
-				fmt.Printf("[EnsureInstalled] Auto build is up to date (version %d)\n", latest)
-				if reporter != nil {
-					reporter.Report(progress.StageVerify, 100, "Auto build is up to date")
-				}
-				return "auto", nil
-			} else {
-				fmt.Printf("[EnsureInstalled] Version matches but game files invalid: %v\n", checkErr)
-			}
-		}
-
-		fmt.Printf("[EnsureInstalled] Updating auto build: currentVer=%d latest=%d\n", currentVer, latest)
-
+	if currentVer == latest && game.CheckInstalled(ctx, branch, "auto") == nil {
 		if reporter != nil {
-			reporter.Report(progress.StageVerify, 50, fmt.Sprintf("Updating auto build to version %d", latest))
+			reporter.Report(progress.StageVerify, 100, "Up to date")
 		}
-
-		if err := s.installInternal(ctx, request.Branch, "auto", latest, reporter); err != nil {
-			return "", err
-		}
-
-		_ = os.WriteFile(versionFile, []byte(strconv.Itoa(latest)), 0644)
-
 		return "auto", nil
 	}
 
-	// For non-auto modes, first check if game is already installed and valid
-	if err := s.EnsureGame(request); err == nil {
-		return request.BuildVersion, nil
-	} else {
-		fmt.Println("[EnsureInstalled] verify failed:", err)
-		if reporter != nil {
-			reporter.Report(progress.StageVerify, 0, fmt.Sprintf("Verification failed: %v", err))
-		}
+	if reporter != nil {
+		reporter.Report(progress.StageVerify, 50, fmt.Sprintf("Updating to %d...", latest))
 	}
 
-	latest, err := s.fetchLatestVersion(ctx, request.Branch)
-	if err != nil {
-		return "", fmt.Errorf("fetch latest version: %w", err)
+	if err := s.install(ctx, branch, "auto", latest, reporter); err != nil {
+		return "", err
 	}
 
-	if request.BuildVersion == "latest" {
-		// Use the actual version number as the folder name (e.g., "8")
-		versionStr := strconv.Itoa(latest)
+	_ = os.WriteFile(versionFile, []byte(strconv.Itoa(latest)), 0644)
+	return "auto", nil
+}
 
-		// Check if already installed - the folder name IS the version, no need for .version file
-		if checkErr := game.CheckInstalled(ctx, request.Branch, versionStr); checkErr == nil {
-			fmt.Printf("[EnsureInstalled] Latest build is up to date (version %s)\n", versionStr)
-			if reporter != nil {
-				reporter.Report(progress.StageVerify, 100, "Latest build is up to date")
-			}
-			return versionStr, nil
-		}
+func (s *GameService) handleLatestVersion(ctx context.Context, branch string, latest int, reporter *progress.Reporter) (string, error) {
+	versionStr := strconv.Itoa(latest)
 
-		fmt.Printf("[EnsureInstalled] Installing latest version: %d\n", latest)
-
+	if game.CheckInstalled(ctx, branch, versionStr) == nil {
 		if reporter != nil {
-			reporter.Report(progress.StageVerify, 50, fmt.Sprintf("Installing latest version %d", latest))
+			reporter.Report(progress.StageVerify, 100, "Up to date")
 		}
-
-		// Pass the actual version number as the folder name
-		if err := s.installInternal(ctx, request.Branch, versionStr, latest, reporter); err != nil {
-			return "", err
-		}
-
-		// Return the actual version number so the instance is updated correctly
 		return versionStr, nil
 	}
 
-	return "", fmt.Errorf("invalid version %q: only 'auto' and 'latest' are supported", request.BuildVersion)
+	if reporter != nil {
+		reporter.Report(progress.StageVerify, 50, fmt.Sprintf("Installing %d...", latest))
+	}
+
+	if err := s.install(ctx, branch, versionStr, latest, reporter); err != nil {
+		return "", err
+	}
+
+	return versionStr, nil
 }
 
-func (s *GameService) installInternal(ctx context.Context, branch string, version string, verInt int, reporter *progress.Reporter) error {
-	gameDir := env.GetGameDir(branch, version)
+func (s *GameService) readVersionFile(path string) int {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0
+	}
+	ver, _ := strconv.Atoi(string(data))
+	return ver
+}
 
-	// Determine current version for incremental patching
+func (s *GameService) install(ctx context.Context, branch, version string, targetVer int, reporter *progress.Reporter) error {
 	currentVer := 0
 	if version == "auto" {
-		// For AUTO version, read current version from .version file
-		autoDir := env.GetGameDir(branch, "auto")
-		versionFile := filepath.Join(autoDir, ".version")
-		if data, err := os.ReadFile(versionFile); err == nil {
-			currentVer, _ = strconv.Atoi(string(data))
-		}
-	}
-	// For specific versions, currentVer remains 0 (fresh install from version 0)
-
-	if err := patch.DownloadAndApplyPWR(ctx, branch, currentVer, verInt, version, reporter); err != nil {
-		return fmt.Errorf("download and apply patches: %w", err)
+		versionFile := filepath.Join(env.GetGameDir(branch, "auto"), ".version")
+		currentVer = s.readVersionFile(versionFile)
 	}
 
-	// Fix permissions on macOS after patching
-	if runtime.GOOS == "darwin" {
-		clientExec := filepath.Join(gameDir, "Client", "Hytale.app", "Contents", "MacOS", "HytaleClient")
-		if fileutil.FileExists(clientExec) {
-			_ = os.Chmod(clientExec, 0755)
-		}
-		// Also fix the Java runtime if needed
-		jreDir := env.GetJREDir()
-		javaExec := filepath.Join(jreDir, "bin", "java")
-		if fileutil.FileExists(javaExec) {
-			_ = os.Chmod(javaExec, 0755)
-		}
+	if err := patch.DownloadAndApplyPWR(ctx, branch, currentVer, targetVer, version, reporter); err != nil {
+		return fmt.Errorf("patch: %w", err)
 	}
 
-	clientPath := env.GetGameClientPath(branch, version)
-
-	if runtime.GOOS == "darwin" {
-		// On macOS, check for the executable inside the app bundle
-		if clientPath == "" || !fileutil.FileExists(clientPath) {
-			return fmt.Errorf("client executable not found in app bundle")
-		}
-	} else {
-		if !fileutil.FileExists(clientPath) {
-			return fmt.Errorf("client executable not found at %s", clientPath)
-		}
-	}
-
-	if reporter != nil {
-		reporter.Report(progress.StagePatch, 0, "Applying custom authentication patch...")
-	}
-
-	patchRequest := model.InstanceModel{
-		BuildVersion: version,
-		Branch:       branch,
-	}
-
-	if err := patch.EnsureGamePatched(ctx, patchRequest, s.authDomain, reporter); err != nil {
-		fmt.Printf("Warning: Failed to apply custom auth patch: %v\n", err)
-		fmt.Println("Game will work with official Hytale servers only")
-	} else {
-		if reporter != nil {
-			reporter.Report(progress.StagePatch, 100, "Custom authentication configured")
-		}
-	}
-
-	if reporter != nil {
-		reporter.Report(progress.StageComplete, 100, "Game installed successfully")
-	}
-
-	return nil
-}
-
-func (s *GameService) Install(ctx context.Context, request model.InstanceModel, reporter *progress.Reporter) error {
-	verInt, err := strconv.Atoi(request.BuildVersion)
-	if err != nil {
-		return fmt.Errorf("invalid version for install: %w", err)
-	}
-
-	if err := s.installInternal(ctx, request.Branch, request.BuildVersion, verInt, reporter); err != nil {
+	if err := s.fixPermissions(branch, version); err != nil {
 		return err
 	}
 
+	if err := s.applyAuthPatch(branch, version, reporter); err != nil {
+		fmt.Printf("Warning: auth patch failed: %v\n", err)
+	}
+
+	if reporter != nil {
+		reporter.Report(progress.StageComplete, 100, "Done")
+	}
 	return nil
 }
 
-func (s *GameService) fetchLatestVersion(ctx context.Context, branch string) (int, error) {
-	versionChan := make(chan int, 1)
-	errChan := make(chan error, 1)
-
-	go func() {
-		version, err := patch.FindLatestVersion(branch)
-		if err != nil {
-			errChan <- err
-			return
-		}
-		versionChan <- version
-	}()
-
-	select {
-	case version := <-versionChan:
-		return version, nil
-	case err := <-errChan:
-		return 0, fmt.Errorf("find latest version: %w", err)
-	case <-ctx.Done():
-		return 0, ctx.Err()
+func (s *GameService) fixPermissions(branch, version string) error {
+	if runtime.GOOS != "darwin" {
+		return nil
 	}
+
+	gameDir := env.GetGameDir(branch, version)
+	clientExec := filepath.Join(gameDir, "Client", "Hytale.app", "Contents", "MacOS", "HytaleClient")
+
+	if fileutil.FileExists(clientExec) {
+		_ = os.Chmod(clientExec, 0755)
+	}
+
+	javaExec := filepath.Join(env.GetJREDir(), "bin", "java")
+	if fileutil.FileExists(javaExec) {
+		_ = os.Chmod(javaExec, 0755)
+	}
+
+	return nil
+}
+
+func (s *GameService) applyAuthPatch(branch, version string, reporter *progress.Reporter) error {
+	if reporter != nil {
+		reporter.Report(progress.StagePatch, 0, "Patching auth...")
+	}
+
+	req := model.InstanceModel{BuildVersion: version, Branch: branch}
+	if err := patch.EnsureGamePatched(s.ctx, req, s.authDomain, reporter); err != nil {
+		return err
+	}
+
+	if reporter != nil {
+		reporter.Report(progress.StagePatch, 100, "Auth ready")
+	}
+	return nil
 }
 
 func (s *GameService) Launch(playerName string, request model.InstanceModel, serverIP ...string) error {
-	gameSession, err := s.authSvc.FetchGameSession(playerName)
+	session, err := s.authSvc.FetchGameSession(playerName)
 	if err != nil {
 		return err
 	}
 
-	s.reporter.Report(progress.StageLaunch, 0, "Launching game...")
+	s.reporter.Report(progress.StageLaunch, 0, "Launching...")
 
-	// Game files are in shared directory
 	gameDir := env.GetGameDir(request.Branch, request.BuildVersion)
-
-	// Instance-specific UserData
 	userDataDir := env.GetInstanceUserDataDir(request.InstanceID)
 
-	if !fileutil.FileExists(userDataDir) {
-		if err := os.MkdirAll(userDataDir, 0755); err != nil {
-			return fmt.Errorf("create user data dir: %w", err)
-		}
+	if err := os.MkdirAll(userDataDir, 0755); err != nil {
+		return fmt.Errorf("userdata: %w", err)
 	}
 
-	s.reporter.Report(progress.StageLaunch, 30, "Ensuring game patch...")
-
-	if err := patch.EnsureGamePatched(s.ctx, request, s.authDomain, nil); err != nil {
-		fmt.Printf("Warning: Failed to ensure game patch: %v\n", err)
-	}
-
-	s.reporter.Report(progress.StageLaunch, 60, "Looking for files...")
+	_ = patch.EnsureGamePatched(s.ctx, request, s.authDomain, nil)
 
 	clientPath := env.GetGameClientPath(request.Branch, request.BuildVersion)
 	if clientPath == "" {
-		return fmt.Errorf("game client not found in %s", env.GetGameDir(request.Branch, request.BuildVersion))
+		return fmt.Errorf("client not found")
 	}
 
 	javaBin, err := java.GetJavaExec(request.Branch)
 	if err != nil {
-		return fmt.Errorf("find java: %w", err)
+		return fmt.Errorf("java: %w", err)
 	}
 
 	if runtime.GOOS == "darwin" {
@@ -325,22 +232,15 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel, ser
 		_ = os.Chmod(javaBin, 0755)
 	}
 
-	clientPath, _ = filepath.Abs(clientPath)
-	javaBin, _ = filepath.Abs(javaBin)
-	userDataDir, _ = filepath.Abs(userDataDir)
-	gameDir, _ = filepath.Abs(gameDir)
-
-	s.reporter.Report(progress.StageLaunch, 80, "Launching...")
-
 	args := []string{
-		"--app-dir", gameDir,
-		"--user-dir", userDataDir,
-		"--java-exec", javaBin,
+		"--app-dir", mustAbs(gameDir),
+		"--user-dir", mustAbs(userDataDir),
+		"--java-exec", mustAbs(javaBin),
 		"--auth-mode", "authenticated",
-		"--uuid", gameSession.UUID,
-		"--name", gameSession.Username,
-		"--identity-token", gameSession.IdentityToken,
-		"--session-token", gameSession.SessionToken,
+		"--uuid", session.UUID,
+		"--name", session.Username,
+		"--identity-token", session.IdentityToken,
+		"--session-token", session.SessionToken,
 	}
 
 	if len(serverIP) > 0 && serverIP[0] != "" {
@@ -348,54 +248,34 @@ func (s *GameService) Launch(playerName string, request model.InstanceModel, ser
 	}
 
 	cmd := exec.Command(clientPath, args...)
-
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
 	game.SetSDLVideoDriver(cmd)
 
-	fmt.Printf("[Launch] Starting game: %s\n", clientPath)
-	fmt.Printf("[Launch] Working dir: %s\n", gameDir)
-	fmt.Printf("[Launch] Command: %v\n", cmd.Args)
-
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("start game process: %w", err)
-	}
-
-	fmt.Printf("[Launch] Process started with PID: %d\n", cmd.Process.Pid)
-
-	if runtime.GOOS == "darwin" && cmd.Process != nil {
-		if err := cmd.Process.Release(); err != nil {
-			fmt.Printf("[Launch] Warning: could not detach process: %v\n", err)
-		} else {
-			fmt.Printf("[Launch] Process detached\n")
-		}
+		return fmt.Errorf("start: %w", err)
 	}
 
 	if runtime.GOOS == "darwin" {
-		if err := platform.RemoveQuarantine(clientPath); err != nil {
-			fmt.Printf("[Launch] Warning: could not remove quarantine: %v\n", err)
-		}
+		_ = cmd.Process.Release()
+		_ = platform.RemoveQuarantine(clientPath)
 	}
 
 	time.Sleep(500 * time.Millisecond)
-	if cmd.Process != nil {
-		if runtime.GOOS != "windows" {
-			if err := cmd.Process.Signal(syscall.Signal(0)); err != nil {
-				fmt.Printf("[Launch] Process already exited: %v\n", err)
-				// Try to get exit code
-				if waitErr := cmd.Wait(); waitErr != nil {
-					fmt.Printf("[Launch] Process exit error: %v\n", waitErr)
-					return fmt.Errorf("game process exited immediately: %w", waitErr)
-				}
-				return fmt.Errorf("game process exited immediately")
-			}
+
+	if cmd.Process != nil && runtime.GOOS != "windows" {
+		if err := cmd.Process.Signal(syscall.Signal(0)); err != nil {
+			_ = cmd.Wait()
+			return fmt.Errorf("process exited")
 		}
-		fmt.Printf("[Launch] Process is still running (PID: %d)\n", cmd.Process.Pid)
 	}
 
-	s.reporter.Report(progress.StageLaunch, 100, "Game launched!")
+	s.reporter.Report(progress.StageLaunch, 100, "Launched!")
 	s.reporter.Reset()
-
 	return nil
+}
+
+func mustAbs(path string) string {
+	abs, _ := filepath.Abs(path)
+	return abs
 }
