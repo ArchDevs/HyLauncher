@@ -1,6 +1,7 @@
 package updater
 
 import (
+	"HyLauncher/internal/env"
 	"HyLauncher/pkg/fileutil"
 	"HyLauncher/pkg/logger"
 	"context"
@@ -13,21 +14,22 @@ import (
 
 // Installs UpdateHelper
 func EnsureUpdateHelper(ctx context.Context) (string, error) {
-	// Get path name for the executable that started the current process
-	exe, err := os.Executable()
-	if err != nil {
-		return "", fmt.Errorf("failed to get executable path: %w", err)
-	}
-
-	dir := filepath.Dir(exe)
+	// Use a writable directory for the update helper
+	// This is important for AppImage/DMG where the executable directory is read-only
+	writableDir := getWritableDir()
 
 	name := "update-helper"
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}
 
-	// Get update-helper path
-	helperPath := filepath.Join(dir, name)
+	// Get update-helper path in writable directory
+	helperPath := filepath.Join(writableDir, name)
+
+	// Ensure directory exists
+	if err := os.MkdirAll(writableDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create helper directory: %w", err)
+	}
 
 	// Check if helper already exists
 	if _, err := os.Stat(helperPath); err == nil {
@@ -71,6 +73,14 @@ func EnsureUpdateHelper(ctx context.Context) (string, error) {
 
 	logger.Info("Update helper installed", "path", helperPath)
 	return helperPath, nil
+}
+
+// getWritableDir returns a writable directory for storing the update helper
+// This is necessary because AppImage/DMG mounts are read-only
+func getWritableDir() string {
+	// Use the app's data directory which is always writable
+	appDir := env.GetDefaultAppDir()
+	return filepath.Join(appDir, "bin")
 }
 
 func MoveFile(src, dst string) error {
