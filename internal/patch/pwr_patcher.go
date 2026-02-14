@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"time"
 
@@ -70,6 +69,9 @@ func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, tar
 
 		// Apply the patch to the specified version directory
 		if err := applyPWR(ctx, pwrPath, sigPath, branch, versionDir, reporter); err != nil {
+			// Clean up patch files on failure to force re-download on retry
+			_ = os.Remove(pwrPath)
+			_ = os.Remove(sigPath)
 			return fmt.Errorf("apply patch %d→%d: %w", step.From, step.To, err)
 		}
 	}
@@ -114,7 +116,12 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 	if err := cmd.Run(); err != nil {
 		// Clean up staging on failure
 		_ = os.RemoveAll(stagingDir)
-		return err
+
+		// Provide more detailed error information for debugging
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return fmt.Errorf("butler apply failed with exit code %d: %s", exitErr.ExitCode(), string(exitErr.Stderr))
+		}
+		return fmt.Errorf("butler apply failed: %w", err)
 	}
 
 	if cmd.Process != nil {
@@ -133,8 +140,8 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 
 func fetchPatchSteps(ctx context.Context, branch string, currentVer int) ([]PatchStep, error) {
 	reqBody := PatchRequest{
-		OS:      runtime.GOOS,
-		Arch:    runtime.GOARCH,
+		OS:      env.GetOSForAPI(),
+		Arch:    env.GetArchForAPI(),
 		Branch:  branch,
 		Version: strconv.Itoa(currentVer),
 	}

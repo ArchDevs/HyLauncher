@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"HyLauncher/internal/env"
 )
 
 type VersionCheckResult struct {
@@ -203,8 +205,8 @@ func listAllVersions(branch string) AllVersionsResult {
 // fetchPatchStepsFromAPI calls the PWR API to get patch steps
 func fetchPatchStepsFromAPI(branch string, currentVer int) ([]PatchStep, error) {
 	reqBody := PatchRequest{
-		OS:      runtime.GOOS,
-		Arch:    runtime.GOARCH,
+		OS:      env.GetOSForAPI(),
+		Arch:    env.GetArchForAPI(),
 		Branch:  branch,
 		Version: fmt.Sprintf("%d", currentVer),
 	}

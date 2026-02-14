@@ -177,6 +177,11 @@ func attemptDownload(
 	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+		// HTTP 522 is a Cloudflare-specific error (Connection Timed Out)
+		// This is retryable, so return a special error that triggers retry
+		if resp.StatusCode == 522 {
+			return fmt.Errorf("server connection timed out (HTTP 522): %s", resp.Status)
+		}
 		return fmt.Errorf("bad HTTP status: %s", resp.Status)
 	}
 
@@ -359,7 +364,9 @@ func isRetryable(err error) bool {
 	return strings.Contains(msg, "connection reset") ||
 		strings.Contains(msg, "broken pipe") ||
 		strings.Contains(msg, "i/o timeout") ||
-		strings.Contains(msg, "tls handshake")
+		strings.Contains(msg, "tls handshake") ||
+		strings.Contains(msg, "522") || // Cloudflare connection timeout
+		strings.Contains(msg, "connection timed out")
 }
 
 func createSafeClient() *http.Client {

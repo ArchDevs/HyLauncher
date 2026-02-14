@@ -1,3 +1,3 @@
 package config
 
-const LauncherVersion = "1.0.2"
+const LauncherVersion = "1.0.3"
