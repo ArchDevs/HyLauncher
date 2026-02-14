@@ -86,9 +86,13 @@ jobs:
           # Build the application
           wails build -platform linux/amd64 -tags webkit2_41
           
-          # Create AppImage using linuxdeploy
+          # Create AppImage using linuxdeploy with GTK plugin
           wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           chmod +x linuxdeploy-x86_64.AppImage
+          
+          # Download and install linuxdeploy-plugin-gtk
+          wget -q https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
+          chmod +x linuxdeploy-plugin-gtk.sh
           
           # Create AppDir structure
           mkdir -p AppDir/usr/bin
@@ -108,8 +112,8 @@ jobs:
           sed -i 's|Exec=/usr/bin/HyLauncher|Exec=HyLauncher|' AppDir/usr/share/applications/HyLauncher.desktop
           cp AppDir/usr/share/applications/HyLauncher.desktop AppDir/
           
-          # Create AppImage
-          ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage
+          # Create AppImage with GTK plugin for proper WebKit2GTK bundling
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin gtk --output appimage
           
           # Rename AppImage
           mv HyLauncher*.AppImage release/HyLauncher-linux-x86_64.AppImage
