@@ -37,6 +37,8 @@ func DownloadWithReporter(
 	stage progress.Stage,
 	scaler *progress.Scaler,
 ) error {
+	logger.Info("Starting download", "file", fileName, "url", url, "dest", dest)
+
 	// Allow caller to cancel
 	if ctx == nil {
 		ctx = context.Background()
@@ -45,6 +47,7 @@ func DownloadWithReporter(
 	var lastErr error
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
+		logger.Debug("Download attempt", "attempt", attempt, "max", maxRetries, "file", fileName)
 		// Check context before retry
 		select {
 		case <-ctx.Done():
@@ -77,11 +80,12 @@ func DownloadWithReporter(
 
 		err := attemptDownload(ctx, dest, url, fileName, reporter, stage, scaler)
 		if err == nil {
+			logger.Info("Download completed", "file", fileName, "dest", dest)
 			return nil
 		}
 
 		lastErr = err
-		logger.Debug("Download failed", "error", err)
+		logger.Warn("Download attempt failed", "attempt", attempt, "file", fileName, "error", err)
 
 		// Windows AV needs a little time
 		if runtime.GOOS == "windows" {
@@ -89,6 +93,7 @@ func DownloadWithReporter(
 		}
 	}
 
+	logger.Error("Download failed after all retries", "file", fileName, "attempts", maxRetries, "error", lastErr)
 	return fmt.Errorf("download failed after %d attempts: %w", maxRetries, lastErr)
 }
 

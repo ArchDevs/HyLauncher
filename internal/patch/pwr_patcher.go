@@ -16,6 +16,7 @@ import (
 	"HyLauncher/internal/platform"
 	"HyLauncher/internal/progress"
 	"HyLauncher/pkg/download"
+	"HyLauncher/pkg/logger"
 )
 
 type PatchRequest struct {
@@ -38,21 +39,30 @@ type PatchStepsResponse struct {
 }
 
 func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, targetVer int, versionDir string, reporter *progress.Reporter) error {
+	logger.Info("Starting patch download", "branch", branch, "from", currentVer, "to", targetVer)
+
 	var pwrPath string
 
 	steps, err := fetchPatchSteps(ctx, branch, currentVer)
 	if err != nil {
+		logger.Error("Failed to fetch patch steps", "branch", branch, "error", err)
 		return fmt.Errorf("fetch patch steps: %w", err)
 	}
 
 	if len(steps) == 0 {
+		logger.Warn("No patch steps available", "branch", branch, "currentVer", currentVer)
 		return fmt.Errorf("no patch steps available")
 	}
 
+	logger.Info("Found patch steps", "count", len(steps), "branch", branch)
+
 	for i, step := range steps {
 		if targetVer > 0 && step.From >= targetVer {
+			logger.Info("Reached target version, stopping", "target", targetVer, "current", step.From)
 			break
 		}
+
+		logger.Info("Downloading patch", "from", step.From, "to", step.To, "progress", fmt.Sprintf("%d/%d", i+1, len(steps)))
 
 		if reporter != nil {
 			reporter.Report(progress.StagePatch, 0, fmt.Sprintf("Patching %d → %d (%d/%d)", step.From, step.To, i+1, len(steps)))
@@ -60,17 +70,23 @@ func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, tar
 
 		pwrPath, sigPath, err := downloadPatchStep(ctx, step, reporter)
 		if err != nil {
+			logger.Error("Failed to download patch", "from", step.From, "to", step.To, "error", err)
 			return fmt.Errorf("download patch step %d→%d: %w", step.From, step.To, err)
 		}
 
+		logger.Info("Applying patch", "from", step.From, "to", step.To)
 		if err := applyPWR(ctx, pwrPath, sigPath, branch, versionDir, reporter); err != nil {
 			_ = os.Remove(pwrPath)
 			_ = os.Remove(sigPath)
+			logger.Error("Failed to apply patch", "from", step.From, "to", step.To, "error", err)
 			return fmt.Errorf("apply patch %d→%d: %w", step.From, step.To, err)
 		}
+
+		logger.Info("Patch applied successfully", "from", step.From, "to", step.To)
 	}
 
 	_ = os.RemoveAll(pwrPath)
+	logger.Info("All patches applied", "totalSteps", len(steps))
 
 	return nil
 }

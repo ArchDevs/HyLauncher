@@ -128,7 +128,7 @@ func logSystemInfo() {
 	)
 }
 
-func (l *Logger) log(level Level, msg string, keysAndValues ...interface{}) {
+func (l *Logger) log(level Level, msg string, keysAndValues ...any) {
 	if level < l.level {
 		return
 	}
@@ -161,25 +161,25 @@ func (l *Logger) log(level Level, msg string, keysAndValues ...interface{}) {
 	}
 }
 
-func Debug(msg string, keysAndValues ...interface{}) {
+func Debug(msg string, keysAndValues ...any) {
 	if defaultLogger != nil {
 		defaultLogger.log(DEBUG, msg, keysAndValues...)
 	}
 }
 
-func Info(msg string, keysAndValues ...interface{}) {
+func Info(msg string, keysAndValues ...any) {
 	if defaultLogger != nil {
 		defaultLogger.log(INFO, msg, keysAndValues...)
 	}
 }
 
-func Warn(msg string, keysAndValues ...interface{}) {
+func Warn(msg string, keysAndValues ...any) {
 	if defaultLogger != nil {
 		defaultLogger.log(WARN, msg, keysAndValues...)
 	}
 }
 
-func Error(msg string, keysAndValues ...interface{}) {
+func Error(msg string, keysAndValues ...any) {
 	if defaultLogger != nil {
 		defaultLogger.log(ERROR, msg, keysAndValues...)
 	}
