@@ -84,22 +84,14 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 		reporter.Report(progress.StageVerify, 0, "Checking for game updates")
 	}
 
-	if err := s.EnsureGame(request); err == nil {
-		return request.BuildVersion, nil
-	} else {
-		fmt.Println("[EnsureInstalled] verify failed:", err)
-		if reporter != nil {
-			reporter.Report(progress.StageVerify, 0, fmt.Sprintf("Verification failed: %v", err))
-		}
-	}
-
-	latest, err := s.fetchLatestVersion(ctx, request.Branch)
-	if err != nil {
-		return "", fmt.Errorf("fetch latest version: %w", err)
-	}
-
+	// For auto mode, always check for updates first before verifying game files
+	// This ensures we can do incremental updates even if current game files are valid
 	if request.BuildVersion == "auto" {
-		// AUTO mode: always stay on latest with incremental updates
+		latest, err := s.fetchLatestVersion(ctx, request.Branch)
+		if err != nil {
+			return "", fmt.Errorf("fetch latest version: %w", err)
+		}
+
 		autoDir := env.GetGameDir(request.Branch, "auto")
 		versionFile := filepath.Join(autoDir, ".version")
 		currentVer := 0
@@ -109,17 +101,20 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 
 		fmt.Printf("[EnsureInstalled] Auto version check: current=%d latest=%d versionFile=%s\n", currentVer, latest, versionFile)
 
-		checkErr := game.CheckInstalled(ctx, request.Branch, "auto")
-		fmt.Printf("[EnsureInstalled] CheckInstalled result: %v\n", checkErr)
-
-		if currentVer == latest && checkErr == nil {
-			if reporter != nil {
-				reporter.Report(progress.StageVerify, 100, "Auto build is up to date")
+		// Only skip update if we're on the latest version AND game files are valid
+		if currentVer == latest {
+			if checkErr := game.CheckInstalled(ctx, request.Branch, "auto"); checkErr == nil {
+				fmt.Printf("[EnsureInstalled] Auto build is up to date (version %d)\n", latest)
+				if reporter != nil {
+					reporter.Report(progress.StageVerify, 100, "Auto build is up to date")
+				}
+				return "auto", nil
+			} else {
+				fmt.Printf("[EnsureInstalled] Version matches but game files invalid: %v\n", checkErr)
 			}
-			return "auto", nil
 		}
 
-		fmt.Printf("[EnsureInstalled] Reinstalling: currentVer=%d latest=%d checkErr=%v\n", currentVer, latest, checkErr)
+		fmt.Printf("[EnsureInstalled] Updating auto build: currentVer=%d latest=%d\n", currentVer, latest)
 
 		if reporter != nil {
 			reporter.Report(progress.StageVerify, 50, fmt.Sprintf("Updating auto build to version %d", latest))
@@ -134,23 +129,32 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 		return "auto", nil
 	}
 
+	// For non-auto modes, first check if game is already installed and valid
+	if err := s.EnsureGame(request); err == nil {
+		return request.BuildVersion, nil
+	} else {
+		fmt.Println("[EnsureInstalled] verify failed:", err)
+		if reporter != nil {
+			reporter.Report(progress.StageVerify, 0, fmt.Sprintf("Verification failed: %v", err))
+		}
+	}
+
+	latest, err := s.fetchLatestVersion(ctx, request.Branch)
+	if err != nil {
+		return "", fmt.Errorf("fetch latest version: %w", err)
+	}
+
 	if request.BuildVersion == "latest" {
 		// Use the actual version number as the folder name (e.g., "8")
 		versionStr := strconv.Itoa(latest)
-		versionDir := env.GetGameDir(request.Branch, versionStr)
-		versionFile := filepath.Join(versionDir, ".version")
 
-		// Check if already installed with correct version
-		if data, err := os.ReadFile(versionFile); err == nil {
-			if installedVer, _ := strconv.Atoi(string(data)); installedVer == latest {
-				if checkErr := game.CheckInstalled(ctx, request.Branch, versionStr); checkErr == nil {
-					if reporter != nil {
-						reporter.Report(progress.StageVerify, 100, "Latest build is up to date")
-					}
-					// Return the actual version number so the instance is updated correctly
-					return versionStr, nil
-				}
+		// Check if already installed - the folder name IS the version, no need for .version file
+		if checkErr := game.CheckInstalled(ctx, request.Branch, versionStr); checkErr == nil {
+			fmt.Printf("[EnsureInstalled] Latest build is up to date (version %s)\n", versionStr)
+			if reporter != nil {
+				reporter.Report(progress.StageVerify, 100, "Latest build is up to date")
 			}
+			return versionStr, nil
 		}
 
 		fmt.Printf("[EnsureInstalled] Installing latest version: %d\n", latest)
@@ -163,8 +167,6 @@ func (s *GameService) EnsureInstalled(ctx context.Context, request model.Instanc
 		if err := s.installInternal(ctx, request.Branch, versionStr, latest, reporter); err != nil {
 			return "", err
 		}
-
-		_ = os.WriteFile(versionFile, []byte(strconv.Itoa(latest)), 0644)
 
 		// Return the actual version number so the instance is updated correctly
 		return versionStr, nil
