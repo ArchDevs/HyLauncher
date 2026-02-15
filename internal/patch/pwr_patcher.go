@@ -56,6 +56,9 @@ func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, tar
 	}
 
 	logger.Info("Found patch steps", "count", len(steps), "branch", branch)
+	for i, step := range steps {
+		logger.Info("  Step", "index", i, "from", step.From, "to", step.To)
+	}
 
 	for i, step := range steps {
 		if targetVer > 0 && step.From >= targetVer {
