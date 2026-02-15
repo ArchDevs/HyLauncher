@@ -151,6 +151,12 @@ jobs:
           # Build ARM64 binary
           wails build -platform darwin/arm64
           
+          # Check if build succeeded
+          if [ ! -d "build/bin/HyLauncher.app" ]; then
+            echo "ERROR: Build failed - HyLauncher.app not found"
+            exit 1
+          fi
+          
           # Create DMG
           npm install -g create-dmg
           create-dmg \
@@ -163,8 +169,19 @@ jobs:
           
           # If create-dmg fails, create zip as fallback
           if [ ! -f "release/HyLauncher-macos-arm64.dmg" ]; then
+            echo "DMG creation failed, creating ZIP fallback..."
             cd build/bin && zip -r ../../release/HyLauncher-macos-arm64.zip HyLauncher.app
+            cd ../..
           fi
+          
+          # Verify at least one file was created
+          if [ ! -f "release/HyLauncher-macos-arm64.dmg" ] && [ ! -f "release/HyLauncher-macos-arm64.zip" ]; then
+            echo "ERROR: No macOS ARM64 artifact created!"
+            exit 1
+          fi
+          
+          echo "macOS ARM64 build complete:"
+          ls -lh release/HyLauncher-macos-arm64* || true
 
       - name: Build (macOS AMD64)
         if: matrix.platform == 'darwin/amd64'
@@ -175,6 +192,12 @@ jobs:
           
           # Build AMD64 binary
           wails build -platform darwin/amd64
+          
+          # Check if build succeeded
+          if [ ! -d "build/bin/HyLauncher.app" ]; then
+            echo "ERROR: Build failed - HyLauncher.app not found"
+            exit 1
+          fi
           
           # Create DMG
           npm install -g create-dmg
@@ -188,8 +211,19 @@ jobs:
           
           # If create-dmg fails, create zip as fallback
           if [ ! -f "release/HyLauncher-macos-amd64.dmg" ]; then
+            echo "DMG creation failed, creating ZIP fallback..."
             cd build/bin && zip -r ../../release/HyLauncher-macos-amd64.zip HyLauncher.app
+            cd ../..
           fi
+          
+          # Verify at least one file was created
+          if [ ! -f "release/HyLauncher-macos-amd64.dmg" ] && [ ! -f "release/HyLauncher-macos-amd64.zip" ]; then
+            echo "ERROR: No macOS AMD64 artifact created!"
+            exit 1
+          fi
+          
+          echo "macOS AMD64 build complete:"
+          ls -lh release/HyLauncher-macos-amd64* || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
