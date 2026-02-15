@@ -153,8 +153,10 @@ func (s *GameService) install(ctx context.Context, branch, version string, targe
 	if version == "auto" {
 		versionFile := filepath.Join(env.GetGameDir(branch, "auto"), ".version")
 		currentVer = s.readVersionFile(versionFile)
+		logger.Info("Read version file for install", "file", versionFile, "currentVer", currentVer, "targetVer", targetVer)
 	}
 
+	logger.Info("Starting patch download", "branch", branch, "currentVer", currentVer, "targetVer", targetVer, "versionDir", version)
 	if err := patch.DownloadAndApplyPWR(ctx, branch, currentVer, targetVer, version, reporter); err != nil {
 		return fmt.Errorf("patch: %w", err)
 	}
