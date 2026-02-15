@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -134,9 +135,16 @@ func (s *GameService) handleLatestVersion(ctx context.Context, branch string, la
 func (s *GameService) readVersionFile(path string) int {
 	data, err := os.ReadFile(path)
 	if err != nil {
+		logger.Warn("Failed to read version file", "path", path, "error", err)
 		return 0
 	}
-	ver, _ := strconv.Atoi(string(data))
+	content := strings.TrimSpace(string(data))
+	logger.Info("Read version file", "path", path, "content", content)
+	ver, err := strconv.Atoi(content)
+	if err != nil {
+		logger.Warn("Failed to parse version", "path", path, "content", content, "error", err)
+		return 0
+	}
 	return ver
 }
 
