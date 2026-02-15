@@ -119,7 +119,7 @@ jobs:
           cp /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitWebProcess AppDir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/ || true
           
           # Create AppImage with GTK plugin for proper WebKit2GTK bundling
-          export DEPLOY_GTK_VERSION=4.1
+          export DEPLOY_GTK_VERSION=3
           ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin gtk --output appimage
           
           # Rename AppImage
