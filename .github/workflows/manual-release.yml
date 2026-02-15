@@ -113,7 +113,13 @@ jobs:
           sed -i 's|Exec=/usr/bin/HyLauncher|Exec=HyLauncher|' AppDir/usr/share/applications/HyLauncher.desktop
           cp AppDir/usr/share/applications/HyLauncher.desktop AppDir/
           
+          # Force bundling of WebKit2GTK helper processes
+          mkdir -p AppDir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/
+          cp /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess AppDir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/ || true
+          cp /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitWebProcess AppDir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/ || true
+          
           # Create AppImage with GTK plugin for proper WebKit2GTK bundling
+          export DEPLOY_GTK_VERSION=4.1
           ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin gtk --output appimage
           
           # Rename AppImage
