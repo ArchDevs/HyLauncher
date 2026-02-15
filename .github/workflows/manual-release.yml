@@ -93,6 +93,7 @@ jobs:
           # Download and install linuxdeploy-plugin-gtk
           wget -q https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
           chmod +x linuxdeploy-plugin-gtk.sh
+          sudo mv linuxdeploy-plugin-gtk.sh /usr/local/bin/linuxdeploy-plugin-gtk.sh
           
           # Create AppDir structure
           mkdir -p AppDir/usr/bin
