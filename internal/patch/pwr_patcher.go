@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -99,10 +100,19 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 	_ = os.MkdirAll(gameDir, 0755)
 	_ = os.MkdirAll(stagingDir, 0755)
 
+	// Log what files are currently in the game directory
+	logger.Info("Game directory contents before patch", "dir", gameDir)
+	entries, _ := os.ReadDir(gameDir)
+	for _, entry := range entries {
+		logger.Info("  File", "name", entry.Name(), "isDir", entry.IsDir())
+	}
+
 	butlerPath, err := GetButlerExec()
 	if err != nil {
 		return fmt.Errorf("cannot get butler: %w", err)
 	}
+
+	logger.Info("Running butler apply", "pwr", pwrFile, "sig", sigFile, "gameDir", gameDir, "stagingDir", stagingDir)
 
 	cmd := exec.CommandContext(ctx, butlerPath,
 		"apply",
@@ -113,8 +123,11 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 	)
 
 	platform.HideConsoleWindow(cmd)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+
+	// Capture output for logging
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 
 	if reporter != nil {
 		reporter.Report(progress.StagePatch, 60, "Applying game patch...")
@@ -122,11 +135,16 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 
 	if err := cmd.Run(); err != nil {
 		_ = os.RemoveAll(stagingDir)
+		stdoutStr := stdoutBuf.String()
+		stderrStr := stderrBuf.String()
+		logger.Error("Butler apply failed", "error", err, "stdout", stdoutStr, "stderr", stderrStr)
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return fmt.Errorf("butler apply failed with exit code %d: %s", exitErr.ExitCode(), string(exitErr.Stderr))
+			return fmt.Errorf("butler apply failed with exit code %d: stderr=%s", exitErr.ExitCode(), stderrStr)
 		}
 		return fmt.Errorf("butler apply failed: %w", err)
 	}
+
+	logger.Info("Butler apply completed", "stdout", stdoutBuf.String())
 
 	if cmd.Process != nil {
 		_ = cmd.Process.Kill()

@@ -10,9 +10,9 @@ function ServersPage() {
   const { servers, isLoadingServers, handlePlay } = useLauncher();
   const [selectedServer, setSelectedServer] = useState<ServerWithFullUrls | null>(null);
 
-  // Show all servers, fill remaining slots with placeholders (max 8 slots total)
+  // Show all servers, fill remaining slots with placeholders
   const displayServers = servers;
-  const placeholderCount = Math.max(0, 8 - displayServers.length);
+  const placeholderCount = Math.max(0, 4 - displayServers.length);
 
   return (
     <div className="relative h-full w-full">
