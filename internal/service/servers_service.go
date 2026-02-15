@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -24,15 +25,30 @@ type ServerWithUrls struct {
 
 type ServersService struct {
 	apiBaseURL string
+	cache      []ServerWithUrls
+	cacheTime  time.Time
+	cacheMu    sync.RWMutex
+	cacheTTL   time.Duration
 }
 
 func NewServersService() *ServersService {
 	return &ServersService{
 		apiBaseURL: "https://api.hylauncher.fun",
+		cacheTTL:   5 * time.Minute,
 	}
 }
 
 func (s *ServersService) FetchServers() ([]ServerWithUrls, error) {
+	// Check cache first
+	s.cacheMu.RLock()
+	if s.cache != nil && time.Since(s.cacheTime) < s.cacheTTL {
+		cached := s.cache
+		s.cacheMu.RUnlock()
+		return cached, nil
+	}
+	s.cacheMu.RUnlock()
+
+	// Fetch from API
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -60,6 +76,12 @@ func (s *ServersService) FetchServers() ([]ServerWithUrls, error) {
 			BannerURL: s.getUploadUrl(server.Banner),
 		}
 	}
+
+	// Update cache
+	s.cacheMu.Lock()
+	s.cache = result
+	s.cacheTime = time.Now()
+	s.cacheMu.Unlock()
 
 	return result, nil
 }

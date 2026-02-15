@@ -109,10 +109,17 @@ func FindLatestVersion(branch string) (int, error) {
 		return cached.LatestVersion, cached.Error
 	}
 
-	result := findLatestVersion(branch)
-	versionCache.setLatest(key, &result)
+	// Use coalescer to prevent duplicate in-flight requests
+	result, err := versionCoalescer.Do("latest:"+key, func() (interface{}, error) {
+		r := findLatestVersion(branch)
+		versionCache.setLatest(key, &r)
+		return r.LatestVersion, r.Error
+	})
 
-	return result.LatestVersion, result.Error
+	if err != nil {
+		return 0, err
+	}
+	return result.(int), nil
 }
 
 func ListAllVersions(branch string) ([]int, error) {
@@ -122,10 +129,17 @@ func ListAllVersions(branch string) ([]int, error) {
 		return cached.Versions, cached.Error
 	}
 
-	result := listAllVersions(branch)
-	versionCache.setAllVersions(key, &result)
+	// Use coalescer to prevent duplicate in-flight requests
+	result, err := versionCoalescer.Do("all:"+key, func() (interface{}, error) {
+		r := listAllVersions(branch)
+		versionCache.setAllVersions(key, &r)
+		return r.Versions, r.Error
+	})
 
-	return result.Versions, result.Error
+	if err != nil {
+		return nil, err
+	}
+	return result.([]int), nil
 }
 
 func ClearVersionCache() {
