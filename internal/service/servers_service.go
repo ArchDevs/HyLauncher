@@ -68,13 +68,13 @@ func (s *ServersService) FetchServers() ([]ServerWithUrls, error) {
 		return nil, fmt.Errorf("failed to decode servers: %w", err)
 	}
 
-	result := make([]ServerWithUrls, len(servers))
-	for i, server := range servers {
-		result[i] = ServerWithUrls{
+	result := make([]ServerWithUrls, 0, len(servers))
+	for _, server := range servers {
+		result = append(result, ServerWithUrls{
 			Server:    server,
 			LogoURL:   s.getUploadUrl(server.Logo),
 			BannerURL: s.getUploadUrl(server.Banner),
-		}
+		})
 	}
 
 	// Update cache

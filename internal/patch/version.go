@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+	"sort"
 	"sync"
 	"time"
 
@@ -194,18 +195,12 @@ func listAllVersions(branch string) AllVersionsResult {
 		versionMap[step.To] = true
 	}
 
-	var versions []int
+	versions := make([]int, 0, len(versionMap))
 	for v := range versionMap {
 		versions = append(versions, v)
 	}
 
-	for i := 0; i < len(versions); i++ {
-		for j := i + 1; j < len(versions); j++ {
-			if versions[i] > versions[j] {
-				versions[i], versions[j] = versions[j], versions[i]
-			}
-		}
-	}
+	sort.Ints(versions)
 
 	return AllVersionsResult{Versions: versions}
 }
@@ -264,8 +259,6 @@ func checkVersionExists(client *http.Client, branch string, version int) bool {
 
 	exists := err == nil && resp.StatusCode == http.StatusOK
 	versionCache.setVersion(key, exists)
-
-	time.Sleep(100 * time.Millisecond)
 
 	return exists
 }
