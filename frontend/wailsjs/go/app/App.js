@@ -106,10 +106,6 @@ export function SyncInstanceState() {
   return window['go']['app']['App']['SyncInstanceState']();
 }
 
-export function TestButler() {
-  return window['go']['app']['App']['TestButler']();
-}
-
 export function Update() {
   return window['go']['app']['App']['Update']();
 }
