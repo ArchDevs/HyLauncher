@@ -11,7 +11,7 @@ import (
 func CleanupLauncher(request model.InstanceModel) error {
 	cacheDir := GetCacheDir()
 
-	if err := cleanDirectoryWithFileExentsions(cacheDir, []string{".pwr", ".zip", ".tar.gz"}); err != nil {
+	if err := cleanDirectory(cacheDir, []string{".pwr", ".zip", ".tar.gz"}); err != nil {
 		logger.Warn("Failed to clean cache", "error", err)
 	}
 
@@ -56,37 +56,7 @@ func cleanupLauncherBackup() error {
 	return nil
 }
 
-func cleanDirectoryWithFileExentsions(dir string, extensions []string) error {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return nil
-	}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		for _, ext := range extensions {
-			if filepath.Ext(entry.Name()) == ext {
-				filePath := filepath.Join(dir, entry.Name())
-				logger.Info("Removing incomplete download", "path", filePath)
-				if err := os.Remove(filePath); err != nil {
-					logger.Warn("Failed to remove file", "path", filePath, "error", err)
-				}
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-func cleanDirectory(dir string) error {
+func cleanDirectory(dir string, extensions []string) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return nil
 	}
@@ -98,6 +68,24 @@ func cleanDirectory(dir string) error {
 
 	for _, entry := range entries {
 		path := filepath.Join(dir, entry.Name())
+
+		// If extensions specified, only remove matching files
+		if len(extensions) > 0 {
+			if entry.IsDir() {
+				continue
+			}
+			matched := false
+			for _, ext := range extensions {
+				if filepath.Ext(entry.Name()) == ext {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+			logger.Info("Removing incomplete download", "path", path)
+		}
 
 		if err := os.RemoveAll(path); err != nil {
 			logger.Warn("Failed to remove", "path", path, "error", err)
@@ -120,7 +108,7 @@ func cleanIncompleteGame(gameDir string) error {
 	clientPath := filepath.Join(gameDir, "Client", gameClient)
 	if _, err := os.Stat(clientPath); os.IsNotExist(err) {
 		logger.Info("Incomplete game installation detected, cleaning up...")
-		return cleanDirectory(gameDir)
+		return cleanDirectory(gameDir, nil)
 	}
 
 	return nil

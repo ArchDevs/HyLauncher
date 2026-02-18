@@ -11,12 +11,10 @@ import (
 	"HyLauncher/pkg/hyerrors"
 )
 
-func (a *App) OpenFolder() error {
-	path := env.GetDefaultAppDir()
-
+func openFolder(path string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if err := os.MkdirAll(path, 0755); err != nil {
-			return hyerrors.WrapFileSystem(err, "creating game folder")
+			return hyerrors.WrapFileSystem(err, "creating folder")
 		}
 	}
 
@@ -37,30 +35,12 @@ func (a *App) OpenFolder() error {
 	return nil
 }
 
+func (a *App) OpenFolder() error {
+	return openFolder(env.GetDefaultAppDir())
+}
+
 func (a *App) OpenLogsFolder() error {
-	logsPath := filepath.Join(env.GetDefaultAppDir(), "logs")
-
-	if _, err := os.Stat(logsPath); os.IsNotExist(err) {
-		if err := os.MkdirAll(logsPath, 0755); err != nil {
-			return hyerrors.WrapFileSystem(err, "creating logs folder")
-		}
-	}
-
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("explorer", logsPath)
-	case "darwin":
-		cmd = exec.Command("open", logsPath)
-	default:
-		cmd = exec.Command("xdg-open", logsPath)
-	}
-
-	if err := cmd.Start(); err != nil {
-		return hyerrors.FileSystem("can not open logs folder").WithContext("folder", logsPath)
-	}
-
-	return nil
+	return openFolder(filepath.Join(env.GetDefaultAppDir(), "logs"))
 }
 
 func (a *App) DeleteGame(instance string) error {
