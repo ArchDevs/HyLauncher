@@ -4,12 +4,11 @@ import (
 	"HyLauncher/internal/env"
 	"HyLauncher/pkg/archive"
 	"HyLauncher/pkg/fileutil"
-	"context"
 	"fmt"
 	"path/filepath"
 )
 
-func CheckInstalled(ctx context.Context, branch string, buildVersion string) error {
+func CheckInstalled(branch string, buildVersion string) error {
 	base := env.GetGameDir(branch, buildVersion)
 	clientPath := env.GetGameClientPath(branch, buildVersion)
 

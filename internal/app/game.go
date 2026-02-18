@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"HyLauncher/internal/patch"
 	"HyLauncher/pkg/hyerrors"
 )
@@ -43,7 +45,8 @@ func (a *App) downloadAndLaunchInternal(playerName string, serverIP string) Laun
 	if installedVersion != a.instance.BuildVersion {
 		a.instance.BuildVersion = installedVersion
 		if err := a.UpdateInstanceVersion(installedVersion); err != nil {
-			_ = err
+			// Log error but don't fail - version mismatch is not critical
+			fmt.Printf("Warning: failed to update instance version: %v\n", err)
 		}
 	}
 

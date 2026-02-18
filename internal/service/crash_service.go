@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -178,7 +179,82 @@ func (r *Reporter) readRecentLogs() []LogEntry {
 		data = data[len(data)-10000:]
 	}
 
-	return nil
+	// Parse log entries from the file content
+	// Format: [timestamp] [severity] [category] message
+	// Details: ...
+	// Stack:
+	//   file:line function
+	// ---
+	entries := []LogEntry{}
+	lines := strings.Split(string(data), "\n")
+
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		// Skip empty lines and separator lines
+		if line == "" || line == "---" {
+			continue
+		}
+
+		// Try to parse a log entry line
+		// Expected format: [2006-01-02 15:04:05] [SEVERITY] [category] message
+		if len(line) > 0 && line[0] == '[' {
+			entry := LogEntry{
+				Timestamp: time.Now(), // Default to now if parsing fails
+				Severity:  hyerrors.SeverityInfo,
+			}
+
+			// Extract timestamp
+			if idx := strings.Index(line, "]"); idx > 1 {
+				tsStr := line[1:idx]
+				if ts, err := time.Parse("2006-01-02 15:04:05", tsStr); err == nil {
+					entry.Timestamp = ts
+				}
+				line = line[idx+1:]
+			}
+
+			// Extract severity
+			line = strings.TrimSpace(line)
+			if len(line) > 0 && line[0] == '[' {
+				if idx := strings.Index(line, "]"); idx > 1 {
+					sevStr := line[1:idx]
+					entry.Severity = parseSeverity(sevStr)
+					line = line[idx+1:]
+				}
+			}
+
+			// Extract category and message
+			line = strings.TrimSpace(line)
+			if len(line) > 0 && line[0] == '[' {
+				if idx := strings.Index(line, "]"); idx > 1 {
+					entry.Category = hyerrors.Category(line[1:idx])
+					entry.Message = strings.TrimSpace(line[idx+1:])
+				}
+			}
+
+			entries = append(entries, entry)
+		}
+	}
+
+	// Return last 10 entries at most
+	if len(entries) > 10 {
+		return entries[len(entries)-10:]
+	}
+	return entries
+}
+
+func parseSeverity(s string) hyerrors.Severity {
+	switch s {
+	case "INFO":
+		return hyerrors.SeverityInfo
+	case "WARN":
+		return hyerrors.SeverityWarning
+	case "ERROR":
+		return hyerrors.SeverityError
+	case "CRITICAL":
+		return hyerrors.SeverityCritical
+	default:
+		return hyerrors.SeverityInfo
+	}
 }
 
 func (r *Reporter) cleanupOldReports(maxAge time.Duration) {

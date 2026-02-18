@@ -16,7 +16,7 @@ func (a *App) discordRPC() {
 
 	now := time.Now()
 
-	err := client.SetActivity(client.Activity{
+	if err := client.SetActivity(client.Activity{
 		State:   "Idle",
 		Details: "The best Hytale launcher",
 		Timestamps: &client.Timestamps{
@@ -32,9 +32,10 @@ func (a *App) discordRPC() {
 				Url:   "https://hylauncher.fun",
 			},
 		},
-	})
-
-	_ = err
+	}); err != nil {
+		// Discord RPC is optional, log but don't fail
+		fmt.Printf("Discord RPC error: %v\n", err)
+	}
 }
 
 func (a *App) GetDiscordRPC() bool {

@@ -52,7 +52,7 @@ func (s *GameService) EnsureGame(request model.InstanceModel) error {
 		return fmt.Errorf("butler: %w", err)
 	}
 
-	if err := game.CheckInstalled(s.ctx, request.Branch, request.BuildVersion); err != nil {
+	if err := game.CheckInstalled(request.Branch, request.BuildVersion); err != nil {
 		return fmt.Errorf("game files: %w", err)
 	}
 
@@ -92,7 +92,7 @@ func (s *GameService) handleAutoVersion(ctx context.Context, branch string, late
 
 	currentVer := s.readVersionFile(versionFile)
 
-	if currentVer == latest && game.CheckInstalled(ctx, branch, "auto") == nil {
+	if currentVer == latest && game.CheckInstalled(branch, "auto") == nil {
 		if reporter != nil {
 			reporter.Report(progress.StageVerify, 100, "Up to date")
 		}
@@ -114,7 +114,7 @@ func (s *GameService) handleAutoVersion(ctx context.Context, branch string, late
 func (s *GameService) handleLatestVersion(ctx context.Context, branch string, latest int, reporter *progress.Reporter) (string, error) {
 	versionStr := strconv.Itoa(latest)
 
-	if game.CheckInstalled(ctx, branch, versionStr) == nil {
+	if game.CheckInstalled(branch, versionStr) == nil {
 		if reporter != nil {
 			reporter.Report(progress.StageVerify, 100, "Up to date")
 		}
