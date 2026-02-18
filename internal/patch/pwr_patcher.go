@@ -42,61 +42,46 @@ type PatchStepsResponse struct {
 func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, targetVer int, versionDir string, reporter *progress.Reporter) error {
 	logger.Info("Starting patch download", "branch", branch, "from", currentVer, "to", targetVer)
 
-	var pwrPath string
-
 	steps, err := fetchPatchSteps(ctx, branch, currentVer)
 	if err != nil {
-		logger.Error("Failed to fetch patch steps", "branch", branch, "error", err)
 		return fmt.Errorf("fetch patch steps: %w", err)
 	}
 
 	if len(steps) == 0 {
-		logger.Warn("No patch steps available", "branch", branch, "currentVer", currentVer)
 		return fmt.Errorf("no patch steps available")
 	}
 
-	logger.Info("Found patch steps", "count", len(steps), "branch", branch)
-
 	for i, step := range steps {
 		if targetVer > 0 && step.From >= targetVer {
-			logger.Info("Reached target version, stopping", "target", targetVer, "current", step.From)
 			break
 		}
 
 		logger.Info("Downloading patch", "from", step.From, "to", step.To, "progress", fmt.Sprintf("%d/%d", i+1, len(steps)))
-
 		if reporter != nil {
 			reporter.Report(progress.StagePatch, 0, fmt.Sprintf("Patching %d → %d (%d/%d)", step.From, step.To, i+1, len(steps)))
 		}
 
 		pwrPath, sigPath, err := downloadPatchStep(ctx, step, reporter)
 		if err != nil {
-			logger.Error("Failed to download patch", "from", step.From, "to", step.To, "error", err)
 			return fmt.Errorf("download patch step %d→%d: %w", step.From, step.To, err)
 		}
 
-		logger.Info("Applying patch", "from", step.From, "to", step.To)
 		if err := applyPWR(ctx, pwrPath, sigPath, branch, versionDir, reporter); err != nil {
 			_ = os.Remove(pwrPath)
 			_ = os.Remove(sigPath)
-			logger.Error("Failed to apply patch", "from", step.From, "to", step.To, "error", err)
 			return fmt.Errorf("apply patch %d→%d: %w", step.From, step.To, err)
 		}
-
-		logger.Info("Patch applied successfully", "from", step.From, "to", step.To)
 	}
 
-	_ = os.RemoveAll(pwrPath)
 	logger.Info("All patches applied", "totalSteps", len(steps))
-
 	return nil
 }
 
-func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string, version string, reporter *progress.Reporter) error {
+func applyPWR(ctx context.Context, pwrFile, sigFile, branch, version string, reporter *progress.Reporter) error {
 	gameDir := env.GetGameDir(branch, version)
 	stagingDir := filepath.Join(env.GetCacheDir(), "staging-temp")
-	_ = os.RemoveAll(stagingDir)
 
+	_ = os.RemoveAll(stagingDir)
 	_ = os.MkdirAll(gameDir, 0755)
 	_ = os.MkdirAll(stagingDir, 0755)
 
@@ -112,7 +97,6 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 		pwrFile,
 		gameDir,
 	)
-
 	platform.HideConsoleWindow(cmd)
 
 	var stdoutBuf, stderrBuf bytes.Buffer
@@ -124,82 +108,93 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 	}
 
 	if err := cmd.Run(); err != nil {
-		_ = os.RemoveAll(stagingDir)
-		stdoutStr := stdoutBuf.String()
-		stderrStr := stderrBuf.String()
-
-		// Write debug log for troubleshooting
-		debugLogPath := filepath.Join(env.GetCacheDir(), fmt.Sprintf("butler-debug-%d.log", time.Now().Unix()))
-		debugContent := fmt.Sprintf(
-			"Time: %s\nCommand: %v\nGame Dir: %s\n\nSTDOUT:\n%s\n\nSTDERR:\n%s\n\nError: %v\n",
-			time.Now().Format(time.RFC3339),
-			cmd.Args,
-			gameDir,
-			stdoutStr,
-			stderrStr,
-			err,
-		)
-		_ = os.WriteFile(debugLogPath, []byte(debugContent), 0644)
-
-		// Check if it's a signature verification error (user modified files)
-		combinedOutput := stdoutStr + stderrStr
-		isSignatureError := strings.Contains(combinedOutput, "Verifying against signature") &&
-			(strings.Contains(combinedOutput, "expected") || strings.Contains(combinedOutput, "dirs"))
-
-		if isSignatureError {
-			logger.Warn("Signature verification failed - cleaning and retrying", "gameDir", gameDir)
-
-			// Clean both directories to remove any resume state
-			_ = os.RemoveAll(gameDir)
-			_ = os.RemoveAll(stagingDir)
-			_ = os.MkdirAll(gameDir, 0755)
-			_ = os.MkdirAll(stagingDir, 0755)
-
-			if reporter != nil {
-				reporter.Report(progress.StagePatch, 60, "Retrying after cleaning modified files...")
-			}
-
-			// Retry
-			retryCmd := exec.CommandContext(ctx, butlerPath,
-				"apply",
-				"--staging-dir", stagingDir,
-				"--signature", sigFile,
-				pwrFile,
-				gameDir,
-			)
-			platform.HideConsoleWindow(retryCmd)
-
-			var retryStdoutBuf, retryStderrBuf bytes.Buffer
-			retryCmd.Stdout = &retryStdoutBuf
-			retryCmd.Stderr = &retryStderrBuf
-
-			if retryErr := retryCmd.Run(); retryErr != nil {
-				_ = os.RemoveAll(stagingDir)
-				logger.Error("Retry failed after cleanup", "error", retryErr)
-				return fmt.Errorf("patch failed even after cleanup: %w (original: %v)", retryErr, err)
-			}
-
-			logger.Info("Patch applied successfully after cleanup")
-			return nil
-		}
-
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return fmt.Errorf("butler apply failed (exit %d): %s (log: %s)", exitErr.ExitCode(), stderrStr, debugLogPath)
-		}
-		return fmt.Errorf("butler apply failed: %w (log: %s)", err, debugLogPath)
+		return handleApplyError(ctx, err, cmd, stdoutBuf.String(), stderrBuf.String(), gameDir, stagingDir, butlerPath, sigFile, pwrFile, reporter)
 	}
 
+	cleanup(cmd, stagingDir, reporter)
+	return nil
+}
+
+func handleApplyError(ctx context.Context, err error, cmd *exec.Cmd, stdoutStr, stderrStr, gameDir, stagingDir, butlerPath, sigFile, pwrFile string, reporter *progress.Reporter) error {
+	_ = os.RemoveAll(stagingDir)
+
+	debugLogPath := writeDebugLog(cmd.Args, gameDir, stdoutStr, stderrStr, err)
+
+	if isSignatureError(stdoutStr, stderrStr) {
+		return retryAfterCleanup(ctx, gameDir, stagingDir, butlerPath, sigFile, pwrFile, reporter, err)
+	}
+
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		return fmt.Errorf("butler apply failed (exit %d): %s (log: %s)", exitErr.ExitCode(), stderrStr, debugLogPath)
+	}
+	return fmt.Errorf("butler apply failed: %w (log: %s)", err, debugLogPath)
+}
+
+func isSignatureError(stdout, stderr string) bool {
+	combined := stdout + stderr
+	return strings.Contains(combined, "Verifying against signature") &&
+		(strings.Contains(combined, "expected") || strings.Contains(combined, "dirs"))
+}
+
+func retryAfterCleanup(ctx context.Context, gameDir, stagingDir, butlerPath, sigFile, pwrFile string, reporter *progress.Reporter, originalErr error) error {
+	logger.Warn("Signature verification failed - cleaning and retrying", "gameDir", gameDir)
+
+	_ = os.RemoveAll(gameDir)
+	_ = os.RemoveAll(stagingDir)
+	_ = os.MkdirAll(gameDir, 0755)
+	_ = os.MkdirAll(stagingDir, 0755)
+
+	if reporter != nil {
+		reporter.Report(progress.StagePatch, 60, "Retrying after cleaning modified files...")
+	}
+
+	retryCmd := exec.CommandContext(ctx, butlerPath,
+		"apply",
+		"--staging-dir", stagingDir,
+		"--signature", sigFile,
+		pwrFile,
+		gameDir,
+	)
+	platform.HideConsoleWindow(retryCmd)
+
+	var stdoutBuf, stderrBuf bytes.Buffer
+	retryCmd.Stdout = &stdoutBuf
+	retryCmd.Stderr = &stderrBuf
+
+	if err := retryCmd.Run(); err != nil {
+		_ = os.RemoveAll(stagingDir)
+		return fmt.Errorf("patch failed even after cleanup: %w (original: %v)", err, originalErr)
+	}
+
+	logger.Info("Patch applied successfully after cleanup")
+	cleanup(retryCmd, stagingDir, reporter)
+	return nil
+}
+
+func cleanup(cmd *exec.Cmd, stagingDir string, reporter *progress.Reporter) {
 	if cmd.Process != nil {
 		_ = cmd.Process.Kill()
 		_ = cmd.Process.Release()
 	}
-
 	_ = os.RemoveAll(stagingDir)
-
 	if reporter != nil {
 		reporter.Report(progress.StagePatch, 80, "Game patched!")
 	}
-	return nil
+}
+
+func writeDebugLog(args []string, gameDir, stdout, stderr string, err error) string {
+	debugLogPath := filepath.Join(env.GetCacheDir(), fmt.Sprintf("butler-debug-%d.log", time.Now().Unix()))
+	content := fmt.Sprintf(
+		"Time: %s\nCommand: %v\nGame Dir: %s\n\nSTDOUT:\n%s\n\nSTDERR:\n%s\n\nError: %v\n",
+		time.Now().Format(time.RFC3339),
+		args,
+		gameDir,
+		stdout,
+		stderr,
+		err,
+	)
+	_ = os.WriteFile(debugLogPath, []byte(content), 0644)
+	return debugLogPath
 }
 
 func fetchPatchSteps(ctx context.Context, branch string, currentVer int) ([]PatchStep, error) {
@@ -219,7 +214,6 @@ func fetchPatchSteps(ctx context.Context, branch string, currentVer int) ([]Patc
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -251,13 +245,13 @@ func downloadPatchStep(ctx context.Context, step PatchStep, reporter *progress.R
 	pwrDest := filepath.Join(cacheDir, pwrFileName)
 	sigDest := filepath.Join(cacheDir, sigFileName)
 
-	_, pwrErr := os.Stat(pwrDest)
-	_, sigErr := os.Stat(sigDest)
-	if pwrErr == nil && sigErr == nil {
-		if reporter != nil {
-			reporter.Report(progress.StagePWR, 100, "Patch files cached")
+	if _, pwrErr := os.Stat(pwrDest); pwrErr == nil {
+		if _, sigErr := os.Stat(sigDest); sigErr == nil {
+			if reporter != nil {
+				reporter.Report(progress.StagePWR, 100, "Patch files cached")
+			}
+			return pwrDest, sigDest, nil
 		}
-		return pwrDest, sigDest, nil
 	}
 
 	if reporter != nil {
