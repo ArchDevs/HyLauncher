@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"HyLauncher/internal/env"
@@ -186,6 +187,54 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 		)
 		_ = os.WriteFile(debugLogPath, []byte(debugContent), 0644)
 		logger.Error("Butler apply failed", "error", err, "stdout", stdoutStr, "stderr", stderrStr, "debugLog", debugLogPath)
+
+		// Check if it's a signature verification error (user modified files)
+		if strings.Contains(stderrStr, "expected") && strings.Contains(stderrStr, "got") && strings.Contains(stderrStr, "dirs") {
+			logger.Warn("Signature verification failed - game files were modified, will clean and retry", "stderr", stderrStr)
+
+			// Clean the game directory and retry once
+			logger.Info("Cleaning game directory for fresh install", "dir", gameDir)
+			if cleanErr := os.RemoveAll(gameDir); cleanErr != nil {
+				logger.Error("Failed to clean game directory", "error", cleanErr)
+				return fmt.Errorf("signature verification failed and cleanup failed: %w (original error: %v)", cleanErr, err)
+			}
+
+			// Recreate the directory
+			if mkdirErr := os.MkdirAll(gameDir, 0755); mkdirErr != nil {
+				logger.Error("Failed to recreate game directory", "error", mkdirErr)
+				return fmt.Errorf("signature verification failed and directory recreation failed: %w (original error: %v)", mkdirErr, err)
+			}
+
+			logger.Info("Game directory cleaned, retrying patch application")
+
+			// Retry the patch application
+			retryCmd := exec.CommandContext(ctx, butlerPath,
+				"apply",
+				"--staging-dir", stagingDir,
+				"--signature", sigFile,
+				"--verbose",
+				pwrFile,
+				gameDir,
+			)
+			platform.HideConsoleWindow(retryCmd)
+
+			var retryStdoutBuf, retryStderrBuf bytes.Buffer
+			retryCmd.Stdout = &retryStdoutBuf
+			retryCmd.Stderr = &retryStderrBuf
+
+			if reporter != nil {
+				reporter.Report(progress.StagePatch, 60, "Retrying after cleaning modified files...")
+			}
+
+			if retryErr := retryCmd.Run(); retryErr != nil {
+				_ = os.RemoveAll(stagingDir)
+				logger.Error("Butler apply retry failed after cleanup", "error", retryErr, "stdout", retryStdoutBuf.String(), "stderr", retryStderrBuf.String())
+				return fmt.Errorf("patch failed even after cleaning modified files: %w (original error: %v)", retryErr, err)
+			}
+
+			logger.Info("Patch applied successfully after cleaning modified files")
+			stdoutStr = retryStdoutBuf.String()
+		}
 
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			return fmt.Errorf("butler apply failed with exit code %d: stderr=%s debugLog=%s", exitErr.ExitCode(), stderrStr, debugLogPath)
