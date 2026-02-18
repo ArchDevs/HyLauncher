@@ -26,7 +26,6 @@ type AllVersionsResult struct {
 type cache struct {
 	mu            sync.RWMutex
 	latestVersion map[string]*VersionCheckResult
-	versionExists map[string]bool
 	allVersions   map[string]*AllVersionsResult
 	lastSet       map[string]time.Time
 	ttl           time.Duration
@@ -34,7 +33,6 @@ type cache struct {
 
 var versionCache = &cache{
 	latestVersion: make(map[string]*VersionCheckResult),
-	versionExists: make(map[string]bool),
 	allVersions:   make(map[string]*AllVersionsResult),
 	lastSet:       make(map[string]time.Time),
 	ttl:           5 * time.Minute,
@@ -57,21 +55,6 @@ func (c *cache) setLatest(key string, result *VersionCheckResult) {
 
 	c.latestVersion[key] = result
 	c.lastSet[key] = time.Now()
-}
-
-func (c *cache) checkVersion(key string) (bool, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	exists, cached := c.versionExists[key]
-	return exists, cached
-}
-
-func (c *cache) setVersion(key string, exists bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.versionExists[key] = exists
 }
 
 func (c *cache) getAllVersions(key string) (*AllVersionsResult, bool) {
@@ -98,7 +81,6 @@ func (c *cache) clear() {
 	defer c.mu.Unlock()
 
 	c.latestVersion = make(map[string]*VersionCheckResult)
-	c.versionExists = make(map[string]bool)
 	c.allVersions = make(map[string]*AllVersionsResult)
 	c.lastSet = make(map[string]time.Time)
 }
@@ -145,16 +127,6 @@ func ListAllVersions(branch string) ([]int, error) {
 
 func ClearVersionCache() {
 	versionCache.clear()
-}
-
-func VerifyVersionExists(branch string, version int) error {
-	client := createClient()
-
-	if exists := checkVersionExists(client, branch, version); exists {
-		return nil
-	}
-
-	return fmt.Errorf("version %d not found", version)
 }
 
 func findLatestVersion(branch string) VersionCheckResult {
@@ -244,25 +216,6 @@ func fetchPatchStepsFromAPI(branch string, currentVer int) ([]PatchStep, error) 
 	return result.Steps, nil
 }
 
-func checkVersionExists(client *http.Client, branch string, version int) bool {
-	key := versionCacheKey(branch, version)
-
-	if exists, cached := versionCache.checkVersion(key); cached {
-		return exists
-	}
-
-	url := buildPatchURL(branch, version)
-	resp, err := client.Head(url)
-	if resp != nil {
-		defer resp.Body.Close()
-	}
-
-	exists := err == nil && resp.StatusCode == http.StatusOK
-	versionCache.setVersion(key, exists)
-
-	return exists
-}
-
 func createClient() *http.Client {
 	return &http.Client{
 		Timeout: 10 * time.Second,
@@ -281,15 +234,6 @@ func createClient() *http.Client {
 	}
 }
 
-func buildPatchURL(branch string, version int) string {
-	return fmt.Sprintf("https://game-patches.hytale.com/patches/%s/%s/%s/0/%d.pwr",
-		runtime.GOOS, runtime.GOARCH, branch, version)
-}
-
 func cacheKey(branch string) string {
 	return fmt.Sprintf("%s-%s-%s", runtime.GOOS, runtime.GOARCH, branch)
-}
-
-func versionCacheKey(branch string, version int) string {
-	return fmt.Sprintf("%s-%d", cacheKey(branch), version)
 }
