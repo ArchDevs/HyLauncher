@@ -56,9 +56,6 @@ func DownloadAndApplyPWR(ctx context.Context, branch string, currentVer int, tar
 	}
 
 	logger.Info("Found patch steps", "count", len(steps), "branch", branch)
-	for i, step := range steps {
-		logger.Info("  Step", "index", i, "from", step.From, "to", step.To)
-	}
 
 	for i, step := range steps {
 		if targetVer > 0 && step.From >= targetVer {
@@ -103,41 +100,20 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 	_ = os.MkdirAll(gameDir, 0755)
 	_ = os.MkdirAll(stagingDir, 0755)
 
-	// Log what files are currently in the game directory
-	logger.Info("Game directory contents before patch", "dir", gameDir)
-	entries, _ := os.ReadDir(gameDir)
-	for _, entry := range entries {
-		logger.Info("  File", "name", entry.Name(), "isDir", entry.IsDir())
-	}
-
 	butlerPath, err := GetButlerExec()
 	if err != nil {
 		return fmt.Errorf("cannot get butler: %w", err)
 	}
 
-	versionCmd := exec.CommandContext(ctx, butlerPath, "--version")
-	platform.HideConsoleWindow(versionCmd)
-	versionOutput, versionErr := versionCmd.CombinedOutput()
-	logger.Info("Butler version check", "output", string(versionOutput), "error", versionErr)
-
-	logger.Info("Running butler apply", "pwr", pwrFile, "sig", sigFile, "gameDir", gameDir, "stagingDir", stagingDir)
-
 	cmd := exec.CommandContext(ctx, butlerPath,
 		"apply",
 		"--staging-dir", stagingDir,
 		"--signature", sigFile,
-		"--verbose",
 		pwrFile,
 		gameDir,
 	)
 
 	platform.HideConsoleWindow(cmd)
-
-	logger.Info("Butler environment",
-		"pwd", gameDir,
-		"path", os.Getenv("PATH"),
-		"temp", os.Getenv("TEMP"),
-		"tmpdir", os.Getenv("TMPDIR"))
 
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
@@ -147,91 +123,47 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 		reporter.Report(progress.StagePatch, 60, "Applying game patch...")
 	}
 
-	logger.Info("Starting butler apply command", "args", cmd.Args)
-
 	if err := cmd.Run(); err != nil {
 		_ = os.RemoveAll(stagingDir)
 		stdoutStr := stdoutBuf.String()
 		stderrStr := stderrBuf.String()
 
-		debugLogPath := filepath.Join(env.GetCacheDir(), "butler-debug.log")
+		// Write debug log for troubleshooting
+		debugLogPath := filepath.Join(env.GetCacheDir(), fmt.Sprintf("butler-debug-%d.log", time.Now().Unix()))
 		debugContent := fmt.Sprintf(
-			"=== BUTLER DEBUG LOG ===\n"+
-				"Time: %s\n"+
-				"Command: %v\n"+
-				"Working Dir: %s\n"+
-				"Game Dir: %s\n"+
-				"Staging Dir: %s\n"+
-				"PWR File: %s\n"+
-				"SIG File: %s\n"+
-				"\n=== ENVIRONMENT ===\n"+
-				"PATH=%s\n"+
-				"TEMP=%s\n"+
-				"TMPDIR=%s\n"+
-				"\n=== STDOUT ===\n%s\n"+
-				"\n=== STDERR ===\n%s\n"+
-				"\n=== ERROR ===\n%v\n",
+			"Time: %s\nCommand: %v\nGame Dir: %s\n\nSTDOUT:\n%s\n\nSTDERR:\n%s\n\nError: %v\n",
 			time.Now().Format(time.RFC3339),
 			cmd.Args,
 			gameDir,
-			gameDir,
-			stagingDir,
-			pwrFile,
-			sigFile,
-			os.Getenv("PATH"),
-			os.Getenv("TEMP"),
-			os.Getenv("TMPDIR"),
 			stdoutStr,
 			stderrStr,
 			err,
 		)
 		_ = os.WriteFile(debugLogPath, []byte(debugContent), 0644)
-		logger.Error("Butler apply failed", "error", err, "stdout", stdoutStr, "stderr", stderrStr, "debugLog", debugLogPath)
 
 		// Check if it's a signature verification error (user modified files)
-		// The error can appear in stdout or stderr and has various formats
 		combinedOutput := stdoutStr + stderrStr
 		isSignatureError := strings.Contains(combinedOutput, "Verifying against signature") &&
 			(strings.Contains(combinedOutput, "expected") || strings.Contains(combinedOutput, "dirs"))
 
 		if isSignatureError {
-			logger.Warn("Signature verification failed - game files were modified, will clean and retry",
-				"stdout", stdoutStr,
-				"stderr", stderrStr)
+			logger.Warn("Signature verification failed - cleaning and retrying", "gameDir", gameDir)
 
-			// Clean the game directory and retry once
-			logger.Info("Cleaning game directory for fresh install", "dir", gameDir)
-			if cleanErr := os.RemoveAll(gameDir); cleanErr != nil {
-				logger.Error("Failed to clean game directory", "error", cleanErr)
-				return fmt.Errorf("signature verification failed and cleanup failed: %w (original error: %v)", cleanErr, err)
+			// Clean both directories to remove any resume state
+			_ = os.RemoveAll(gameDir)
+			_ = os.RemoveAll(stagingDir)
+			_ = os.MkdirAll(gameDir, 0755)
+			_ = os.MkdirAll(stagingDir, 0755)
+
+			if reporter != nil {
+				reporter.Report(progress.StagePatch, 60, "Retrying after cleaning modified files...")
 			}
 
-			// Also clean the staging directory to remove any resume state
-			logger.Info("Cleaning staging directory", "dir", stagingDir)
-			if cleanErr := os.RemoveAll(stagingDir); cleanErr != nil {
-				logger.Error("Failed to clean staging directory", "error", cleanErr)
-				return fmt.Errorf("signature verification failed and staging cleanup failed: %w (original error: %v)", cleanErr, err)
-			}
-
-			// Recreate the directories
-			if mkdirErr := os.MkdirAll(gameDir, 0755); mkdirErr != nil {
-				logger.Error("Failed to recreate game directory", "error", mkdirErr)
-				return fmt.Errorf("signature verification failed and directory recreation failed: %w (original error: %v)", mkdirErr, err)
-			}
-
-			if mkdirErr := os.MkdirAll(stagingDir, 0755); mkdirErr != nil {
-				logger.Error("Failed to recreate staging directory", "error", mkdirErr)
-				return fmt.Errorf("signature verification failed and staging directory recreation failed: %w (original error: %v)", mkdirErr, err)
-			}
-
-			logger.Info("Game directory cleaned, retrying patch application")
-
-			// Retry the patch application
+			// Retry
 			retryCmd := exec.CommandContext(ctx, butlerPath,
 				"apply",
 				"--staging-dir", stagingDir,
 				"--signature", sigFile,
-				"--verbose",
 				pwrFile,
 				gameDir,
 			)
@@ -241,28 +173,21 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 			retryCmd.Stdout = &retryStdoutBuf
 			retryCmd.Stderr = &retryStderrBuf
 
-			if reporter != nil {
-				reporter.Report(progress.StagePatch, 60, "Retrying after cleaning modified files...")
-			}
-
 			if retryErr := retryCmd.Run(); retryErr != nil {
 				_ = os.RemoveAll(stagingDir)
-				logger.Error("Butler apply retry failed after cleanup", "error", retryErr, "stdout", retryStdoutBuf.String(), "stderr", retryStderrBuf.String())
-				return fmt.Errorf("patch failed even after cleaning modified files: %w (original error: %v)", retryErr, err)
+				logger.Error("Retry failed after cleanup", "error", retryErr)
+				return fmt.Errorf("patch failed even after cleanup: %w (original: %v)", retryErr, err)
 			}
 
-			logger.Info("Patch applied successfully after cleaning modified files")
-			stdoutStr = retryStdoutBuf.String()
+			logger.Info("Patch applied successfully after cleanup")
+			return nil
 		}
 
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return fmt.Errorf("butler apply failed with exit code %d: stderr=%s debugLog=%s", exitErr.ExitCode(), stderrStr, debugLogPath)
+			return fmt.Errorf("butler apply failed (exit %d): %s (log: %s)", exitErr.ExitCode(), stderrStr, debugLogPath)
 		}
-		return fmt.Errorf("butler apply failed: %w (debug log: %s)", err, debugLogPath)
+		return fmt.Errorf("butler apply failed: %w (log: %s)", err, debugLogPath)
 	}
-
-	stdoutStr := stdoutBuf.String()
-	logger.Info("Butler apply completed", "stdout", stdoutStr)
 
 	if cmd.Process != nil {
 		_ = cmd.Process.Kill()
