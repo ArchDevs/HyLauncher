@@ -189,8 +189,15 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 		logger.Error("Butler apply failed", "error", err, "stdout", stdoutStr, "stderr", stderrStr, "debugLog", debugLogPath)
 
 		// Check if it's a signature verification error (user modified files)
-		if strings.Contains(stderrStr, "expected") && strings.Contains(stderrStr, "got") && strings.Contains(stderrStr, "dirs") {
-			logger.Warn("Signature verification failed - game files were modified, will clean and retry", "stderr", stderrStr)
+		// The error can appear in stdout or stderr and has various formats
+		combinedOutput := stdoutStr + stderrStr
+		isSignatureError := strings.Contains(combinedOutput, "Verifying against signature") &&
+			(strings.Contains(combinedOutput, "expected") || strings.Contains(combinedOutput, "dirs"))
+
+		if isSignatureError {
+			logger.Warn("Signature verification failed - game files were modified, will clean and retry",
+				"stdout", stdoutStr,
+				"stderr", stderrStr)
 
 			// Clean the game directory and retry once
 			logger.Info("Cleaning game directory for fresh install", "dir", gameDir)
