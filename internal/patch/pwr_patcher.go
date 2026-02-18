@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -115,39 +114,87 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 		return fmt.Errorf("cannot get butler: %w", err)
 	}
 
+	versionCmd := exec.CommandContext(ctx, butlerPath, "--version")
+	platform.HideConsoleWindow(versionCmd)
+	versionOutput, versionErr := versionCmd.CombinedOutput()
+	logger.Info("Butler version check", "output", string(versionOutput), "error", versionErr)
+
 	logger.Info("Running butler apply", "pwr", pwrFile, "sig", sigFile, "gameDir", gameDir, "stagingDir", stagingDir)
 
 	cmd := exec.CommandContext(ctx, butlerPath,
 		"apply",
 		"--staging-dir", stagingDir,
 		"--signature", sigFile,
+		"--verbose",
 		pwrFile,
 		gameDir,
 	)
 
 	platform.HideConsoleWindow(cmd)
 
-	// Capture output for logging
+	logger.Info("Butler environment",
+		"pwd", gameDir,
+		"path", os.Getenv("PATH"),
+		"temp", os.Getenv("TEMP"),
+		"tmpdir", os.Getenv("TMPDIR"))
+
 	var stdoutBuf, stderrBuf bytes.Buffer
-	cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
-	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
 
 	if reporter != nil {
 		reporter.Report(progress.StagePatch, 60, "Applying game patch...")
 	}
 
+	logger.Info("Starting butler apply command", "args", cmd.Args)
+
 	if err := cmd.Run(); err != nil {
 		_ = os.RemoveAll(stagingDir)
 		stdoutStr := stdoutBuf.String()
 		stderrStr := stderrBuf.String()
-		logger.Error("Butler apply failed", "error", err, "stdout", stdoutStr, "stderr", stderrStr)
+
+		debugLogPath := filepath.Join(env.GetCacheDir(), "butler-debug.log")
+		debugContent := fmt.Sprintf(
+			"=== BUTLER DEBUG LOG ===\n"+
+				"Time: %s\n"+
+				"Command: %v\n"+
+				"Working Dir: %s\n"+
+				"Game Dir: %s\n"+
+				"Staging Dir: %s\n"+
+				"PWR File: %s\n"+
+				"SIG File: %s\n"+
+				"\n=== ENVIRONMENT ===\n"+
+				"PATH=%s\n"+
+				"TEMP=%s\n"+
+				"TMPDIR=%s\n"+
+				"\n=== STDOUT ===\n%s\n"+
+				"\n=== STDERR ===\n%s\n"+
+				"\n=== ERROR ===\n%v\n",
+			time.Now().Format(time.RFC3339),
+			cmd.Args,
+			gameDir,
+			gameDir,
+			stagingDir,
+			pwrFile,
+			sigFile,
+			os.Getenv("PATH"),
+			os.Getenv("TEMP"),
+			os.Getenv("TMPDIR"),
+			stdoutStr,
+			stderrStr,
+			err,
+		)
+		_ = os.WriteFile(debugLogPath, []byte(debugContent), 0644)
+		logger.Error("Butler apply failed", "error", err, "stdout", stdoutStr, "stderr", stderrStr, "debugLog", debugLogPath)
+
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return fmt.Errorf("butler apply failed with exit code %d: stderr=%s", exitErr.ExitCode(), stderrStr)
+			return fmt.Errorf("butler apply failed with exit code %d: stderr=%s debugLog=%s", exitErr.ExitCode(), stderrStr, debugLogPath)
 		}
-		return fmt.Errorf("butler apply failed: %w", err)
+		return fmt.Errorf("butler apply failed: %w (debug log: %s)", err, debugLogPath)
 	}
 
-	logger.Info("Butler apply completed", "stdout", stdoutBuf.String())
+	stdoutStr := stdoutBuf.String()
+	logger.Info("Butler apply completed", "stdout", stdoutStr)
 
 	if cmd.Process != nil {
 		_ = cmd.Process.Kill()
