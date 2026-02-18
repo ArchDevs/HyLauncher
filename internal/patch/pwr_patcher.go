@@ -206,10 +206,22 @@ func applyPWR(ctx context.Context, pwrFile string, sigFile string, branch string
 				return fmt.Errorf("signature verification failed and cleanup failed: %w (original error: %v)", cleanErr, err)
 			}
 
-			// Recreate the directory
+			// Also clean the staging directory to remove any resume state
+			logger.Info("Cleaning staging directory", "dir", stagingDir)
+			if cleanErr := os.RemoveAll(stagingDir); cleanErr != nil {
+				logger.Error("Failed to clean staging directory", "error", cleanErr)
+				return fmt.Errorf("signature verification failed and staging cleanup failed: %w (original error: %v)", cleanErr, err)
+			}
+
+			// Recreate the directories
 			if mkdirErr := os.MkdirAll(gameDir, 0755); mkdirErr != nil {
 				logger.Error("Failed to recreate game directory", "error", mkdirErr)
 				return fmt.Errorf("signature verification failed and directory recreation failed: %w (original error: %v)", mkdirErr, err)
+			}
+
+			if mkdirErr := os.MkdirAll(stagingDir, 0755); mkdirErr != nil {
+				logger.Error("Failed to recreate staging directory", "error", mkdirErr)
+				return fmt.Errorf("signature verification failed and staging directory recreation failed: %w (original error: %v)", mkdirErr, err)
 			}
 
 			logger.Info("Game directory cleaned, retrying patch application")
