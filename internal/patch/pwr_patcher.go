@@ -121,67 +121,20 @@ func applyPWR(ctx context.Context, pwrFile, sigFile, branch, version string, rep
 	}
 
 	if err := cmd.Run(); err != nil {
-		return handleApplyError(ctx, err, cmd, stdoutBuf.String(), stderrBuf.String(), gameDir, stagingDir, butlerPath, sigFile, pwrFile, reporter)
+		return handleApplyError(err, stagingDir)
 	}
 
 	cleanup(cmd, stagingDir, reporter)
 	return nil
 }
 
-func handleApplyError(ctx context.Context, err error, cmd *exec.Cmd, stdoutStr, stderrStr, gameDir, stagingDir, butlerPath, sigFile, pwrFile string, reporter *progress.Reporter) error {
+func handleApplyError(err error, stagingDir string) error {
 	_ = os.RemoveAll(stagingDir)
-
-	debugLogPath := writeDebugLog(cmd.Args, gameDir, stdoutStr, stderrStr, err)
-
-	if isSignatureError(stdoutStr, stderrStr) {
-		return retryAfterCleanup(ctx, gameDir, stagingDir, butlerPath, sigFile, pwrFile, reporter, err)
-	}
 
 	if exitErr, ok := err.(*exec.ExitError); ok {
-		return fmt.Errorf("butler apply failed (exit %d): %s (log: %s)", exitErr.ExitCode(), stderrStr, debugLogPath)
+		return fmt.Errorf("butler apply failed (exit %d): %w", exitErr.ExitCode(), err)
 	}
-	return fmt.Errorf("butler apply failed: %w (log: %s)", err, debugLogPath)
-}
-
-func isSignatureError(stdout, stderr string) bool {
-	combined := stdout + stderr
-	return strings.Contains(combined, "Verifying against signature") &&
-		(strings.Contains(combined, "expected") || strings.Contains(combined, "dirs"))
-}
-
-func retryAfterCleanup(ctx context.Context, gameDir, stagingDir, butlerPath, sigFile, pwrFile string, reporter *progress.Reporter, originalErr error) error {
-	logger.Warn("Signature verification failed - cleaning and retrying", "gameDir", gameDir)
-
-	_ = os.RemoveAll(gameDir)
-	_ = os.RemoveAll(stagingDir)
-	_ = os.MkdirAll(gameDir, 0755)
-	_ = os.MkdirAll(stagingDir, 0755)
-
-	if reporter != nil {
-		reporter.Report(progress.StagePatch, 60, "Retrying after cleaning modified files...")
-	}
-
-	retryCmd := exec.CommandContext(ctx, butlerPath,
-		"apply",
-		"--staging-dir", stagingDir,
-		"--signature", sigFile,
-		pwrFile,
-		gameDir,
-	)
-	platform.HideConsoleWindow(retryCmd)
-
-	var stdoutBuf, stderrBuf bytes.Buffer
-	retryCmd.Stdout = &stdoutBuf
-	retryCmd.Stderr = &stderrBuf
-
-	if err := retryCmd.Run(); err != nil {
-		_ = os.RemoveAll(stagingDir)
-		return fmt.Errorf("patch failed even after cleanup: %w (original: %v)", err, originalErr)
-	}
-
-	logger.Info("Patch applied successfully after cleanup")
-	cleanup(retryCmd, stagingDir, reporter)
-	return nil
+	return fmt.Errorf("butler apply failed: %w", err)
 }
 
 func cleanup(cmd *exec.Cmd, stagingDir string, reporter *progress.Reporter) {
@@ -193,35 +146,6 @@ func cleanup(cmd *exec.Cmd, stagingDir string, reporter *progress.Reporter) {
 	if reporter != nil {
 		reporter.Report(progress.StagePatch, 80, "Game patched!")
 	}
-}
-
-func writeDebugLog(args []string, gameDir, stdout, stderr string, err error) string {
-	debugLogPath := filepath.Join(env.GetCacheDir(), fmt.Sprintf("butler-debug-%d.log", time.Now().Unix()))
-
-	// Sanitize paths to avoid exposing full system paths in logs
-	sanitizePath := func(p string) string {
-		if p == "" {
-			return ""
-		}
-		// Keep only the last 3 components of the path
-		parts := strings.Split(filepath.ToSlash(p), "/")
-		if len(parts) > 3 {
-			return ".../" + strings.Join(parts[len(parts)-3:], "/")
-		}
-		return p
-	}
-
-	content := fmt.Sprintf(
-		"Time: %s\nCommand: %v\nGame Dir: %s\n\nSTDOUT:\n%s\n\nSTDERR:\n%s\n\nError: %v\n",
-		time.Now().Format(time.RFC3339),
-		args,
-		sanitizePath(gameDir),
-		stdout,
-		stderr,
-		err,
-	)
-	_ = os.WriteFile(debugLogPath, []byte(content), 0644)
-	return debugLogPath
 }
 
 func fetchPatchSteps(ctx context.Context, branch string, currentVer int) ([]PatchStep, error) {

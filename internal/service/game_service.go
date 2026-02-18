@@ -99,6 +99,11 @@ func (s *GameService) handleAutoVersion(ctx context.Context, branch string, late
 		return "auto", nil
 	}
 
+	if currentVer != 0 && currentVer != latest {
+		_ = os.RemoveAll(autoDir)
+		currentVer = 0
+	}
+
 	if reporter != nil {
 		reporter.Report(progress.StageVerify, 50, fmt.Sprintf("Updating to %d...", latest))
 	}
