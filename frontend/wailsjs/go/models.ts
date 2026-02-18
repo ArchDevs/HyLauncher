@@ -1,5 +1,25 @@
 export namespace app {
 	
+	export class ButlerDiagnosticResult {
+	    success: boolean;
+	    version?: string;
+	    error?: string;
+	    details?: string;
+	    debugLogPath?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ButlerDiagnosticResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.version = source["version"];
+	        this.error = source["error"];
+	        this.details = source["details"];
+	        this.debugLogPath = source["debugLogPath"];
+	    }
+	}
 	export class LaunchResponse {
 	    success: boolean;
 	    error?: string;

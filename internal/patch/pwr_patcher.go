@@ -20,6 +20,19 @@ import (
 	"HyLauncher/pkg/logger"
 )
 
+// sanitizePath sanitizes file paths to avoid exposing sensitive system information in logs
+func sanitizePath(p string) string {
+	if p == "" {
+		return ""
+	}
+	// Keep only the last 3 components of the path
+	parts := strings.Split(filepath.ToSlash(p), "/")
+	if len(parts) > 3 {
+		return ".../" + strings.Join(parts[len(parts)-3:], "/")
+	}
+	return p
+}
+
 type PatchRequest struct {
 	OS      string `json:"os"`
 	Arch    string `json:"arch"`
@@ -184,11 +197,25 @@ func cleanup(cmd *exec.Cmd, stagingDir string, reporter *progress.Reporter) {
 
 func writeDebugLog(args []string, gameDir, stdout, stderr string, err error) string {
 	debugLogPath := filepath.Join(env.GetCacheDir(), fmt.Sprintf("butler-debug-%d.log", time.Now().Unix()))
+
+	// Sanitize paths to avoid exposing full system paths in logs
+	sanitizePath := func(p string) string {
+		if p == "" {
+			return ""
+		}
+		// Keep only the last 3 components of the path
+		parts := strings.Split(filepath.ToSlash(p), "/")
+		if len(parts) > 3 {
+			return ".../" + strings.Join(parts[len(parts)-3:], "/")
+		}
+		return p
+	}
+
 	content := fmt.Sprintf(
 		"Time: %s\nCommand: %v\nGame Dir: %s\n\nSTDOUT:\n%s\n\nSTDERR:\n%s\n\nError: %v\n",
 		time.Now().Format(time.RFC3339),
 		args,
-		gameDir,
+		sanitizePath(gameDir),
 		stdout,
 		stderr,
 		err,

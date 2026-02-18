@@ -209,7 +209,7 @@ func (cp *ClientPatcher) ApplyDomainPatches(data []byte, protocol string) ([]byt
 
 	// Patch sentry URL
 	oldSentry := "https://ca900df42fcf57d4dd8401a86ddd7da2@sentry.hytale.com/2"
-	newSentry := fmt.Sprintf("%st@%s/2", protocol, cp.targetDomain)
+	newSentry := fmt.Sprintf("%s://t@%s/2", protocol, cp.targetDomain)
 	result, count = cp.ReplaceBytes(result, cp.StringToLengthPrefixed(oldSentry), cp.StringToLengthPrefixed(newSentry))
 	if count > 0 {
 		fmt.Printf("  Patched sentry URL: %d occurrences\n", count)

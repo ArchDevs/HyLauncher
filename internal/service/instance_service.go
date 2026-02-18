@@ -1,12 +1,14 @@
 package service
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+
 	"HyLauncher/internal/config"
 	"HyLauncher/internal/env"
 	"HyLauncher/pkg/fileutil"
 	"HyLauncher/pkg/model"
-	"os"
-	"path/filepath"
 
 	"github.com/google/uuid"
 	"github.com/gosimple/slug"
@@ -44,11 +46,15 @@ func (s *InstanceService) CreateInstance(request model.InstanceModel) (*model.In
 	}, nil
 }
 
-func (s *InstanceService) DeleteInstance(instanceID string) {
-	if _, err := os.Stat(env.GetInstanceDir(instanceID)); err != nil {
-		return
+func (s *InstanceService) DeleteInstance(instanceID string) error {
+	instanceDir := env.GetInstanceDir(instanceID)
+	if _, err := os.Stat(instanceDir); err != nil {
+		return fmt.Errorf("instance not found: %w", err)
 	}
-	_ = os.RemoveAll(instanceID)
+	if err := os.RemoveAll(instanceDir); err != nil {
+		return fmt.Errorf("failed to remove instance directory: %w", err)
+	}
+	return nil
 }
 
 func (s *InstanceService) ListInstances() ([]model.InstanceModel, error) {

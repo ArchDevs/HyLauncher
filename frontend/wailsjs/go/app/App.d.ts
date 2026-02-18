@@ -57,6 +57,8 @@ export function SetNick(arg1:string,arg2:string):Promise<void>;
 
 export function SyncInstanceState():Promise<void>;
 
+export function TestButler():Promise<app.ButlerDiagnosticResult>;
+
 export function Update():Promise<void>;
 
 export function UpdateInstanceBranch(arg1:string):Promise<void>;
